@@ -1,5 +1,6 @@
 // ─── GLOBAL CONFIG ───────────────────────────────────────────────────────────
-const BASE_URL = "http://localhost:5000";
+const BASE_URL = "http://localhost:8000"; // FastAPI / uvicorn default port
+
 
 export const getHeaders = () => ({
   Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -445,7 +446,8 @@ export function createWebSocket(onMessage, onOpen) {
   const token = localStorage.getItem("token");
   if (!token) return null;
 
-  const ws = new WebSocket(`ws://localhost:5000/ws?token=${token}`);
+  const ws = new WebSocket(`ws://localhost:8000/ws?token=${token}`);
+
 
   ws.onopen = () => {
     if (onOpen) onOpen();
