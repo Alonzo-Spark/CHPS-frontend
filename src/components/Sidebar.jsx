@@ -26,8 +26,6 @@ export default function Sidebar() {
         </div>
       </div>
 
-      <span className="sb-connected">Connected</span>
-
       <nav className="sb-nav">
         {navItems.map(({ icon: Icon, label, path }) => (
           <button
@@ -41,10 +39,7 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      <div className="sb-status">
-        <span className="sb-dot" />
-        {user?.type === 'admin' ? 'System Status: Optimal' : 'Node.04 Active'}
-      </div>
+
     </aside>
   );
 }
