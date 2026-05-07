@@ -1,0 +1,21 @@
+.stub-page {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; min-height: 60vh;
+  gap: 12px; color: #94a3b8; text-align: center; padding: 40px;
+}
+.stub-icon {
+  width: 72px; height: 72px; border-radius: 16px;
+  background: #eff6ff; color: #2563eb;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 4px;
+}
+.stub-page h2 { font-size: 20px; font-weight: 700; color: #0f172a; }
+.stub-page p  { font-size: 14px; color: #64748b; }
+.stub-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  margin-top: 8px; padding: 10px 20px;
+  background: #2563eb; color: #fff;
+  border-radius: 8px; font-size: 14px; font-weight: 600;
+  border: none; cursor: pointer; transition: background 0.15s;
+}
+.stub-btn:hover { background: #1d4ed8; }
