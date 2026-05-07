@@ -11,7 +11,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage  from './pages/ResetPasswordPage';
 import AdminDashboard   from './pages/AdminDashboard';
 import StaffDashboard   from './pages/StaffDashboard';
-import NoticesPage      from './pages/NoticesPage';
+// NoticesPage re-exports EProceedings — route uses EProceedings directly
 import TasksPage        from './pages/TasksPage';
 import DocumentsPage    from './pages/DocumentsPage';
 import SettingsPage     from './pages/SettingsPage';

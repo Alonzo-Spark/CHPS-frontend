@@ -28,5 +28,7 @@
 .ip-icon  { width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
 .ip-icon.orange { background:rgba(234,88,12,.2);  color:#fb923c; }
 .ip-icon.green  { background:rgba(34,197,94,.2);  color:#4ade80; }
+.ip-icon.blue   { background:rgba(59,130,246,.2);  color:#60a5fa; }
 .ip-item-title  { font-size:12px; font-weight:600; color:#fff; margin-bottom:3px; }
 .ip-item-body   { font-size:11px; color:rgba(255,255,255,.5); line-height:1.45; }
+

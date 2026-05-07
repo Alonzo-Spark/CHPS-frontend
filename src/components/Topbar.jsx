@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Bell, LogOut, ChevronDown, CheckCheck, Loader2 } from 'lucide-react';
+import { Bell, LogOut, CheckCheck, Loader2 } from 'lucide-react';
+
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
