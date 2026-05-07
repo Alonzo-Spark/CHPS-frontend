@@ -8,12 +8,14 @@ export default function Sidebar() {
   const navigate  = useNavigate();
   const location  = useLocation();
 
+  const dashPath = user?.role === 'admin' ? '/admin/dashboard' : '/staff/dashboard';
+
   const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    { icon: LayoutDashboard, label: 'Dashboard', path: dashPath },
     { icon: Bell,            label: 'Notices',   path: '/notices'   },
     { icon: CheckSquare,     label: 'Tasks',      path: '/tasks'     },
     { icon: FileText,        label: 'Documents',  path: '/documents' },
-    ...(user?.type === 'admin' ? [{ icon: Settings, label: 'Settings', path: '/settings' }] : []),
+    ...(user?.role === 'admin' ? [{ icon: Settings, label: 'Settings', path: '/settings' }] : []),
   ];
 
   return (
@@ -30,7 +32,7 @@ export default function Sidebar() {
         {navItems.map(({ icon: Icon, label, path }) => (
           <button
             key={path}
-            className={`sb-link ${location.pathname === path ? 'active' : ''}`}
+            className={`sb-link ${location.pathname === path || (path === dashPath && (location.pathname === '/admin/dashboard' || location.pathname === '/staff/dashboard')) ? 'active' : ''}`}
             onClick={() => navigate(path)}
           >
             <Icon size={17} />

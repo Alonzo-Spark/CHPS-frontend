@@ -1,28 +1,233 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
-  Download, UserPlus, TrendingUp, Users, DollarSign,
-  ChevronLeft, ChevronRight, Pencil, Trash2,
-  Filter, MoreVertical, Bell, CheckCircle
+  Download, UserPlus, TrendingUp, Users, Activity,
+  ChevronLeft, ChevronRight, Pencil, Trash2, Filter,
+  MoreVertical, Bell, CheckCircle, Loader2, AlertCircle,
+  RefreshCw, Cpu, Database, Zap, FileText, Clock,
 } from 'lucide-react';
+import { dashboard, admin, users as usersApi } from '../services/api';
 import './AdminDashboard.css';
 
-const STAFF = [
-  { init:'RJ', name:'Rahul Jaiswal',  color:'#3b82f6', users:142, penalties:'$240,500.00', status:'on-track',  label:'ON TRACK'    },
-  { init:'AM', name:'Ananya Mishra',  color:'#f59e0b', users:88,  penalties:'$112,000.00', status:'pending',   label:'PENDING (4)' },
-  { init:'VK', name:'Vikram Khanna',  color:'#ef4444', users:215, penalties:'$890,200.00', status:'critical',  label:'CRITICAL'    },
-];
+// ── Small helpers ──────────────────────────────────────────────────────────────
+function StatusBadge({ val, positiveLabel, negativeLabel }) {
+  const ok = ['active', 'connected', 'running'].includes(String(val).toLowerCase());
+  return (
+    <span style={{
+      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99,
+      background: ok ? '#dcfce7' : '#fef2f2',
+      color: ok ? '#16a34a' : '#dc2626',
+      letterSpacing: '.05em',
+    }}>
+      {ok ? (positiveLabel || val) : (negativeLabel || val)}
+    </span>
+  );
+}
 
-const AUDIT = [
-  { dot:'#ef4444', type:'Sec 271(1)(c)', pan:'PAN-****82J', due:'12 Oct 2023', staff:'Rahul Jaiswal',  urgent:true  },
-  { dot:'#f59e0b', type:'Late Filing 234A', pan:'PAN-****11K', due:'20 Oct 2023', staff:'Ananya Mishra', urgent:false },
-  { dot:'#3b82f6', type:'TDS Default',     pan:'PAN-****90L', due:'25 Oct 2023', staff:'Vikram Khanna', urgent:false },
-];
+function Spinner() {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0' }}>
+      <Loader2 size={22} color="#2563eb" style={{ animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  );
+}
 
+function ErrorBox({ msg, onRetry }) {
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+      padding: '32px 16px', color: '#dc2626', fontSize: 13,
+    }}>
+      <AlertCircle size={20} />
+      <span>{msg}</span>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px',
+            border: '1.5px solid #fecaca', borderRadius: 8, fontSize: 12,
+            fontWeight: 600, color: '#dc2626', background: '#fef2f2', cursor: 'pointer',
+          }}
+        >
+          <RefreshCw size={12} /> Retry
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Add User Modal ─────────────────────────────────────────────────────────────
+function AddUserModal({ onClose, onCreated }) {
+  const [form, setForm] = useState({ name: '', email: '', password: '', role: 'staff', panNumber: '' });
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState('');
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  async function handleSubmit() {
+    if (!form.name || !form.email || !form.password) { setErr('Name, email, and password are required.'); return; }
+    setLoading(true); setErr('');
+    try {
+      const data = await usersApi.create({ ...form, status: 'active' });
+      if (!data.success) { setErr(data.message || 'Failed to create user.'); return; }
+      onCreated?.();
+      onClose();
+    } catch { setErr('Network error. Please try again.'); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <h3>Add Staff Member</h3>
+        {err && <p style={{ color: '#dc2626', fontSize: 12, marginBottom: 10 }}>{err}</p>}
+        <div className="form-group"><label>Full Name</label>
+          <input className="form-input" placeholder="e.g. Priya Sharma" value={form.name} onChange={set('name')} />
+        </div>
+        <div className="form-group"><label>Email</label>
+          <input className="form-input" type="email" placeholder="priya@audit.gov" value={form.email} onChange={set('email')} />
+        </div>
+        <div className="form-group"><label>Password</label>
+          <input className="form-input" type="password" placeholder="••••••••" value={form.password} onChange={set('password')} />
+        </div>
+        <div className="form-group"><label>Role</label>
+          <select className="form-input" value={form.role} onChange={set('role')}>
+            <option value="staff">Staff</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div className="form-group"><label>PAN Number (optional)</label>
+          <input className="form-input" placeholder="AHMPV4480E" value={form.panNumber}
+            onChange={(e) => setForm((f) => ({ ...f, panNumber: e.target.value.toUpperCase() }))} maxLength={10} />
+        </div>
+        <div className="modal-actions">
+          <button className="btn btn-outline" onClick={onClose} disabled={loading}>Cancel</button>
+          <button className="btn btn-primary" onClick={handleSubmit} disabled={loading}>
+            {loading ? <><Loader2 size={13} style={{ animation: 'spin .8s linear infinite' }} /> Adding…</> : 'Add Member'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
 export default function AdminDashboard() {
-  const [modal, setModal] = useState(false);
+  const [modal, setModal]           = useState(false);
+  const [kpi, setKpi]               = useState(null);
+  const [kpiLoading, setKpiLoading] = useState(true);
+  const [kpiError, setKpiError]     = useState('');
+
+  const [systemInfo, setSystemInfo]   = useState(null);
+  const [sysLoading, setSysLoading]   = useState(true);
+
+  const [userList, setUserList]       = useState([]);
+  const [userTotal, setUserTotal]     = useState(0);
+  const [userPage, setUserPage]       = useState(1);
+  const [userLoading, setUserLoading] = useState(true);
+  const [userError, setUserError]     = useState('');
+
+  const [activity, setActivity]       = useState([]);
+  const [actLoading, setActLoading]   = useState(true);
+
+  const [toast, setToast]             = useState('');
+  const USER_LIMIT = 5;
+
+  // ── Fetch KPI ────────────────────────────────────────────────────────────────
+  const fetchKpi = useCallback(async () => {
+    setKpiLoading(true); setKpiError('');
+    try {
+      const data = await dashboard.getSummary();
+      if (data.success) setKpi(data.dashboard);
+      else setKpiError(data.message || 'Failed to load dashboard data.');
+    } catch { setKpiError('Network error loading dashboard.'); }
+    finally { setKpiLoading(false); }
+  }, []);
+
+  // ── Fetch System Monitoring ───────────────────────────────────────────────────
+  const fetchSystem = useCallback(async () => {
+    setSysLoading(true);
+    try {
+      const data = await admin.getSystemMonitoring();
+      if (data.success) setSystemInfo(data.system);
+    } catch { /* silent */ }
+    finally { setSysLoading(false); }
+  }, []);
+
+  // ── Fetch Users ───────────────────────────────────────────────────────────────
+  const fetchUsers = useCallback(async (page = 1) => {
+    setUserLoading(true); setUserError('');
+    try {
+      const data = await admin.getUsers(page, USER_LIMIT);
+      if (data.success) {
+        setUserList(data.users || []);
+        setUserTotal(data.count || 0);
+      } else {
+        setUserError(data.message || 'Failed to load users.');
+      }
+    } catch { setUserError('Network error loading users.'); }
+    finally { setUserLoading(false); }
+  }, []);
+
+  // ── Fetch Recent Activity ─────────────────────────────────────────────────────
+  const fetchActivity = useCallback(async () => {
+    setActLoading(true);
+    try {
+      const data = await dashboard.getRecentActivity();
+      if (data.success || data.activities) setActivity(data.activities || []);
+    } catch { /* silent */ }
+    finally { setActLoading(false); }
+  }, []);
+
+  useEffect(() => {
+    fetchKpi();
+    fetchSystem();
+    fetchUsers(1);
+    fetchActivity();
+  }, [fetchKpi, fetchSystem, fetchUsers, fetchActivity]);
+
+  const handlePageChange = (newPage) => {
+    setUserPage(newPage);
+    fetchUsers(newPage);
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this user?')) return;
+    try {
+      const data = await usersApi.delete(id);
+      if (data.success) {
+        showToast('User deleted successfully.');
+        fetchUsers(userPage);
+      } else {
+        showToast(data.message || 'Failed to delete user.', true);
+      }
+    } catch { showToast('Network error.', true); }
+  };
+
+  function showToast(msg, isErr = false) {
+    setToast({ msg, isErr });
+    setTimeout(() => setToast(''), 3000);
+  }
+
+  const totalPages = Math.ceil(userTotal / USER_LIMIT) || 1;
 
   return (
     <div className="adm fade-in">
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* ── Toast ── */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: 20, right: 20, zIndex: 9999,
+          background: toast.isErr ? '#fef2f2' : '#f0fdf4',
+          border: `1px solid ${toast.isErr ? '#fecaca' : '#bbf7d0'}`,
+          color: toast.isErr ? '#dc2626' : '#166534',
+          borderRadius: 10, padding: '12px 18px', fontSize: 13,
+          fontWeight: 500, boxShadow: '0 4px 20px rgba(0,0,0,.12)',
+        }}>
+          {toast.msg}
+        </div>
+      )}
+
       {/* Header */}
       <div className="adm-header">
         <div>
@@ -30,143 +235,199 @@ export default function AdminDashboard() {
           <p className="adm-sub">Manage staff assignments and global audit performance.</p>
         </div>
         <div className="adm-actions">
-          <button className="btn btn-outline"><Download size={14}/> Export Reports</button>
-          <button className="btn btn-primary" onClick={()=>setModal(true)}><UserPlus size={14}/> Add Staff Member</button>
+          <button className="btn btn-outline"><Download size={14} /> Export Reports</button>
+          <button className="btn btn-primary" onClick={() => setModal(true)}><UserPlus size={14} /> Add Staff Member</button>
         </div>
       </div>
 
-      {/* KPI row */}
+      {/* KPI Row */}
       <div className="kpi-row">
-        <div className="kpi-card">
-          <div className="kpi-lbl">ACTIVE STAFF</div>
-          <div className="kpi-val">24</div>
-          <div className="kpi-tag green"><TrendingUp size={11}/> +2 this month</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-lbl">ASSIGNED USERS</div>
-          <div className="kpi-val">1,482</div>
-          <div className="kpi-tag blue"><Users size={11}/> 98% Coverage</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-lbl">TOTAL PENALTIES</div>
-          <div className="kpi-val">$4.2M</div>
-          <div className="kpi-tag red"><DollarSign size={11}/> High Risk</div>
-        </div>
-        <div className="kpi-card">
-          <div className="kpi-lbl">RESOLUTION RATE</div>
-          <div className="kpi-val">82.4%</div>
-          <div className="kpi-bar"><div className="kpi-bar-fill" style={{width:'82.4%'}}/></div>
-        </div>
+        {kpiLoading ? (
+          Array(4).fill(0).map((_, i) => (
+            <div key={i} className="kpi-card" style={{ opacity: 0.5 }}>
+              <div className="kpi-lbl">LOADING…</div>
+              <div className="kpi-val">—</div>
+            </div>
+          ))
+        ) : kpiError ? (
+          <div style={{ gridColumn: '1/-1' }}><ErrorBox msg={kpiError} onRetry={fetchKpi} /></div>
+        ) : (
+          <>
+            <div className="kpi-card">
+              <div className="kpi-lbl">TOTAL USERS</div>
+              <div className="kpi-val">{kpi?.totalUsers ?? '—'}</div>
+              <div className="kpi-tag green"><TrendingUp size={11} /> Active: {kpi?.activeUsers ?? '—'}</div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-lbl">TOTAL RECORDS</div>
+              <div className="kpi-val">{kpi?.totalRecords ?? '—'}</div>
+              <div className="kpi-tag blue"><FileText size={11} /> All notices</div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-lbl">NEW NOTICES</div>
+              <div className="kpi-val">{kpi?.newNotices ?? '—'}</div>
+              <div className="kpi-tag blue"><Bell size={11} /> This period</div>
+            </div>
+            <div className="kpi-card">
+              <div className="kpi-lbl">AUTOMATION SUCCESS</div>
+              <div className="kpi-val">{kpi?.automationSuccessCount ?? '—'}</div>
+              <div className="kpi-bar">
+                <div className="kpi-bar-fill" style={{
+                  width: kpi
+                    ? `${Math.round((kpi.automationSuccessCount / (kpi.automationSuccessCount + kpi.automationFailedCount || 1)) * 100)}%`
+                    : '0%'
+                }} />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Two-column section */}
       <div className="adm-mid">
-        {/* Staff table */}
-        <div className="card" style={{flex:'1 1 0', minWidth:0}}>
+        {/* Users Table */}
+        <div className="card" style={{ flex: '1 1 0', minWidth: 0 }}>
           <div className="card-header">
             <div>
-              <div className="card-title">Staff Management &amp; Workload</div>
+              <div className="card-title">User Management</div>
+              <div className="card-subtitle">Showing {userList.length} of {userTotal} users</div>
             </div>
             <div className="card-actions">
-              <button className="icon-btn"><Filter size={14}/></button>
-              <button className="icon-btn"><MoreVertical size={14}/></button>
+              <button className="icon-btn"><Filter size={14} /></button>
+              <button className="icon-btn" onClick={() => fetchUsers(userPage)}><RefreshCw size={14} /></button>
             </div>
           </div>
+
+          {userLoading ? <Spinner /> : userError ? (
+            <ErrorBox msg={userError} onRetry={() => fetchUsers(userPage)} />
+          ) : (
+            <>
+              <table className="data-table">
+                <thead><tr>
+                  <th>NAME</th><th>EMAIL</th><th>ROLE</th><th>STATUS</th><th>ACTIONS</th>
+                </tr></thead>
+                <tbody>
+                  {userList.length === 0 ? (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 13 }}>
+                      No users found.
+                    </td></tr>
+                  ) : userList.map((u) => (
+                    <tr key={u.id}>
+                      <td>
+                        <div className="dt-name-cell">
+                          <div className="avatar" style={{ background: '#2563eb' }}>
+                            {(u.name?.[0] || 'U').toUpperCase()}
+                          </div>
+                          {u.name}
+                        </div>
+                      </td>
+                      <td style={{ fontSize: 12, color: '#64748b' }}>{u.email}</td>
+                      <td><span style={{
+                        fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 99,
+                        background: u.role === 'admin' ? '#eff6ff' : '#f0fdf4',
+                        color: u.role === 'admin' ? '#1d4ed8' : '#166534',
+                      }}>{u.role?.toUpperCase()}</span></td>
+                      <td><StatusBadge val={u.status} positiveLabel="ACTIVE" negativeLabel="INACTIVE" /></td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <button className="icon-btn ib-blue" title="Edit"><Pencil size={13} /></button>
+                          <button className="icon-btn ib-red" title="Delete" onClick={() => handleDeleteUser(u.id)}><Trash2 size={13} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="table-footer">
+                <span>Page {userPage} of {totalPages}</span>
+                <div className="pg-btns">
+                  <button className="pg-btn" onClick={() => handlePageChange(userPage - 1)} disabled={userPage <= 1}>
+                    <ChevronLeft size={14} />
+                  </button>
+                  <button className="pg-btn" onClick={() => handlePageChange(userPage + 1)} disabled={userPage >= totalPages}>
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* System Monitoring + Quick Insights */}
+        <div className="insights-panel">
+          <div className="ip-title">System Status</div>
+          {sysLoading ? <Spinner /> : systemInfo ? (
+            <>
+              {[
+                { icon: <Activity size={13} />, label: 'Server', val: systemInfo.serverStatus, cls: 'green' },
+                { icon: <Database size={13} />, label: 'Database', val: systemInfo.databaseStatus, cls: 'green' },
+                { icon: <Zap size={13} />, label: 'Automation', val: systemInfo.automationStatus, cls: 'orange' },
+                { icon: <Cpu size={13} />, label: 'CPU Usage', val: systemInfo.cpuUsage, cls: 'blue' },
+                { icon: <Users size={13} />, label: 'Connections', val: systemInfo.activeConnections, cls: 'blue' },
+              ].map(({ icon, label, val, cls }) => (
+                <div key={label} className="ip-item">
+                  <div className={`ip-icon ${cls}`}>{icon}</div>
+                  <div>
+                    <div className="ip-item-title">{label}</div>
+                    <div className="ip-item-body">{val ?? '—'}</div>
+                  </div>
+                </div>
+              ))}
+            </>
+          ) : (
+            <div className="ip-item">
+              <div className="ip-icon green"><CheckCircle size={13} /></div>
+              <div>
+                <div className="ip-item-title">All Systems Nominal</div>
+                <div className="ip-item-body">Connect to backend to see live status.</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Recent Activity */}
+      <div className="card">
+        <div className="card-header">
+          <div>
+            <div className="card-title">Recent Activity</div>
+            <div className="card-subtitle">LIVE SYSTEM ACTIVITY FEED</div>
+          </div>
+          <button className="icon-btn" onClick={fetchActivity}><RefreshCw size={14} /></button>
+        </div>
+        {actLoading ? <Spinner /> : activity.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '32px 16px', fontSize: 13, color: '#94a3b8' }}>
+            No recent activity.
+          </div>
+        ) : (
           <table className="data-table">
             <thead><tr>
-              <th>STAFF NAME</th><th>ASSIGNED USERS</th><th>PENALTIES TRACKED</th>
-              <th>COMPLETION STATUS</th><th>ACTIONS</th>
+              <th>ACTIVITY</th><th>USER</th><th>TIMESTAMP</th>
             </tr></thead>
             <tbody>
-              {STAFF.map(s => (
-                <tr key={s.name}>
-                  <td><div className="dt-name-cell">
-                    <div className="avatar" style={{background:s.color}}>{s.init}</div>{s.name}
-                  </div></td>
-                  <td>{s.users} Users</td>
-                  <td className="mono">{s.penalties}</td>
-                  <td><span className={`badge badge-${s.status==='on-track'?'on-track':s.status==='pending'?'pending':'critical'}`}>{s.label}</span></td>
-                  <td><div style={{display:'flex',gap:4}}>
-                    <button className="icon-btn ib-blue"><Pencil size={13}/></button>
-                    <button className="icon-btn ib-red"><Trash2 size={13}/></button>
-                  </div></td>
+              {activity.map((a) => (
+                <tr key={a.id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Clock size={13} color="#94a3b8" />
+                      {a.activity}
+                    </div>
+                  </td>
+                  <td style={{ fontSize: 12, color: '#64748b' }}>{a.user}</td>
+                  <td style={{ fontSize: 12, color: '#94a3b8', fontFamily: 'monospace' }}>{a.timestamp}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <div className="table-footer">
-            <span>Showing 3 of 24 staff members</span>
-            <div className="pg-btns">
-              <button className="pg-btn"><ChevronLeft size={14}/></button>
-              <button className="pg-btn"><ChevronRight size={14}/></button>
-            </div>
-          </div>
-        </div>
-
-        {/* Quick Insights */}
-        <div className="insights-panel">
-          <div className="ip-title">Quick Insights</div>
-          <div className="ip-item">
-            <div className="ip-icon orange"><Bell size={13}/></div>
-            <div>
-              <div className="ip-item-title">Penalty Deadline Alert</div>
-              <div className="ip-item-body">12 High-value penalties are expiring in the next 48 hours.</div>
-            </div>
-          </div>
-          <div className="ip-item">
-            <div className="ip-icon green"><CheckCircle size={13}/></div>
-            <div>
-              <div className="ip-item-title">Assignment Complete</div>
-              <div className="ip-item-body">All new audit notices from Q3 have been assigned to staff.</div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Global Audit Overview */}
-      <div className="card">
-        <div className="card-header">
-          <div>
-            <div className="card-title">Global Audit Overview</div>
-            <div className="card-subtitle">REAL-TIME PENALTY TRACKING ACROSS ALL SEGMENTS</div>
-          </div>
-        </div>
-        <table className="data-table">
-          <thead><tr>
-            <th>PENALTY TYPE</th><th>USER ID</th><th>DUE DATE</th><th>ASSIGNED STAFF</th>
-          </tr></thead>
-          <tbody>
-            {AUDIT.map(a => (
-              <tr key={a.type}>
-                <td><div style={{display:'flex',alignItems:'center',gap:8}}>
-                  <span style={{width:8,height:8,borderRadius:'50%',background:a.dot,display:'inline-block',flexShrink:0}}/>
-                  {a.type}
-                </div></td>
-                <td className="mono">{a.pan}</td>
-                <td className={a.urgent ? 'txt-red' : 'txt-muted'}>{a.due}</td>
-                <td>{a.staff}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Add Staff Modal */}
+      {/* Add User Modal */}
       {modal && (
-        <div className="modal-overlay" onClick={()=>setModal(false)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
-            <h3>Add Staff Member</h3>
-            <div className="form-group"><label>Full Name</label><input className="form-input" placeholder="e.g. Priya Sharma"/></div>
-            <div className="form-group"><label>Email</label><input className="form-input" type="email" placeholder="priya@audit.gov"/></div>
-            <div className="form-group"><label>Role</label>
-              <select className="form-input"><option>Staff Administrator</option><option>Senior Auditor</option><option>Compliance Officer</option></select>
-            </div>
-            <div className="modal-actions">
-              <button className="btn btn-outline" onClick={()=>setModal(false)}>Cancel</button>
-              <button className="btn btn-primary" onClick={()=>setModal(false)}>Add Member</button>
-            </div>
-          </div>
-        </div>
+        <AddUserModal
+          onClose={() => setModal(false)}
+          onCreated={() => fetchUsers(1)}
+        />
       )}
     </div>
   );

@@ -1,347 +1,69 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
-  Plus, Filter, ChevronLeft, ChevronRight,
-  MoreVertical, TrendingUp, Rocket, RefreshCw,
-  AlertCircle, Loader2
+  Filter, ChevronLeft, ChevronRight, MoreVertical,
+  TrendingUp, Rocket, RefreshCw, AlertCircle, Loader2,
+  Download, Upload, CheckCircle, XCircle,
 } from 'lucide-react';
+import { notices as noticesApi, dashboard, files as filesApi, automation } from '../services/api';
 
-// ─── CONFIG ──────────────────────────────────────────────────────────────────
-const BACKEND_URL      = import.meta.env.VITE_BACKEND_URL      || 'http://localhost:5000';
-const AUTOMATION_URL   = import.meta.env.VITE_AUTOMATION_URL   || 'http://localhost:3001';
-
-// ─── INLINE STYLES ───────────────────────────────────────────────────────────
-const S = {
-  staff: {
-    display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 1200,
-  },
-  /* KPI row */
-  kpiRow: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3,1fr)',
-    gap: 16,
-  },
-  kpiCard: {
-    background: '#fff',
-    border: '1px solid var(--gray-200)',
-    borderRadius: 'var(--r-md)',
-    padding: '18px 20px 14px',
-    boxShadow: 'var(--shadow-sm)',
-  },
-  skLbl: {
-    fontSize: 10, fontWeight: 600, letterSpacing: '.1em',
-    color: 'var(--gray-400)', marginBottom: 6,
-  },
-  skVal: {
-    fontSize: 27, fontWeight: 700, color: 'var(--gray-800)',
-    display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10,
-  },
-  skGreen: { fontSize: 11, color: 'var(--green)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 3 },
-  skRed:   { fontSize: 11, color: 'var(--red)', fontWeight: 500 },
-  skBlue:  { fontSize: 11, color: 'var(--blue-primary)', fontWeight: 500 },
-  redVal:  { color: 'var(--red)' },
-  skBar:   { height: 3, borderRadius: 99 },
-  blueBar: { background: 'var(--blue-primary)', width: '55%' },
-  redBar:  { background: 'var(--red)', width: '30%' },
-  /* Card */
-  card: {
-    background: '#fff',
-    border: '1px solid var(--gray-200)',
-    borderRadius: 'var(--r-md)',
-    boxShadow: 'var(--shadow-sm)',
-    overflow: 'hidden',
-  },
-  cardHeader: {
-    display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-    padding: '20px 24px 16px', gap: 12, flexWrap: 'wrap',
-  },
-  cardTitle:    { fontSize: 15, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 3 },
-  cardSubtitle: { fontSize: 12, color: 'var(--gray-400)' },
-  cardActions:  { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  searchMini: {
-    padding: '7px 12px',
-    border: '1.5px solid var(--gray-200)',
-    borderRadius: 99,
-    fontSize: 12,
-    color: 'var(--gray-600)',
-    background: 'var(--gray-50)',
-    fontFamily: 'var(--font)',
-    width: 160,
-    outline: 'none',
-  },
-  /* Buttons */
-  btnOutline: {
-    display: 'flex', alignItems: 'center', gap: 5,
-    padding: '7px 14px', border: '1.5px solid var(--gray-200)',
-    borderRadius: 8, fontSize: 12, fontWeight: 600,
-    color: 'var(--gray-600)', background: '#fff', cursor: 'pointer',
-  },
-  btnPrimary: {
-    display: 'flex', alignItems: 'center', gap: 5,
-    padding: '7px 14px', border: 'none',
-    borderRadius: 8, fontSize: 12, fontWeight: 600,
-    color: '#fff', background: 'var(--blue-primary)', cursor: 'pointer',
-  },
-  btnNavy: {
-    padding: '9px 18px', border: 'none', borderRadius: 8,
-    fontSize: 12, fontWeight: 600, color: '#fff',
-    background: 'var(--navy)', cursor: 'pointer', marginTop: 14,
-  },
-  /* Table */
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
-  th: {
-    padding: '10px 16px', textAlign: 'left', fontSize: 10,
-    fontWeight: 700, letterSpacing: '.08em', color: 'var(--gray-400)',
-    borderBottom: '1px solid var(--gray-100)', background: 'var(--gray-50)',
-  },
-  td: {
-    padding: '13px 16px', borderBottom: '1px solid var(--gray-100)',
-    color: 'var(--gray-700)',
-  },
-  tdMuted: { color: 'var(--gray-400)', fontSize: 12 },
-  tdMono:  { fontFamily: 'monospace', fontWeight: 500, color: 'var(--gray-800)' },
-  nameCell: { display: 'flex', alignItems: 'center', gap: 10, fontWeight: 500 },
-  avatar: {
-    width: 32, height: 32, borderRadius: 8,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0,
-  },
-  iconBtn: {
-    background: 'none', border: 'none', cursor: 'pointer',
-    color: 'var(--gray-400)', padding: 4, borderRadius: 4,
-  },
-  tableFooter: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '12px 20px', fontSize: 12, color: 'var(--gray-400)',
-    borderTop: '1px solid var(--gray-100)',
-  },
-  pgBtns: { display: 'flex', gap: 4 },
-  pgBtn: {
-    width: 28, height: 28, border: '1px solid var(--gray-200)',
-    borderRadius: 6, background: '#fff', cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: 'var(--gray-500)',
-  },
-  /* Badges */
-  badge: (status) => {
-    const map = {
-      urgent:   { background: '#fef2f2', color: '#dc2626' },
-      pending:  { background: '#fffbeb', color: '#d97706' },
-      settled:  { background: '#f0fdf4', color: '#16a34a' },
-      reviewed: { background: '#eff6ff', color: '#2563eb' },
-    };
-    const b = map[status] || { background: '#f3f4f6', color: '#6b7280' };
-    return {
-      ...b, padding: '3px 9px', borderRadius: 99,
-      fontSize: 10, fontWeight: 700, letterSpacing: '.06em',
-      display: 'inline-block',
-    };
-  },
-  /* Bottom row */
-  bottom: {
-    display: 'grid', gridTemplateColumns: '1fr 240px', gap: 16,
-  },
-  arText: { fontSize: 13, color: 'var(--gray-600)', lineHeight: 1.6 },
-  /* Notice velocity panel */
-  nvPanel: {
-    background: 'var(--navy)', borderRadius: 'var(--r-md)', padding: 20,
-  },
-  nvHdr: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8,
-  },
-  nvHdrSpan:  { fontSize: 13, fontWeight: 600, color: '#fff' },
-  nvDesc:     { fontSize: 11, color: 'rgba(255,255,255,.5)', lineHeight: 1.5, marginBottom: 16 },
-  nvMetricRow:{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 600, letterSpacing: '.06em', color: 'rgba(255,255,255,.55)', marginBottom: 5 },
-  nvBar:      { height: 5, background: 'rgba(255,255,255,.15)', borderRadius: 99, overflow: 'hidden' },
-  nvBarFill:  (w) => ({ height: '100%', background: 'var(--blue-accent)', borderRadius: 99, width: `${w}%` }),
-  nvSync:     { display: 'flex', alignItems: 'center', gap: 5, fontSize: 10, color: 'rgba(255,255,255,.35)', letterSpacing: '.06em', marginTop: 12 },
-  /* Modal */
-  overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,.4)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-  },
-  modal: {
-    background: '#fff', borderRadius: 12, padding: 28,
-    width: 400, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,.25)',
-  },
-  modalH3:    { fontSize: 17, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 18 },
-  formGroup:  { marginBottom: 14 },
-  formLabel:  { display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--gray-500)', marginBottom: 5 },
-  formInput: {
-    width: '100%', padding: '9px 12px',
-    border: '1.5px solid var(--gray-200)', borderRadius: 8,
-    fontSize: 13, fontFamily: 'var(--font)', outline: 'none',
-    boxSizing: 'border-box',
-  },
-  modalActions: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 20 },
-  /* States */
-  stateBox: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center',
-    justifyContent: 'center', padding: '48px 24px',
-    color: 'var(--gray-400)', gap: 10,
-  },
-  stateText: { fontSize: 13, color: 'var(--gray-400)' },
-};
-
-// ─── AVATAR COLORS ────────────────────────────────────────────────────────────
-const AVATAR_COLORS = [
-  '#6366f1','#f59e0b','#22c55e','#3b82f6','#ec4899',
-  '#14b8a6','#f97316','#8b5cf6',
-];
+const AVATAR_COLORS = ['#6366f1','#f59e0b','#22c55e','#3b82f6','#ec4899','#14b8a6','#f97316','#8b5cf6'];
 function colorFor(str = '') {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
   return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
-function initials(name = '') {
-  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+function initials(n = '') { return n.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase(); }
+
+const STATUS_MAP = {
+  open:{ bg:'#eff6ff', color:'#2563eb' }, new:{ bg:'#f0fdf4', color:'#16a34a' },
+  assigned:{ bg:'#fefce8', color:'#ca8a04' }, viewed:{ bg:'#eff6ff', color:'#2563eb' },
+  document_uploaded:{ bg:'#f3e8ff', color:'#7c3aed' }, submitted:{ bg:'#fff7ed', color:'#ea580c' },
+  completed:{ bg:'#f0fdf4', color:'#16a34a' }, pending:{ bg:'#fffbeb', color:'#d97706' },
+  urgent:{ bg:'#fef2f2', color:'#dc2626' },
+};
+function StatusBadge({ status }) {
+  const k = (status||'pending').toLowerCase().replace(/ /g,'_');
+  const s = STATUS_MAP[k] || { bg:'#f3f4f6', color:'#6b7280' };
+  return <span style={{...s,padding:'3px 10px',borderRadius:99,fontSize:10,fontWeight:700,letterSpacing:'.06em',display:'inline-block'}}>{(status||'UNKNOWN').toUpperCase()}</span>;
 }
 
-// ─── API HELPERS ──────────────────────────────────────────────────────────────
-function authHeaders() {
-  const token = localStorage.getItem('accessToken');
-  return { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-}
-
-async function apiFetch(url, opts = {}) {
-  const res = await fetch(url, { ...opts, headers: { ...authHeaders(), ...(opts.headers || {}) } });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message || 'Request failed');
+function UploadModal({ notice, onClose, onUploaded }) {
+  const [file,setFile] = useState(null);
+  const [desc,setDesc] = useState('Response document');
+  const [loading,setLoading] = useState(false);
+  const [err,setErr] = useState('');
+  async function go() {
+    if(!file){setErr('Please select a file.');return;}
+    setLoading(true);setErr('');
+    const fd = new FormData();
+    fd.append('notice_id', notice.id);
+    fd.append('file', file);
+    fd.append('fileType', file.name.split('.').pop());
+    fd.append('description', desc);
+    try {
+      const data = await filesApi.upload(fd);
+      if(!data.success){setErr(data.message||'Upload failed.');return;}
+      onUploaded?.(); onClose();
+    } catch { setErr('Network error.'); } finally { setLoading(false); }
   }
-  return res.json();
-}
-
-// ─── CUSTOM HOOKS ────────────────────────────────────────────────────────────
-function useDashboardStats() {
-  const [stats, setStats]   = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState(null);
-
-  const fetch_ = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      // GET /api/dashboard/stats  (AUTOMATION API)
-      // Expected: { totalAssigned, totalAssignedChange, pendingTasks, pendingDueToday,
-      //             recentlyUpdated, recentlyUpdatedPeriod,
-      //             auditDiscrepancies, processingSpeed, processingPercent, nextSyncMinutes }
-      const data = await apiFetch(`${AUTOMATION_URL}/api/dashboard/stats`);
-      setStats(data);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { fetch_(); }, [fetch_]);
-  return { stats, loading, error, refetch: fetch_ };
-}
-
-function useAssignments(page = 1, search = '') {
-  const [data, setData]     = useState({ assignments: [], total: 0 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState(null);
-
-  const fetch_ = useCallback(async () => {
-    setLoading(true); setError(null);
-    try {
-      // GET /api/notices?page=1&limit=10&search=&status=
-      // Expected: { notices: [...], total: N, page: N, limit: N }
-      // Each notice: { id, name_of_assessee, user_pan, notice_us, amount_due,
-      //               issued_on, response_due_date, status, reference_id }
-      const qs = new URLSearchParams({ page, limit: 10, ...(search ? { search } : {}) });
-      const res = await apiFetch(`${AUTOMATION_URL}/api/notices?${qs}`);
-      setData({ assignments: res.notices || [], total: res.total || 0 });
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search]);
-
-  useEffect(() => { fetch_(); }, [fetch_]);
-  return { ...data, loading, error, refetch: fetch_ };
-}
-
-// ─── NOTICE FORM ──────────────────────────────────────────────────────────────
-const PENALTY_TYPES = ['Late Tax Filing','VAT Discrepancy','TDS Default','Interest Penalty','Audit Discrepancy'];
-
-function NewNoticeModal({ onClose, onCreated }) {
-  const [form, setForm] = useState({
-    clientName: '', penaltyType: PENALTY_TYPES[0], amountDue: '', dueDate: '',
-  });
-  const [submitting, setSubmitting] = useState(false);
-  const [err, setErr] = useState(null);
-
-  const set = (k) => (e) => setForm(f => ({ ...f, [k]: e.target.value }));
-
-  async function handleSubmit() {
-    if (!form.clientName || !form.amountDue || !form.dueDate) {
-      setErr('Please fill all fields.'); return;
-    }
-    setSubmitting(true); setErr(null);
-    try {
-      // POST /api/notices
-      // Body: { name_of_assessee, notice_us, amount_due, response_due_date }
-      await apiFetch(`${AUTOMATION_URL}/api/notices`, {
-        method: 'POST',
-        body: JSON.stringify({
-          name_of_assessee: form.clientName,
-          notice_us: form.penaltyType,
-          amount_due: form.amountDue,
-          response_due_date: form.dueDate,
-        }),
-      });
-      onCreated?.();
-      onClose();
-    } catch (e) {
-      setErr(e.message);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   return (
-    <div style={S.overlay} onClick={onClose}>
-      <div style={S.modal} onClick={e => e.stopPropagation()}>
-        <h3 style={S.modalH3}>Create New Notice</h3>
-
-        {err && (
-          <div style={{ display:'flex', gap:6, alignItems:'center', background:'#fef2f2',
-            border:'1px solid #fecaca', borderRadius:8, padding:'8px 12px', marginBottom:14,
-            fontSize:12, color:'#dc2626' }}>
-            <AlertCircle size={13}/> {err}
-          </div>
-        )}
-
-        <div style={S.formGroup}>
-          <label style={S.formLabel}>Client Name</label>
-          <input style={S.formInput} placeholder="e.g. Omega Tech Ltd."
-            value={form.clientName} onChange={set('clientName')} />
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.4)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000}} onClick={onClose}>
+      <div style={{background:'#fff',borderRadius:12,padding:28,width:400,maxWidth:'90vw',boxShadow:'0 20px 60px rgba(0,0,0,.25)'}} onClick={e=>e.stopPropagation()}>
+        <h3 style={{fontSize:17,fontWeight:700,marginBottom:4}}>Upload Response Document</h3>
+        <p style={{fontSize:12,color:'#64748b',marginBottom:16}}>For: <strong>{notice.assessee_name||notice.name_of_assessee}</strong></p>
+        {err && <p style={{color:'#dc2626',fontSize:12,marginBottom:10}}>{err}</p>}
+        <div style={{marginBottom:12}}>
+          <label style={{fontSize:11,fontWeight:600,color:'#64748b',display:'block',marginBottom:5}}>SELECT FILE</label>
+          <input type="file" accept=".pdf,.doc,.docx,.xlsx" onChange={e=>setFile(e.target.files[0])} style={{width:'100%',fontSize:13}}/>
         </div>
-        <div style={S.formGroup}>
-          <label style={S.formLabel}>Penalty Type</label>
-          <select style={S.formInput} value={form.penaltyType} onChange={set('penaltyType')}>
-            {PENALTY_TYPES.map(t => <option key={t}>{t}</option>)}
-          </select>
+        <div style={{marginBottom:12}}>
+          <label style={{fontSize:11,fontWeight:600,color:'#64748b',display:'block',marginBottom:5}}>DESCRIPTION</label>
+          <input style={{width:'100%',padding:'8px 12px',border:'1.5px solid #e2e8f0',borderRadius:8,fontSize:13,boxSizing:'border-box'}} value={desc} onChange={e=>setDesc(e.target.value)}/>
         </div>
-        <div style={S.formGroup}>
-          <label style={S.formLabel}>Amount Due</label>
-          <input style={S.formInput} placeholder="e.g. $2,500.00"
-            value={form.amountDue} onChange={set('amountDue')} />
-        </div>
-        <div style={S.formGroup}>
-          <label style={S.formLabel}>Due Date</label>
-          <input style={S.formInput} type="date"
-            value={form.dueDate} onChange={set('dueDate')} />
-        </div>
-
-        <div style={S.modalActions}>
-          <button style={S.btnOutline} onClick={onClose} disabled={submitting}>Cancel</button>
-          <button style={{ ...S.btnPrimary, opacity: submitting ? .6 : 1 }}
-            onClick={handleSubmit} disabled={submitting}>
-            {submitting ? <><Loader2 size={12} style={{ animation:'spin 1s linear infinite' }}/> Creating…</> : 'Create Notice'}
+        <div style={{display:'flex',justifyContent:'flex-end',gap:8,marginTop:16}}>
+          <button onClick={onClose} disabled={loading} style={{padding:'8px 16px',border:'1.5px solid #e2e8f0',borderRadius:8,fontSize:13,fontWeight:600,color:'#64748b',background:'#fff',cursor:'pointer'}}>Cancel</button>
+          <button onClick={go} disabled={loading} style={{padding:'8px 16px',border:'none',borderRadius:8,fontSize:13,fontWeight:600,color:'#fff',background:'#2563eb',cursor:'pointer',display:'flex',alignItems:'center',gap:5}}>
+            {loading?<><Loader2 size={13} style={{animation:'spin .8s linear infinite'}}/> Uploading…</>:<><Upload size={13}/> Upload</>}
           </button>
         </div>
       </div>
@@ -349,130 +71,138 @@ function NewNoticeModal({ onClose, onCreated }) {
   );
 }
 
-// ─── KPI CARD ─────────────────────────────────────────────────────────────────
-function KpiCard({ label, value, sub, subStyle, barStyle }) {
-  return (
-    <div style={S.kpiCard}>
-      <div style={S.skLbl}>{label}</div>
-      <div style={{ ...S.skVal, ...(subStyle?.color === 'var(--red)' ? S.redVal : {}) }}>
-        {value}
-        {sub && <span style={subStyle}>{sub}</span>}
-      </div>
-      <div style={{ ...S.skBar, ...barStyle }} />
-    </div>
-  );
-}
+const S = {
+  staff:{display:'flex',flexDirection:'column',gap:20,maxWidth:1200},
+  kpiRow:{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16},
+  kpiCard:{background:'#fff',border:'1px solid var(--gray-200)',borderRadius:'var(--r-md)',padding:'18px 20px 14px',boxShadow:'var(--shadow-sm)'},
+  card:{background:'#fff',border:'1px solid var(--gray-200)',borderRadius:'var(--r-md)',boxShadow:'var(--shadow-sm)',overflow:'hidden'},
+  th:{padding:'10px 16px',textAlign:'left',fontSize:10,fontWeight:700,letterSpacing:'.08em',color:'var(--gray-400)',borderBottom:'1px solid var(--gray-100)',background:'var(--gray-50)'},
+  td:{padding:'13px 16px',borderBottom:'1px solid var(--gray-100)',color:'var(--gray-700)'},
+  stateBox:{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'48px 24px',color:'var(--gray-400)',gap:10},
+  tableFooter:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 20px',fontSize:12,color:'var(--gray-400)',borderTop:'1px solid var(--gray-100)'},
+  pgBtn:{width:28,height:28,border:'1px solid var(--gray-200)',borderRadius:6,background:'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--gray-500)'},
+  bottom:{display:'grid',gridTemplateColumns:'1fr 240px',gap:16},
+  nvPanel:{background:'var(--navy)',borderRadius:'var(--r-md)',padding:20},
+};
 
-// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function StaffDashboard() {
-  const [modal, setModal]   = useState(false);
-  const [search, setSearch] = useState('');
-  const [page, setPage]     = useState(1);
-  const navigate = useNavigate();
-
-  const { stats, loading: statsLoading } = useDashboardStats();
-  const { assignments, total, loading: assignLoading, error: assignError, refetch } =
-    useAssignments(page, search);
-
+  const [showUpload,setShowUpload] = useState(null);
+  const [search,setSearch]         = useState('');
+  const [page,setPage]             = useState(1);
+  const [toast,setToast]           = useState(null);
+  const [kpi,setKpi]               = useState(null);
+  const [notices,setNotices]       = useState([]);
+  const [total,setTotal]           = useState(0);
+  const [noticeLoading,setNL]      = useState(true);
+  const [noticeError,setNE]        = useState('');
+  const [autoStatus,setAutoStatus] = useState(null);
+  const [autoLoading,setAL]        = useState(true);
   const PAGE_SIZE = 10;
-  const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+  const totalPages = Math.ceil(total/PAGE_SIZE)||1;
 
-  /* Derived KPI values (fallback to skeleton dashes while loading) */
-  const kpiData = stats ? [
-    {
-      label: 'TOTAL ASSIGNED',
-      value: stats.totalAssigned ?? '—',
-      sub: stats.totalAssignedChange != null
-        ? <><TrendingUp size={12}/> {stats.totalAssignedChange > 0 ? '+' : ''}{stats.totalAssignedChange}%</>
-        : null,
-      subStyle: S.skGreen,
-      barStyle: { ...S.skBar, ...S.blueBar },
-    },
-    {
-      label: 'PENDING TASKS',
-      value: stats.pendingTasks ?? '—',
-      sub: stats.pendingDueToday != null ? `${stats.pendingDueToday} due today` : 'Due today',
-      subStyle: S.skRed,
-      barStyle: { ...S.skBar, ...S.redBar },
-    },
-    {
-      label: 'RECENTLY UPDATED',
-      value: stats.recentlyUpdated ?? '—',
-      sub: stats.recentlyUpdatedPeriod || 'Last 24h',
-      subStyle: S.skBlue,
-      barStyle: { ...S.skBar, ...S.blueBar },
-    },
-  ] : Array(3).fill({ label: '…', value: '—', sub: null, barStyle: { ...S.skBar, ...S.blueBar } });
+  function showToast(msg,isErr=false){ setToast({msg,isErr}); setTimeout(()=>setToast(null),3500); }
+
+  const fetchKpi = useCallback(async()=>{
+    try{ const d=await dashboard.getSummary(); if(d.success) setKpi(d.dashboard); }catch{}
+  },[]);
+
+  const fetchNotices = useCallback(async(p=1,q='')=>{
+    setNL(true);setNE('');
+    try{
+      let data = await noticesApi.getStaffNotices();
+      if(Array.isArray(data)){ setNotices(data); setTotal(data.length); }
+      else {
+        const fb = await noticesApi.getAll({page:p,limit:PAGE_SIZE,...(q?{search:q}:{})});
+        const list = fb.data||fb.notices||[];
+        setNotices(list); setTotal(fb.totalRecords||fb.total||list.length);
+      }
+    }catch(e){ setNE('Failed to load notices. '+(e.message||'')); }
+    finally{ setNL(false); }
+  },[]);
+
+  const fetchAuto = useCallback(async()=>{
+    setAL(true);
+    try{ const d=await automation.getStatus(); if(d.automation) setAutoStatus(d.automation); }catch{}
+    finally{ setAL(false); }
+  },[]);
+
+  useEffect(()=>{ fetchKpi(); fetchNotices(1,''); fetchAuto(); },[fetchKpi,fetchNotices,fetchAuto]);
+
+  async function handleDownload(n){
+    try{
+      await noticesApi.downloadPdf(n.id, n.pdf_file_name||`notice_${n.id}.pdf`);
+      await noticesApi.updateStatus(n.id,'VIEWED');
+      fetchNotices(page,search);
+    }catch(e){ showToast('Download failed: '+e.message,true); }
+  }
+
+  function handleSearch(v){ setSearch(v);setPage(1);fetchNotices(1,v); }
+  function handlePage(np){ setPage(np);fetchNotices(np,search); }
+
+  const kpiCards = [
+    {label:'TOTAL NOTICES',value:kpi?.totalRecords??'—',sub:'All records',color:'#2563eb'},
+    {label:'NEW NOTICES',value:kpi?.newNotices??'—',sub:'This period',color:'#dc2626'},
+    {label:'ACTIVE USERS',value:kpi?.activeUsers??'—',sub:'In system',color:'#2563eb'},
+  ];
 
   return (
     <div style={S.staff}>
-      {/* ── KPI Row ── */}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+
+      {toast&&<div style={{position:'fixed',top:20,right:20,zIndex:9999,background:toast.isErr?'#fef2f2':'#f0fdf4',border:`1px solid ${toast.isErr?'#fecaca':'#bbf7d0'}`,color:toast.isErr?'#dc2626':'#166534',borderRadius:10,padding:'12px 18px',fontSize:13,fontWeight:500,boxShadow:'0 4px 20px rgba(0,0,0,.12)',display:'flex',alignItems:'center',gap:8}}>
+        {toast.isErr?<XCircle size={14}/>:<CheckCircle size={14}/>}{toast.msg}
+      </div>}
+
+      {/* KPI Row */}
       <div style={S.kpiRow}>
-        {kpiData.map((k, i) => <KpiCard key={i} {...k} />)}
+        {kpiCards.map((k,i)=>(
+          <div key={i} style={S.kpiCard}>
+            <div style={{fontSize:10,fontWeight:600,letterSpacing:'.1em',color:'var(--gray-400)',marginBottom:6}}>{k.label}</div>
+            <div style={{fontSize:27,fontWeight:700,color:'var(--gray-800)',marginBottom:8}}>{k.value}</div>
+            <div style={{fontSize:11,color:k.color,fontWeight:500}}>{k.sub}</div>
+            <div style={{height:3,borderRadius:99,background:k.color,width:'55%',marginTop:8,opacity:.3}}/>
+          </div>
+        ))}
       </div>
 
-      {/* ── My Assignments ── */}
+      {/* Notices Table */}
       <div style={S.card}>
-        <div style={S.cardHeader}>
+        <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',padding:'20px 24px 16px',gap:12,flexWrap:'wrap'}}>
           <div>
-            <div style={S.cardTitle}>My Assignments</div>
-            <div style={S.cardSubtitle}>Managing notification workflow and compliance deadlines</div>
+            <div style={{fontSize:15,fontWeight:700,color:'var(--gray-800)',marginBottom:3}}>My Assignments</div>
+            <div style={{fontSize:12,color:'var(--gray-400)'}}>Notices assigned to you</div>
           </div>
-          <div style={S.cardActions}>
-            <input
-              style={S.searchMini}
-              placeholder="Search assignments…"
-              value={search}
-              onChange={e => { setSearch(e.target.value); setPage(1); }}
-            />
-            <button style={S.btnOutline}><Filter size={13}/> Filter</button>
-            <button style={S.btnPrimary} onClick={() => setModal(true)}>
-              <Plus size={13}/> New Notice
-            </button>
+          <div style={{display:'flex',alignItems:'center',gap:8}}>
+            <input style={{padding:'7px 12px',border:'1.5px solid var(--gray-200)',borderRadius:99,fontSize:12,outline:'none',width:160}} placeholder="Search notices…" value={search} onChange={e=>handleSearch(e.target.value)}/>
+            <button style={{display:'flex',alignItems:'center',gap:5,padding:'7px 14px',border:'1.5px solid var(--gray-200)',borderRadius:8,fontSize:12,fontWeight:600,color:'var(--gray-600)',background:'#fff',cursor:'pointer'}}><Filter size={13}/> Filter</button>
+            <button style={{display:'flex',alignItems:'center',gap:5,padding:'7px 14px',border:'1.5px solid var(--gray-200)',borderRadius:8,fontSize:12,fontWeight:600,color:'var(--gray-600)',background:'#fff',cursor:'pointer'}} onClick={()=>fetchNotices(page,search)}><RefreshCw size={13}/></button>
           </div>
         </div>
 
-        <table style={S.table}>
-          <thead>
-            <tr>
-              {['USER/CLIENT NAME','PENALTY TYPE','AMOUNT DUE','ISSUE DATE','DUE DATE','STATUS',''].map(h => (
-                <th key={h} style={S.th}>{h}</th>
-              ))}
-            </tr>
-          </thead>
+        <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+          <thead><tr>{['ASSESSEE NAME','PAN','NOTICE TYPE','ISSUE DATE','DUE DATE','STATUS','ACTIONS'].map(h=><th key={h} style={S.th}>{h}</th>)}</tr></thead>
           <tbody>
-            {assignLoading ? (
-              <tr><td colSpan={7} style={S.td}>
-                <div style={S.stateBox}><Loader2 size={20} style={{ animation:'spin 1s linear infinite' }}/><span style={S.stateText}>Loading assignments…</span></div>
-              </td></tr>
-            ) : assignError ? (
-              <tr><td colSpan={7} style={S.td}>
-                <div style={S.stateBox}><AlertCircle size={20} color="var(--red)"/><span style={S.stateText}>{assignError}</span>
-                  <button style={S.btnOutline} onClick={refetch}><RefreshCw size={12}/> Retry</button>
-                </div>
-              </td></tr>
-            ) : assignments.length === 0 ? (
-              <tr><td colSpan={7} style={S.td}>
-                <div style={S.stateBox}><span style={S.stateText}>No assignments found.</span></div>
-              </td></tr>
-            ) : assignments.map(a => {
-              const clientName = a.name_of_assessee || a.clientName || '—';
-              const status = (a.status || 'pending').toLowerCase();
-              const color = colorFor(clientName);
+            {noticeLoading?(
+              <tr><td colSpan={7} style={S.td}><div style={S.stateBox}><Loader2 size={20} style={{animation:'spin 1s linear infinite'}}/><span style={{fontSize:13,color:'var(--gray-400)'}}>Loading notices…</span></div></td></tr>
+            ):noticeError?(
+              <tr><td colSpan={7} style={S.td}><div style={S.stateBox}><AlertCircle size={20} color="var(--red)"/><span style={{fontSize:13,color:'var(--gray-400)'}}>{noticeError}</span><button style={{display:'flex',alignItems:'center',gap:5,padding:'6px 14px',border:'1.5px solid var(--gray-200)',borderRadius:8,fontSize:12,fontWeight:600,cursor:'pointer'}} onClick={()=>fetchNotices(page,search)}><RefreshCw size={12}/> Retry</button></div></td></tr>
+            ):notices.length===0?(
+              <tr><td colSpan={7} style={S.td}><div style={S.stateBox}><span style={{fontSize:13,color:'var(--gray-400)'}}>No notices found.</span></div></td></tr>
+            ):notices.map(n=>{
+              const name=n.assessee_name||n.name_of_assessee||'—';
               return (
-                <tr key={a.id || a.reference_id}>
-                  <td style={S.td}>
-                    <div style={S.nameCell}>
-                      <div style={{ ...S.avatar, background: color }}>{initials(clientName)}</div>
-                      {clientName}
-                    </div>
-                  </td>
-                  <td style={S.td}>{a.notice_us || a.penaltyType || '—'}</td>
-                  <td style={{ ...S.td, ...S.tdMono }}>{a.amount_due || a.amountDue || '—'}</td>
-                  <td style={{ ...S.td, ...S.tdMuted }}>{a.issued_on || a.issueDate || '—'}</td>
-                  <td style={{ ...S.td, ...S.tdMuted }}>{a.response_due_date || a.dueDate || '—'}</td>
-                  <td style={S.td}><span style={S.badge(status)}>{status.toUpperCase()}</span></td>
-                  <td style={S.td}><button style={S.iconBtn}><MoreVertical size={14}/></button></td>
+                <tr key={n.id}>
+                  <td style={S.td}><div style={{display:'flex',alignItems:'center',gap:10,fontWeight:500}}><div style={{width:32,height:32,borderRadius:8,background:colorFor(name),display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700,color:'#fff'}}>{initials(name)}</div>{name}</div></td>
+                  <td style={{...S.td,fontFamily:'monospace',fontWeight:500}}>{n.pan_number||n.user_pan||'—'}</td>
+                  <td style={S.td}>{n.notice_type||n.notice_us||'—'}</td>
+                  <td style={{...S.td,fontSize:12,color:'var(--gray-400)'}}>{n.issue_date||n.issued_on||'—'}</td>
+                  <td style={{...S.td,fontSize:12,color:'var(--gray-400)'}}>{n.response_due_date||'—'}</td>
+                  <td style={S.td}><StatusBadge status={n.notice_status||n.status}/></td>
+                  <td style={S.td}><div style={{display:'flex',gap:4}}>
+                    <button title="Download PDF" onClick={()=>handleDownload(n)} style={{background:'none',border:'none',cursor:'pointer',color:'#2563eb',padding:4,borderRadius:4}}><Download size={14}/></button>
+                    <button title="Upload Response" onClick={()=>setShowUpload(n)} style={{background:'none',border:'none',cursor:'pointer',color:'#7c3aed',padding:4,borderRadius:4}}><Upload size={14}/></button>
+                    <button style={{background:'none',border:'none',cursor:'pointer',color:'var(--gray-400)',padding:4,borderRadius:4}}><MoreVertical size={14}/></button>
+                  </div></td>
                 </tr>
               );
             })}
@@ -480,76 +210,36 @@ export default function StaffDashboard() {
         </table>
 
         <div style={S.tableFooter}>
-          <span>Showing {assignments.length} of {total} assignments</span>
-          <div style={S.pgBtns}>
-            <button style={S.pgBtn} onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>
-              <ChevronLeft size={14}/>
-            </button>
-            <button style={S.pgBtn} onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}>
-              <ChevronRight size={14}/>
-            </button>
+          <span>Showing {notices.length} of {total} notices</span>
+          <div style={{display:'flex',gap:4}}>
+            <button style={S.pgBtn} onClick={()=>handlePage(page-1)} disabled={page<=1}><ChevronLeft size={14}/></button>
+            <span style={{padding:'0 8px',lineHeight:'28px',fontSize:12}}>{page}/{totalPages}</span>
+            <button style={S.pgBtn} onClick={()=>handlePage(page+1)} disabled={page>=totalPages}><ChevronRight size={14}/></button>
           </div>
         </div>
       </div>
 
-      {/* ── Bottom Row ── */}
+      {/* Bottom Row */}
       <div style={S.bottom}>
-        {/* Audit Readiness */}
-        <div style={{ ...S.card, padding: '22px 24px' }}>
-          <div style={S.cardTitle}>Audit Readiness Report</div>
-          <p style={S.arText}>
-            {statsLoading
-              ? 'Loading audit summary…'
-              : stats?.auditDiscrepancies != null
-                ? `Our automated scanning system has detected ${stats.auditDiscrepancies} new potential discrepanc${stats.auditDiscrepancies === 1 ? 'y' : 'ies'} in the Q3 compliance filings. Review these early to avoid escalating penalties.`
-                : 'Our automated scanning system has detected potential discrepancies in the Q3 compliance filings. Review these early to avoid escalating penalties.'
-            }
+        <div style={{...S.card,padding:'22px 24px'}}>
+          <div style={{fontSize:15,fontWeight:700,color:'var(--gray-800)',marginBottom:8}}>Automation Status</div>
+          <p style={{fontSize:13,color:'var(--gray-600)',lineHeight:1.6}}>
+            {autoLoading?'Loading…':autoStatus?`Status: ${autoStatus.status}. Last run: ${autoStatus.lastRun||'N/A'}. Processed: ${autoStatus.totalProcessed??0}. Failed: ${autoStatus.failedJobs??0}.`:'No automation data available.'}
           </p>
-          <button style={S.btnNavy}>Launch Audit Assistant</button>
+          <button onClick={fetchAuto} style={{padding:'9px 18px',border:'none',borderRadius:8,fontSize:12,fontWeight:600,color:'#fff',background:'var(--navy)',cursor:'pointer',marginTop:14,display:'flex',alignItems:'center',gap:5}}><RefreshCw size={12}/> Refresh</button>
         </div>
-
-        {/* Notice Velocity */}
         <div style={S.nvPanel}>
-          <div style={S.nvHdr}>
-            <span style={S.nvHdrSpan}>Notice Velocity</span>
-            <TrendingUp size={15} style={{ color: '#4ade80' }}/>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:8}}><span style={{fontSize:13,fontWeight:600,color:'#fff'}}>Notice Velocity</span><TrendingUp size={15} style={{color:'#4ade80'}}/></div>
+          <p style={{fontSize:11,color:'rgba(255,255,255,.5)',lineHeight:1.5,marginBottom:16}}>{autoLoading?'Loading…':autoStatus?`${autoStatus.newNotices??0} new notices. ${autoStatus.failedJobs??0} failed.`:'Connect backend.'}</p>
+          <div style={{marginBottom:8}}>
+            <div style={{display:'flex',justifyContent:'space-between',fontSize:10,fontWeight:600,color:'rgba(255,255,255,.55)',marginBottom:5}}><span>PROCESSED</span><span>{autoStatus?.totalProcessed??0}</span></div>
+            <div style={{height:5,background:'rgba(255,255,255,.15)',borderRadius:99,overflow:'hidden'}}><div style={{height:'100%',background:'#3b82f6',borderRadius:99,width:`${autoStatus?Math.min(100,Math.round((autoStatus.totalProcessed/Math.max(autoStatus.totalProcessed+(autoStatus.failedJobs||0),1))*100)):0}%`}}/></div>
           </div>
-          <p style={S.nvDesc}>
-            {statsLoading
-              ? 'Loading…'
-              : stats?.processingSpeed != null
-                ? `Current processing speed is ${Math.abs(stats.processingSpeed)}% ${stats.processingSpeed >= 0 ? 'higher' : 'lower'} than last quarter. System performance remains optimal.`
-                : 'System performance metrics are being calculated.'
-            }
-          </p>
-          <div style={{ marginBottom: 8 }}>
-            <div style={S.nvMetricRow}>
-              <span>PROCESSING</span>
-              <span>{statsLoading ? '…' : `${stats?.processingPercent ?? 0}%`}</span>
-            </div>
-            <div style={S.nvBar}>
-              <div style={S.nvBarFill(statsLoading ? 0 : (stats?.processingPercent ?? 0))}/>
-            </div>
-          </div>
-          <div style={S.nvSync}>
-            <Rocket size={11}/> NEXT SYNC
-            {!statsLoading && stats?.nextSyncMinutes != null && (
-              <span style={{ marginLeft: 4 }}>in {stats.nextSyncMinutes}m</span>
-            )}
-          </div>
+          <div style={{display:'flex',alignItems:'center',gap:5,fontSize:10,color:'rgba(255,255,255,.35)',marginTop:12}}><Rocket size={11}/> STATUS: {autoLoading?'…':(autoStatus?.status||'unknown').toUpperCase()}</div>
         </div>
       </div>
 
-      {/* ── New Notice Modal ── */}
-      {modal && (
-        <NewNoticeModal
-          onClose={() => setModal(false)}
-          onCreated={refetch}
-        />
-      )}
-
-      {/* ── Spinner keyframe (injected once) ── */}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      {showUpload&&<UploadModal notice={showUpload} onClose={()=>setShowUpload(null)} onUploaded={()=>{showToast('Document uploaded successfully.');fetchNotices(page,search);}}/>}
     </div>
   );
 }

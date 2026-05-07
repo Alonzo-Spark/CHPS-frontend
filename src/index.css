@@ -85,11 +85,14 @@ a { text-decoration: none; color: inherit; }
 .badge-urgent         { background: var(--red-light);    color: var(--red); }
 .badge-pending        { background: var(--yellow-light); color: var(--yellow); }
 .badge-settled        { background: var(--green-light);  color: var(--green); }
+.badge-completed      { background: var(--green-light);  color: var(--green); }
 .badge-reviewed       { background: var(--blue-light);   color: var(--blue-primary); }
+.badge-open           { background: var(--blue-light);   color: var(--blue-primary); }
 .badge-critical       { background: var(--red-light);    color: var(--red); }
 .badge-on-track       { background: var(--green-light);  color: var(--green); }
 .badge-in-progress    { background: var(--purple-light); color: var(--purple); }
 .badge-pending-action { background: var(--orange-light); color: var(--orange); }
+
 
 /* ─── Form inputs ─── */
 .form-group { display: flex; flex-direction: column; gap: 5px; }

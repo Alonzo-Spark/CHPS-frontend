@@ -1,64 +1,110 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
 import Layout from './components/Layout';
 
 // Pages
-import LoginPage      from './pages/LoginPage';
-import SignupPage     from './pages/SignupPage';
-import AdminDashboard from './pages/AdminDashboard';
-import StaffDashboard from './pages/StaffDashboard';
-import NoticesPage    from './pages/NoticesPage';   // → EProceedings
-import TasksPage      from './pages/TasksPage';
-import DocumentsPage  from './pages/DocumentsPage';
-import SettingsPage   from './pages/SettingsPage';
-import EProceedings   from './pages/EProceedings';
+import LoginPage        from './pages/LoginPage';
+import SignupPage       from './pages/SignupPage';
+import VerifyEmailPage  from './pages/VerifyEmailPage';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+import ResetPasswordPage  from './pages/ResetPasswordPage';
+import AdminDashboard   from './pages/AdminDashboard';
+import StaffDashboard   from './pages/StaffDashboard';
+import NoticesPage      from './pages/NoticesPage';
+import TasksPage        from './pages/TasksPage';
+import DocumentsPage    from './pages/DocumentsPage';
+import SettingsPage     from './pages/SettingsPage';
+import EProceedings     from './pages/EProceedings';
 
-// Guard: redirect to login if not authenticated
-function RequireAuth({ children }) {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
-  return <Layout>{children}</Layout>;
-}
-
-// Dashboard route: admin → AdminDashboard, staff → StaffDashboard
-function DashboardRoute() {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
+// ── Loading spinner shown while token is being validated on mount ──────────────
+function AuthLoadingScreen() {
   return (
-    <Layout>
-      {user.type === 'admin' ? <AdminDashboard /> : <StaffDashboard />}
-    </Layout>
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      height: '100vh', background: '#f8fafc', flexDirection: 'column', gap: 16,
+    }}>
+      <div style={{
+        width: 40, height: 40, border: '3px solid #e2e8f0',
+        borderTopColor: '#2563eb', borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite',
+      }} />
+      <span style={{ fontSize: 13, color: '#94a3b8', fontFamily: 'Inter, sans-serif' }}>
+        Verifying session…
+      </span>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
   );
 }
 
-function AppRoutes() {
-  const { user } = useAuth();
+// ── Protected route: requires auth + optional role ────────────────────────────
+function ProtectedRoute({ children, requiredRole }) {
+  const { user, authLoading } = useAuth();
+  if (authLoading) return <AuthLoadingScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (requiredRole && user.role !== requiredRole) {
+    // Wrong role → send to their own dashboard
+    return <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/staff/dashboard'} replace />;
+  }
+  return <Layout>{children}</Layout>;
+}
 
+// ── Public route: redirects authenticated users to their dashboard ─────────────
+function PublicRoute({ children }) {
+  const { user, authLoading } = useAuth();
+  if (authLoading) return <AuthLoadingScreen />;
+  if (user) {
+    return <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/staff/dashboard'} replace />;
+  }
+  return children;
+}
+
+// ── Root redirect ─────────────────────────────────────────────────────────────
+function RootRedirect() {
+  const { user, authLoading } = useAuth();
+  if (authLoading) return <AuthLoadingScreen />;
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/staff/dashboard'} replace />;
+}
+
+function AppRoutes() {
   return (
     <Routes>
-      {/* Root → login or dashboard */}
-      <Route path="/" element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />
+      {/* Root */}
+      <Route path="/" element={<RootRedirect />} />
 
-      {/* PAGE 1: Login */}
-      <Route path="/login"  element={user ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+      {/* Public auth pages */}
+      <Route path="/login"          element={<PublicRoute><LoginPage /></PublicRoute>} />
+      <Route path="/signup"         element={<PublicRoute><SignupPage /></PublicRoute>} />
+      <Route path="/forgot-password" element={<PublicRoute><ForgotPasswordPage /></PublicRoute>} />
+      <Route path="/reset-password"  element={<PublicRoute><ResetPasswordPage /></PublicRoute>} />
+      <Route path="/verify-email"    element={<VerifyEmailPage />} />
 
-      {/* PAGE 2: Register */}
-      <Route path="/signup" element={user ? <Navigate to="/dashboard" replace /> : <SignupPage />} />
+      {/* Admin-only routes */}
+      <Route path="/admin/dashboard"
+        element={<ProtectedRoute requiredRole="admin"><AdminDashboard /></ProtectedRoute>} />
 
-      {/* PAGE 3 (staff) / PAGE 4 (admin): Dashboard – auto-selects by user.type */}
-      <Route path="/dashboard" element={<DashboardRoute />} />
+      {/* Staff-only routes */}
+      <Route path="/staff/dashboard"
+        element={<ProtectedRoute requiredRole="staff"><StaffDashboard /></ProtectedRoute>} />
 
-      {/* PAGE 5: e-Proceedings – accessible via Notices OR Tasks in sidebar */}
-      <Route path="/notices"   element={<RequireAuth><EProceedings /></RequireAuth>} />
-      <Route path="/tasks"     element={<RequireAuth><TasksPage /></RequireAuth>} />
-      <Route path="/e-proceedings" element={<RequireAuth><EProceedings /></RequireAuth>} />
+      {/* Legacy /dashboard → proper redirect */}
+      <Route path="/dashboard" element={<RootRedirect />} />
 
-      {/* Other pages */}
-      <Route path="/documents" element={<RequireAuth><DocumentsPage /></RequireAuth>} />
-      <Route path="/settings"  element={<RequireAuth><SettingsPage /></RequireAuth>} />
+      {/* Shared protected routes */}
+      <Route path="/notices"
+        element={<ProtectedRoute><EProceedings /></ProtectedRoute>} />
+      <Route path="/e-proceedings"
+        element={<ProtectedRoute><EProceedings /></ProtectedRoute>} />
+      <Route path="/tasks"
+        element={<ProtectedRoute><TasksPage /></ProtectedRoute>} />
+      <Route path="/documents"
+        element={<ProtectedRoute><DocumentsPage /></ProtectedRoute>} />
+      <Route path="/settings"
+        element={<ProtectedRoute requiredRole="admin"><SettingsPage /></ProtectedRoute>} />
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />
+      {/* Catch-all */}
+      <Route path="*" element={<RootRedirect />} />
     </Routes>
   );
 }
@@ -67,7 +113,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <NotificationProvider>
+          <AppRoutes />
+        </NotificationProvider>
       </AuthProvider>
     </BrowserRouter>
   );

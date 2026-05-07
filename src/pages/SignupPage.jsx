@@ -1,52 +1,61 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { ShieldCheck, Eye, EyeOff, AlertCircle, Send } from 'lucide-react';
+import { ShieldCheck, Eye, EyeOff, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import './Auth.css';
 
 export default function SignupPage() {
-  const [form, setForm]         = useState({ username: '', email: '', password: '', confirm: '' });
+  const [form, setForm] = useState({
+    name: '', email: '', password: '', confirm: '', role: 'staff', panNumber: '',
+  });
   const [showPass, setShowPass] = useState(false);
   const [showConf, setShowConf] = useState(false);
-  const [emailVerified, setEmailVerified] = useState(false);
-  const [verifyLoading, setVerifyLoading] = useState(false);
-  const [verifyError, setVerifyError]     = useState('');
-  const [formError, setFormError]         = useState('');
-  const [loading, setLoading]   = useState(false);
+  const [formError, setFormError]   = useState('');
+  const [formSuccess, setFormSuccess] = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [submitted, setSubmitted]   = useState(false);
 
   const { signup } = useAuth();
   const navigate   = useNavigate();
 
-  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
-
-  // Simulate sending verification email
-  const handleVerifyEmail = async () => {
-    if (!form.email) { setVerifyError('Please enter your email address first.'); return; }
-    setVerifyError('');
-    setVerifyLoading(true);
-    await new Promise(r => setTimeout(r, 1200));
-    // Simulate network error for demo (matching screenshot)
-    // In real app: call your backend API here
-    const success = form.email.includes('@') && !form.email.includes('error');
-    setVerifyLoading(false);
-    if (success) {
-      setEmailVerified(true);
-    } else {
-      setVerifyError('Network error while sending verification email.');
-    }
-  };
+  const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
 
   const submit = async (e) => {
     e.preventDefault();
     setFormError('');
-    if (!emailVerified) { setFormError('Please verify your email address first.'); return; }
-    if (form.password !== form.confirm) { setFormError('Passwords do not match.'); return; }
-    if (form.password.length < 6)       { setFormError('Password must be at least 6 characters.'); return; }
+    setFormSuccess('');
+
+    // Client-side validation
+    if (form.password !== form.confirm) {
+      setFormError('Passwords do not match.'); return;
+    }
+    if (form.password.length < 6) {
+      setFormError('Password must be at least 6 characters.'); return;
+    }
+
     setLoading(true);
-    await new Promise(r => setTimeout(r, 700));
-    signup(form.username, form.email, form.password);
-    setLoading(false);
-    navigate('/dashboard');
+    try {
+      const result = await signup({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        confirmPassword: form.confirm,
+        role: form.role,
+        ...(form.panNumber ? { panNumber: form.panNumber } : {}),
+      });
+
+      if (result.success) {
+        setSubmitted(true);
+        setFormSuccess('Registration successful. Please check your email to verify your account.');
+        // Don't auto-navigate — user must verify email first
+      } else {
+        setFormError(result.error || 'Registration failed. Please try again.');
+      }
+    } catch {
+      setFormError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -66,112 +75,139 @@ export default function SignupPage() {
             <h2>Create Your Account</h2>
             <p className="signup-desc">Register to manage notification compliance</p>
 
-            <form onSubmit={submit} className="auth-form">
-
-              {/* Username */}
-              <div className="form-group">
-                <label>USERNAME</label>
-                <input
-                  className="form-input"
-                  placeholder="jaganyyyy"
-                  value={form.username}
-                  onChange={e => set('username', e.target.value)}
-                  required
-                />
+            {formSuccess ? (
+              <div style={{ textAlign: 'center', padding: '24px 16px' }}>
+                <CheckCircle size={48} color="#16a34a" style={{ marginBottom: 16 }} />
+                <p style={{ fontSize: 15, color: '#166534', fontWeight: 600, marginBottom: 8 }}>
+                  {formSuccess}
+                </p>
+                <p style={{ fontSize: 13, color: '#6b7280', marginBottom: 20 }}>
+                  Once verified, you can log in to your account.
+                </p>
+                <Link to="/login" className="btn btn-primary" style={{ display: 'inline-flex' }}>
+                  Go to Login
+                </Link>
               </div>
+            ) : (
+              <form onSubmit={submit} className="auth-form">
 
-              {/* Email */}
-              <div className="form-group">
-                <label>EMAIL ADDRESS</label>
-                <input
-                  className="form-input"
-                  type="email"
-                  placeholder="160623740016@stanley.edu.in"
-                  value={form.email}
-                  onChange={e => { set('email', e.target.value); setEmailVerified(false); setVerifyError(''); }}
-                  required
-                />
-              </div>
+                {/* Full Name */}
+                <div className="form-group">
+                  <label>FULL NAME</label>
+                  <input
+                    id="signup-name"
+                    className="form-input"
+                    placeholder="e.g. Puja Midde"
+                    value={form.name}
+                    onChange={(e) => set('name', e.target.value)}
+                    required
+                  />
+                </div>
 
-              {/* ── Email Verification Box ── */}
-              <div className="form-group">
-                <label>Email verification</label>
-                <div className={`ev-box ${emailVerified ? 'ev-verified' : 'ev-unverified'}`}>
-                  <div className="ev-left">
-                    {emailVerified ? (
-                      <div className="ev-ok-icon">✓</div>
-                    ) : (
-                      <AlertCircle size={22} className="ev-alert-icon" />
-                    )}
-                    <span className={`ev-status-text ${emailVerified ? 'ev-text-ok' : 'ev-text-bad'}`}>
-                      {emailVerified ? 'Email Verified' : 'Email Not Verified'}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="ev-verify-btn"
-                    onClick={handleVerifyEmail}
-                    disabled={verifyLoading || emailVerified}
+                {/* Email */}
+                <div className="form-group">
+                  <label>EMAIL ADDRESS</label>
+                  <input
+                    id="signup-email"
+                    className="form-input"
+                    type="email"
+                    placeholder="puja@gmail.com"
+                    value={form.email}
+                    onChange={(e) => set('email', e.target.value)}
+                    required
+                  />
+                </div>
+
+                {/* Role */}
+                <div className="form-group">
+                  <label>ROLE</label>
+                  <select
+                    id="signup-role"
+                    className="form-input"
+                    value={form.role}
+                    onChange={(e) => set('role', e.target.value)}
                   >
-                    <Send size={14} />
-                    {verifyLoading ? 'Sending…' : emailVerified ? 'Verified ✓' : 'Verify Email Address'}
-                  </button>
+                    <option value="staff">Staff</option>
+                    <option value="admin">Admin</option>
+                  </select>
                 </div>
 
-                {/* Network / verify error */}
-                {verifyError && (
-                  <div className="ev-error-bar">{verifyError}</div>
+                {/* PAN Number (optional) */}
+                <div className="form-group">
+                  <label>PAN NUMBER <span style={{ fontWeight: 400, color: '#9ca3af' }}>(optional)</span></label>
+                  <input
+                    id="signup-pan"
+                    className="form-input"
+                    placeholder="e.g. AHMPV4480E"
+                    value={form.panNumber}
+                    onChange={(e) => set('panNumber', e.target.value.toUpperCase())}
+                    maxLength={10}
+                  />
+                </div>
+
+                {/* Passwords */}
+                <div className="two-col">
+                  <div className="form-group">
+                    <label>SET PASSWORD</label>
+                    <div className="input-icon-wrap">
+                      <input
+                        id="signup-password"
+                        className="form-input"
+                        type={showPass ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={form.password}
+                        onChange={(e) => set('password', e.target.value)}
+                        required
+                      />
+                      <button type="button" className="input-end-btn" onClick={() => setShowPass((p) => !p)}>
+                        {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="form-group">
+                    <label>CONFIRM PASSWORD</label>
+                    <div className="input-icon-wrap">
+                      <input
+                        id="signup-confirm"
+                        className="form-input"
+                        type={showConf ? 'text' : 'password'}
+                        placeholder="••••••••"
+                        value={form.confirm}
+                        onChange={(e) => set('confirm', e.target.value)}
+                        required
+                      />
+                      <button type="button" className="input-end-btn" onClick={() => setShowConf((p) => !p)}>
+                        {showConf ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Error */}
+                {formError && (
+                  <div style={{
+                    display: 'flex', gap: 8, alignItems: 'center',
+                    background: '#fef2f2', border: '1px solid #fecaca',
+                    borderRadius: 8, padding: '8px 12px', marginBottom: 4, fontSize: 13, color: '#dc2626',
+                  }}>
+                    <AlertCircle size={14} /> {formError}
+                  </div>
                 )}
-              </div>
 
-              {/* Passwords */}
-              <div className="two-col">
-                <div className="form-group">
-                  <label>SET PASSWORD</label>
-                  <div className="input-icon-wrap">
-                    <input
-                      className="form-input"
-                      type={showPass ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={form.password}
-                      onChange={e => set('password', e.target.value)}
-                      required
-                    />
-                    <button type="button" className="input-end-btn" onClick={() => setShowPass(p => !p)}>
-                      {showPass ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-                </div>
-                <div className="form-group">
-                  <label>CONFIRM PASSWORD</label>
-                  <div className="input-icon-wrap">
-                    <input
-                      className="form-input"
-                      type={showConf ? 'text' : 'password'}
-                      placeholder="••••••••"
-                      value={form.confirm}
-                      onChange={e => set('confirm', e.target.value)}
-                      required
-                    />
-                    <button type="button" className="input-end-btn" onClick={() => setShowConf(p => !p)}>
-                      {showConf ? <EyeOff size={14} /> : <Eye size={14} />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Form-level error */}
-              {formError && <p className="auth-error">{formError}</p>}
-
-              {/* Submit */}
-              <button
-                type="submit"
-                className={`reg-submit-btn ${!emailVerified ? 'reg-submit-disabled' : 'reg-submit-active'}`}
-                disabled={loading}
-              >
-                {loading ? 'Creating account…' : 'Complete Registration →'}
-              </button>
-            </form>
+                {/* Submit */}
+                <button
+                  id="signup-submit"
+                  type="submit"
+                  className="reg-submit-btn reg-submit-active"
+                  disabled={loading || submitted}
+                >
+                  {loading
+                    ? <><Loader2 size={14} className="spin-icon" /> Creating account…</>
+                    : 'Complete Registration →'
+                  }
+                </button>
+              </form>
+            )}
 
             <p className="signup-terms">
               By Signing Up, you agree to our{' '}

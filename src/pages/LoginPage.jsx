@@ -1,30 +1,37 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Building2, Globe, Accessibility, Eye, EyeOff, Info } from 'lucide-react';
+import { Building2, Globe, Accessibility, Eye, EyeOff, Info, Loader2 } from 'lucide-react';
 import './Auth.css';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
+
   const { login } = useAuth();
   const navigate  = useNavigate();
+  const location  = useLocation();
+  const successMsg = location.state?.message || '';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!email || !password) { setError('Email and password are required.'); return; }
     setLoading(true);
-    await new Promise(r => setTimeout(r, 600));
-    const result = login(username, password);
-    setLoading(false);
-    if (result.success) {
-      // Admin → Admin Dashboard  |  Staff → Staff Dashboard
-      navigate('/dashboard');
-    } else {
-      setError(result.error);
+    try {
+      const result = await login(email, password);
+      if (result.success) {
+        navigate(result.role === 'admin' ? '/admin/dashboard' : '/staff/dashboard', { replace: true });
+      } else {
+        setError(result.error || 'Invalid email or password.');
+      }
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -47,15 +54,28 @@ export default function LoginPage() {
         <div className="auth-card fade-up">
           <h1 className="auth-title">Login</h1>
 
+          {successMsg && (
+            <div style={{
+              background:'#f0fdf4',border:'1px solid #bbf7d0',borderRadius:8,
+              padding:'10px 14px',fontSize:13,color:'#166534',
+              display:'flex',alignItems:'center',gap:6,marginBottom:8,
+            }}>
+              ✓ {successMsg}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="form-group">
-              <label>Username / Email:</label>
+              <label>Email:</label>
               <input
+                id="login-email"
                 className="form-input"
-                placeholder="Enter username or email"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
+                type="email"
+                placeholder="Enter your email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="email"
               />
             </div>
 
@@ -63,33 +83,35 @@ export default function LoginPage() {
               <label>Password:</label>
               <div className="input-icon-wrap">
                 <input
+                  id="login-password"
                   className="form-input"
                   type={showPass ? 'text' : 'password'}
                   placeholder="Enter password"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
+                  autoComplete="current-password"
                 />
-                <button type="button" className="input-end-btn" onClick={() => setShowPass(p => !p)}>
+                <button type="button" className="input-end-btn" onClick={() => setShowPass((p) => !p)}>
                   {showPass ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
             </div>
 
-            <label className="checkbox-row">
-              <input type="checkbox" checked={showPass} onChange={() => setShowPass(p => !p)} />
-              <span>show password</span>
-            </label>
-
             {error && <p className="auth-error">{error}</p>}
 
-            <button type="submit" className="btn btn-primary auth-submit" disabled={loading}>
-              {loading ? 'Signing in…' : 'Sign In'}
+            <button
+              id="login-submit"
+              type="submit"
+              className="btn btn-primary auth-submit"
+              disabled={loading}
+            >
+              {loading ? <><Loader2 size={14} className="spin-icon" /> Signing in…</> : 'Sign In'}
             </button>
           </form>
 
           <div className="auth-links">
-            <a href="#">Forgot username/password?</a>
+            <Link to="/forgot-password">Forgot password?</Link>
             <p>Don't have an account?&nbsp;
               <Link to="/signup" className="link-blue">Sign up</Link>
             </p>
@@ -101,14 +123,9 @@ export default function LoginPage() {
           <Info size={16} className="aib-icon" />
           <div>
             <strong className="aib-title">Know about your User ID</strong>
-            <p className="aib-body">Your User ID is the unique identifier associated with your account for secure access to the Audit Notification Manager.</p>
+            <p className="aib-body">Your User ID is your registered email address for secure access to the Audit Notification Manager.</p>
           </div>
         </div>
-
-        {/* Demo credentials */}
-        <p className="demo-hint">
-          Demo → admin / admin123 (Admin)&nbsp;&nbsp;|&nbsp;&nbsp;staff / staff123 (Staff)
-        </p>
       </main>
 
       {/* ── Footer ── */}
