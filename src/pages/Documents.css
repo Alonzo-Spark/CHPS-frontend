@@ -1,0 +1,34 @@
+.docs-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.doc-card {
+  background: #fff;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  transition: box-shadow 0.15s, transform 0.12s;
+}
+.doc-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.doc-icon {
+  width: 44px; height: 44px;
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.doc-info { flex: 1; }
+.doc-name { font-size: 13.5px; font-weight: 500; color: var(--gray-800); margin-bottom: 5px; }
+.doc-meta { display: flex; align-items: center; gap: 10px; }
+.doc-type {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.doc-size, .doc-date { font-size: 11px; color: var(--gray-400); }
+.doc-actions { display: flex; gap: 4px; }

@@ -1,0 +1,32 @@
+.adm { display:flex; flex-direction:column; gap:20px; max-width:1200px; }
+.adm-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.adm-title  { font-size:22px; font-weight:700; color:var(--gray-800); margin-bottom:3px; }
+.adm-title span { color:var(--navy); }
+.adm-sub    { font-size:13px; color:var(--gray-500); }
+.adm-actions { display:flex; gap:10px; }
+
+.kpi-row { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+@media(max-width:900px){ .kpi-row{ grid-template-columns:repeat(2,1fr);} }
+
+.kpi-card { background:#fff; border:1px solid var(--gray-200); border-radius:var(--r-md); padding:18px 20px; box-shadow:var(--shadow-sm); }
+.kpi-lbl  { font-size:10px; font-weight:600; letter-spacing:.1em; color:var(--gray-400); margin-bottom:6px; }
+.kpi-val  { font-size:26px; font-weight:700; color:var(--gray-800); margin-bottom:6px; font-variant-numeric:tabular-nums; }
+.kpi-tag  { display:flex; align-items:center; gap:4px; font-size:11px; font-weight:500; }
+.kpi-tag.green { color:var(--green); }
+.kpi-tag.blue  { color:var(--blue-primary); }
+.kpi-tag.red   { color:var(--red); }
+.kpi-bar      { height:4px; background:var(--gray-200); border-radius:99px; overflow:hidden; margin-top:8px; }
+.kpi-bar-fill { height:100%; background:var(--blue-primary); border-radius:99px; }
+
+.adm-mid { display:grid; grid-template-columns:1fr 250px; gap:16px; }
+@media(max-width:900px){ .adm-mid{ grid-template-columns:1fr; } }
+
+.insights-panel { background:var(--navy); border-radius:var(--r-md); overflow:hidden; }
+.ip-title { padding:16px 18px 10px; font-size:13px; font-weight:600; color:#fff; border-bottom:1px solid rgba(255,255,255,.08); }
+.ip-item  { display:flex; gap:12px; padding:14px 18px; border-bottom:1px solid rgba(255,255,255,.06); }
+.ip-item:last-child { border-bottom:none; }
+.ip-icon  { width:28px; height:28px; border-radius:6px; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+.ip-icon.orange { background:rgba(234,88,12,.2);  color:#fb923c; }
+.ip-icon.green  { background:rgba(34,197,94,.2);  color:#4ade80; }
+.ip-item-title  { font-size:12px; font-weight:600; color:#fff; margin-bottom:3px; }
+.ip-item-body   { font-size:11px; color:rgba(255,255,255,.5); line-height:1.45; }

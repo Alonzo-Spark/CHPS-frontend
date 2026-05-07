@@ -1,0 +1,58 @@
+.notices-toolbar {
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--gray-100);
+  flex-wrap: wrap;
+}
+.notices-search {
+  position: relative;
+  flex: 1;
+  min-width: 200px;
+}
+.ns-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gray-400);
+}
+.ns-input {
+  width: 100%;
+  padding: 8px 12px 8px 32px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 99px;
+  font-size: 13px;
+  color: var(--gray-700);
+  background: var(--gray-50);
+  font-family: var(--font-sans);
+}
+.ns-input:focus {
+  border-color: var(--blue-primary);
+  background: #fff;
+  outline: none;
+}
+
+.filter-tabs {
+  display: flex;
+  gap: 4px;
+}
+.filter-tab {
+  padding: 5px 12px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1.5px solid var(--gray-200);
+  background: #fff;
+  color: var(--gray-500);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all 0.15s;
+}
+.filter-tab:hover { background: var(--gray-50); }
+.filter-tab.active {
+  background: var(--navy);
+  color: #fff;
+  border-color: var(--navy);
+}
