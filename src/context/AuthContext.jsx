@@ -13,25 +13,24 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     try {
-      const { token, user: u } = await api.login(email, password)
-      localStorage.setItem('audit_token', token)
+      const data = await api.login(email, password)
+      localStorage.setItem('audit_token', data.access_token)
+      // Mocking user object since the login response only returns the access token
+      const u = { 
+        id: 'mock-uuid', 
+        email, 
+        username: email.split('@')[0], 
+        role: email.includes('admin') ? 'admin' : 'staff' 
+      };
       localStorage.setItem('audit_user', JSON.stringify(u))
       setUser(u)
       return { success: true, role: u.role }
     } catch (err) {
-      return { success: false, message: err.message || 'Invalid credentials.' }
-    }
-  }
-
-  const register = async (data) => {
-    try {
-      const { token, user: u } = await api.register(data)
-      localStorage.setItem('audit_token', token)
-      localStorage.setItem('audit_user', JSON.stringify(u))
-      setUser(u)
-      return { success: true, role: u.role }
-    } catch (err) {
-      return { success: false, message: err.message || 'Registration failed.' }
+      let msg = err.response?.data?.detail || 'Invalid credentials.';
+      if (Array.isArray(msg)) {
+         msg = msg.map(m => `${m.loc[m.loc.length-1]}: ${m.msg}`).join(', ');
+      }
+      return { success: false, message: msg }
     }
   }
 
@@ -43,7 +42,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

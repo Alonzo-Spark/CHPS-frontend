@@ -1,5 +1,6 @@
 import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
@@ -22,6 +23,10 @@ function RequireAuth({ children, role }) {
 
 function RootRedirect() {
   const { user } = useAuth()
+  const searchParams = new URLSearchParams(window.location.search);
+  if (searchParams.get('verification') === 'success' || searchParams.get('verified') === 'true') {
+    return <Navigate to={`/register?${searchParams.toString()}`} replace />
+  }
   if (!user) return <Navigate to="/login" replace />
   return <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/staff/dashboard'} replace />
 }
@@ -29,6 +34,7 @@ function RootRedirect() {
 export default function App() {
   return (
     <AuthProvider>
+      <Toaster position="top-right" />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<RootRedirect />} />

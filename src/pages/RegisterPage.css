@@ -136,7 +136,11 @@
   transition: background 0.15s;
 }
 .reg-btn:hover:not(:disabled) { background: #1d4ed8; }
-.reg-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+.reg-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
 
 /* ── Terms ── */
 .reg-terms {
@@ -190,4 +194,87 @@
   background: #fee2e2; color: #dc2626;
   border-radius: 6px; padding: 9px 14px;
   font-size: 13px; margin-bottom: 14px;
+}
+
+/* Verification Box */
+.verify-box {
+  display: flex;
+  align-items: center;
+  padding: 14px 18px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  border: 1px solid;
+  transition: all 0.3s ease;
+}
+
+.verify-box.status-unverified {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.verify-box.status-verifying {
+  background-color: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+
+.verify-box.status-verified {
+  background-color: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #166534;
+}
+
+.verify-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.verify-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin-left: 14px;
+}
+
+.verify-title {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.3px;
+}
+
+.verify-desc {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 3px;
+}
+
+.verify-action-btn {
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.verify-action-btn:hover {
+  background: #b91c1c;
+}
+
+.verify-action-btn:active {
+  transform: scale(0.97);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
