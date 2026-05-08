@@ -41,7 +41,13 @@ export default function RegisterPage() {
     const errs = validate()
     if (Object.keys(errs).length) { setErrors(errs); return }
     setLoading(true)
-    const result = await register({ username: form.username, email: form.email, password: form.password })
+    const result = await register({ 
+      name: form.username, 
+      email: form.email, 
+      password: form.password, 
+      confirmPassword: form.confirmPassword, 
+      role: 'staff' 
+    })
     setLoading(false)
     if (result.success) {
       navigate(result.role === 'admin' ? '/admin/dashboard' : '/staff/dashboard')

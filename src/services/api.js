@@ -9,7 +9,7 @@ const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
 // Helper – throws if !response.ok
 async function req(path, options = {}) {
-  const token = localStorage.getItem('audit_token')
+  const token = localStorage.getItem('accessToken')
   const res = await fetch(`${BASE}${path}`, {
     headers: {
       'Content-Type': 'application/json',
