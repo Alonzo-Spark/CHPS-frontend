@@ -20,7 +20,7 @@ export default function AdminLayout() {
     navigate('/login')
   }
 
-  const initials = user?.name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'A'
+  const initials = user?.full_name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'A'
 
   return (
     <div className="app-layout">
@@ -46,7 +46,7 @@ export default function AdminLayout() {
           <div className="sidebar-user">
             <div className="user-avatar">{initials}</div>
             <div className="user-info">
-              <span className="user-name">{user?.name || 'Admin'}</span>
+              <span className="user-name">{user?.full_name || 'Admin'}</span>
               <span className="user-role">Admin</span>
             </div>
           </div>

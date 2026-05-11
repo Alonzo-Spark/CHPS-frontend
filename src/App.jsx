@@ -1,9 +1,11 @@
 import React from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Toaster } from 'react-hot-toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import VerificationPage from './pages/VerificationPage'
+import CompleteRegistration from './pages/CompleteRegistration'
 import StaffLayout from './components/StaffLayout'
 import AdminLayout from './components/AdminLayout'
 import StaffDashboard from './pages/StaffDashboard'
@@ -23,9 +25,22 @@ function RequireAuth({ children, role }) {
 
 function RootRedirect() {
   const { user } = useAuth()
-  const searchParams = new URLSearchParams(window.location.search);
-  if (searchParams.get('verification') === 'success' || searchParams.get('verified') === 'true') {
-    return <Navigate to={`/register?${searchParams.toString()}`} replace />
+  const location = useLocation()
+  const searchParams = new URLSearchParams(location.search)
+  const hasVerificationContext = searchParams.has('token') || searchParams.has('verification_token') || searchParams.get('verified') === 'true' || searchParams.get('verification') === 'success' || searchParams.get('status') === 'sent' || searchParams.get('status') === 'send_failed'
+
+  if (hasVerificationContext) {
+    const nextParams = new URLSearchParams(searchParams.toString())
+
+    if (searchParams.get('verified') === 'true' || searchParams.get('verification') === 'success') {
+      nextParams.set('status', 'success')
+    }
+
+    const completionKeys = ['token', 'verification_token', 'code', 'registration_token']
+    const hasCompletionToken = completionKeys.some((key) => searchParams.get(key))
+    const targetPath = hasCompletionToken ? '/complete-registration' : '/verify-email'
+
+    return <Navigate to={`${targetPath}?${nextParams.toString()}`} replace />
   }
   if (!user) return <Navigate to="/login" replace />
   return <Navigate to={user.role === 'admin' ? '/admin/dashboard' : '/staff/dashboard'} replace />
@@ -41,6 +56,8 @@ export default function App() {
           <Route path="/login"    element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/signup"   element={<RegisterPage />} />
+          <Route path="/verify-email" element={<VerificationPage />} />
+          <Route path="/complete-registration" element={<CompleteRegistration />} />
 
           {/* ── Staff ── */}
           <Route path="/staff" element={<RequireAuth role="staff"><StaffLayout /></RequireAuth>}>

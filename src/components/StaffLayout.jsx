@@ -20,7 +20,7 @@ export default function StaffLayout() {
     navigate('/login')
   }
 
-  const initials = user?.name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'S'
+  const initials = user?.full_name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2) || 'S'
 
   return (
     <div className="app-layout">
@@ -46,7 +46,7 @@ export default function StaffLayout() {
           <div className="sidebar-user">
             <div className="user-avatar">{initials}</div>
             <div className="user-info">
-              <span className="user-name">{user?.name || 'Staff'}</span>
+              <span className="user-name">{user?.full_name || 'Staff'}</span>
               <span className="user-role">Staff</span>
             </div>
           </div>

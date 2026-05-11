@@ -1,0 +1,173 @@
+.verify-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 34%),
+    radial-gradient(circle at bottom right, rgba(15, 118, 110, 0.14), transparent 30%),
+    linear-gradient(180deg, #eef4fb 0%, #f8fbff 100%);
+}
+
+.verify-shell {
+  width: 100%;
+  max-width: 640px;
+}
+
+.verify-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+  color: #0f172a;
+}
+
+.verify-brand__icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  background: linear-gradient(135deg, #0f172a, #2563eb);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.18);
+}
+
+.verify-brand__eyebrow {
+  margin: 0 0 4px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.verify-brand__title {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.1;
+}
+
+.verify-card {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+.verify-card__status-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2563eb;
+  background: #eff6ff;
+  margin-bottom: 18px;
+}
+
+.verify-card--success .verify-card__status-icon {
+  color: #15803d;
+  background: #f0fdf4;
+}
+
+.verify-card--failure .verify-card__status-icon {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.verify-card__title {
+  margin: 0;
+  font-size: 24px;
+  color: #0f172a;
+}
+
+.verify-card__message {
+  margin: 12px 0 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.verify-card__detail {
+  margin-top: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 14px;
+}
+
+.verify-card__error {
+  margin-top: 16px;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.verify-card__actions {
+  margin-top: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.verify-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.verify-btn--primary {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+}
+
+.verify-btn--primary:disabled {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.verify-btn--secondary {
+  background: #fff;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 640px) {
+  .verify-card {
+    padding: 22px;
+    border-radius: 20px;
+  }
+
+  .verify-brand__title {
+    font-size: 24px;
+  }
+
+  .verify-card__title {
+    font-size: 22px;
+  }
+}

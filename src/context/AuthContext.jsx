@@ -14,14 +14,21 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       const data = await api.login(email, password)
-      localStorage.setItem('audit_token', data.access_token)
-      // Mocking user object since the login response only returns the access token
-      const u = { 
-        id: 'mock-uuid', 
-        email, 
-        username: email.split('@')[0], 
-        role: email.includes('admin') ? 'admin' : 'staff' 
-      };
+      const accessToken = data.access_token || data.token
+
+      if (accessToken) {
+        localStorage.setItem('audit_token', accessToken)
+      }
+
+      const backendUser = data.user || data.account || null
+      const role = String(data.role || backendUser?.role || (email.includes('admin') ? 'admin' : 'staff')).toLowerCase() === 'admin' ? 'admin' : 'staff'
+      const u = backendUser ? { ...backendUser, role, email: backendUser.email || email } : {
+        id: data.user_id || data.id || 'mock-uuid',
+        email,
+        full_name: email.split('@')[0],
+        role,
+      }
+
       localStorage.setItem('audit_user', JSON.stringify(u))
       setUser(u)
       return { success: true, role: u.role }
