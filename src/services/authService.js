@@ -2,10 +2,10 @@ import apiClient from '../api/axiosInstance'
 
 // API endpoints
 export const API_ENDPOINTS = {
-  AUTH_LOGIN: '/api/auth/login',
-  AUTH_REGISTER: '/api/auth/register',
-  AUTH_SET_PASSWORD: '/api/auth/set-password',
-  AUTH_VERIFY_EMAIL: '/api/auth/verify-email',
+  AUTH_LOGIN: '/auth/login',
+  AUTH_REGISTER: '/auth/register',
+  AUTH_SET_PASSWORD: '/auth/set-password',
+  AUTH_VERIFY_EMAIL: '/auth/verify-email',
 }
 
 export const authService = {

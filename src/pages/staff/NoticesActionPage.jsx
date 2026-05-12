@@ -4,6 +4,7 @@ import { Search, Eye, FileText, Mail, Scale } from 'lucide-react'
 import { noticeService } from '../../services/noticeService'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import EmptyState from '../../components/common/EmptyState'
+import { resolveUuid } from '../../services/paramHelpers'
 
 const PROCEEDING_ICONS = {
   assessment: { icon: FileText, color: '#2563eb' },
@@ -34,6 +35,7 @@ const TlDot = ({ type }) => {
 }
 
 const NoticeCard = ({ notice, onViewOrders }) => {
+  const noticeUuid = resolveUuid(notice.notice_id, notice.id)
   const iconKey = notice.proceeding_type || 'assessment'
   const IconMeta = PROCEEDING_ICONS[iconKey] || PROCEEDING_ICONS.assessment
   const Icon = IconMeta.icon
@@ -94,7 +96,7 @@ const NoticeCard = ({ notice, onViewOrders }) => {
         {/* Action */}
         <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <button
-            onClick={() => onViewOrders(notice.id)}
+            onClick={() => noticeUuid && onViewOrders(noticeUuid)}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '7px 14px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: '7px', fontSize: '11px', fontWeight: '500', cursor: 'pointer', width: '100%', justifyContent: 'center' }}
           >
             <Eye size={13} />
@@ -113,14 +115,27 @@ const NoticesActionPage = () => {
   const [notices, setNotices] = useState([])
   const [counts, setCounts] = useState({ action: 0, info: 0 })
   const [loading, setLoading] = useState(true)
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    page_size: 10,
+    total_pages: 0,
+    total_count: 0,
+  })
 
   useEffect(() => {
     const fetch = async () => {
       setLoading(true)
       try {
-        const data = await noticeService.getNotices({ tab: activeTab, search })
-        setNotices(data.items || data.results || [])
-        setCounts({ action: data.action_count ?? 0, info: data.info_count ?? 0 })
+        const response = await noticeService.getNotices({ tab: activeTab, search })
+        const payload = response.data || response
+        setNotices(payload.items || [])
+        setCounts({ action: payload.action_count ?? 0, info: payload.info_count ?? 0 })
+        setPagination({
+          current_page: payload.current_page ?? 1,
+          page_size: payload.page_size ?? 10,
+          total_pages: payload.total_pages ?? 0,
+          total_count: payload.total_count ?? 0,
+        })
       } catch {
         setNotices([])
       } finally {
@@ -174,12 +189,12 @@ const NoticesActionPage = () => {
       {loading ? (
         <LoadingSpinner />
       ) : notices.length === 0 ? (
-        <EmptyState message="No notices found" />
+        <EmptyState message="No data found" />
       ) : (
         <>
-          {notices.map((notice, i) => (
+          {notices.map((notice) => (
             <NoticeCard
-              key={notice.id || i}
+              key={resolveUuid(notice.notice_id, notice.id) || notice.proceeding_name}
               notice={notice}
               onViewOrders={(id) => navigate(`/staff/notice-orders/${id}`)}
             />
@@ -189,6 +204,7 @@ const NoticesActionPage = () => {
           </p>
         </>
       )}
+
     </div>
   )
 }

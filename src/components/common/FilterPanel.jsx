@@ -1,96 +1,103 @@
 import React, { useState } from 'react'
-import { Calendar, ChevronDown, ChevronUp, X } from 'lucide-react'
+import { Calendar, ChevronDown, ChevronUp } from 'lucide-react'
 
-const PROCEEDING_STATUSES = [
-  'Open/Pending',
-  'Closed',
-  'Submitted',
-  'e-Submission re-enabled by AO',
-  'e-Submission closed by officer',
+const STATUS_OPTIONS = [
+  { value: '', label: 'All' },
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'IN_PROGRESS', label: 'In Progress' },
+  { value: 'COMPLETED', label: 'Completed' },
+  { value: 'OVERDUE', label: 'Overdue' },
+  { value: 'AUTO_ASSIGNED', label: 'Auto Assigned' },
+  { value: 'REASSIGNED', label: 'Reassigned' },
+]
+
+const PROCEEDING_TYPES = [
+  { value: '', label: 'All' },
+  { value: 'assessment', label: 'Assessment' },
+  { value: 'notice', label: 'Notice' },
+  { value: 'appeal', label: 'Appeal' },
+  { value: 'letter', label: 'Letter' },
 ]
 
 const ACTS = [
+  { value: '', label: 'All' },
   { value: 'ita_1961', label: 'Income Tax Act 1961' },
   { value: 'ita_2025', label: 'Income Tax Act 2025' },
 ]
 
-const SORT_OPTIONS = [
-  { value: 'proc_created', label: 'Proc Created Date' },
-  { value: 'proc_closure', label: 'Proc Closure Date' },
-  { value: 'proc_limitation', label: 'Proc Limitation Date' },
-]
-
-const DateRangeGroup = ({ label }) => (
-  <div>
-    <p className="text-xs font-semibold text-gray-700 mb-2">{label}</p>
-    <div className="space-y-2">
-      {['From', 'To'].map((t) => (
-        <div key={t} className="relative">
-          <input
-            type="text"
-            placeholder="Choose Date"
-            className="w-full pl-3 pr-8 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-          <Calendar size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-        </div>
-      ))}
-    </div>
-  </div>
-)
-
 const FilterPanel = ({ onClose, onApply }) => {
-  const [procStatus, setProcStatus] = useState('Open/Pending')
-  const [displayNew, setDisplayNew] = useState(false)
-  const [act, setAct] = useState('ita_1961')
-  const [sortBy, setSortBy] = useState('proc_created')
-  const [sortExpanded, setSortExpanded] = useState(true)
+  const [status, setStatus] = useState('')
+  const [proceedingType, setProceedingType] = useState('')
+  const [act, setAct] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [professionalId, setProfessionalId] = useState('')
+  const [sortBy, setSortBy] = useState('')
+  const [sortExpanded, setSortExpanded] = useState(false)
 
   const handleApply = () => {
-    onApply?.({ procStatus, displayNew, act, sortBy })
+    onApply?.({
+      status,
+      proceeding_type: proceedingType,
+      applicable_act: act,
+      start_date: startDate,
+      end_date: endDate,
+      professional_id: professionalId,
+      sortBy,
+    })
     onClose?.()
   }
 
   const handleReset = () => {
-    setProcStatus('Open/Pending')
-    setDisplayNew(false)
-    setAct('ita_1961')
-    setSortBy('proc_created')
+    setStatus('')
+    setProceedingType('')
+    setAct('')
+    setStartDate('')
+    setEndDate('')
+    setProfessionalId('')
+    setSortBy('')
   }
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-lg w-full max-w-2xl p-5 space-y-5">
-      {/* Proceeding Status */}
+      {/* Status */}
       <div>
-        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">Proceeding Status</p>
+        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">Status</p>
         <div className="flex flex-wrap gap-2">
-          {PROCEEDING_STATUSES.map((s) => (
-            <label key={s} className="flex items-center gap-1.5 cursor-pointer">
+          {STATUS_OPTIONS.map((option) => (
+            <label key={option.value || option.label} className="flex items-center gap-1.5 cursor-pointer">
               <input
                 type="radio"
-                name="procStatus"
-                value={s}
-                checked={procStatus === s}
-                onChange={(e) => setProcStatus(e.target.value)}
+                name="status"
+                value={option.value}
+                checked={status === option.value}
+                onChange={(e) => setStatus(e.target.value)}
                 className="accent-blue-600"
               />
-              <span className="text-xs text-gray-700">{s}</span>
+              <span className="text-xs text-gray-700">{option.label}</span>
             </label>
           ))}
         </div>
       </div>
 
-      {/* Display Only */}
+      {/* Proceeding Type */}
       <div>
-        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Display Only</p>
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={displayNew}
-            onChange={(e) => setDisplayNew(e.target.checked)}
-            className="accent-blue-600"
-          />
-          <span className="text-xs text-gray-700">New e-Proceedings</span>
-        </label>
+        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Proceeding Type</p>
+        <div className="flex flex-wrap gap-2">
+          {PROCEEDING_TYPES.map((option) => (
+            <label key={option.value || option.label} className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="radio"
+                name="proceeding_type"
+                value={option.value}
+                checked={proceedingType === option.value}
+                onChange={(e) => setProceedingType(e.target.value)}
+                className="accent-blue-600"
+              />
+              <span className="text-xs text-gray-700">{option.label}</span>
+            </label>
+          ))}
+        </div>
       </div>
 
       {/* Applicable Act */}
@@ -116,12 +123,44 @@ const FilterPanel = ({ onClose, onApply }) => {
       {/* Date Filters */}
       <div>
         <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">Date Filters</p>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <DateRangeGroup label="Proc Created Date" />
-          <DateRangeGroup label="Proc Closure Date" />
-          <DateRangeGroup label="Proc Limitation Date" />
-          <DateRangeGroup label="Notice Issued Date" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <p className="text-xs font-semibold text-gray-700 mb-2">Start Date</p>
+            <div className="relative">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="w-full pl-3 pr-8 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <Calendar size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-gray-700 mb-2">End Date</p>
+            <div className="relative">
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full pl-3 pr-8 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <Calendar size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Professional ID */}
+      <div>
+        <p className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">Professional ID</p>
+        <input
+          type="text"
+          value={professionalId}
+          onChange={(e) => setProfessionalId(e.target.value)}
+          placeholder="Enter professional ID"
+          className="w-full px-3 py-1.5 border border-gray-300 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
       </div>
 
       {/* Sort By */}
@@ -136,7 +175,11 @@ const FilterPanel = ({ onClose, onApply }) => {
         </button>
         {sortExpanded && (
           <div className="space-y-1.5">
-            {SORT_OPTIONS.map((o) => (
+            {[
+              { value: 'proc_created', label: 'Proc Created Date' },
+              { value: 'proc_closure', label: 'Proc Closure Date' },
+              { value: 'proc_limitation', label: 'Proc Limitation Date' },
+            ].map((o) => (
               <label key={o.value} className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"

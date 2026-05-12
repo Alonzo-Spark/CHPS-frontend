@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Search, Check, Play, Eye, MessageSquare } from 'lucide-react'
+import { Search, Filter, Check, Play, Eye, MessageSquare } from 'lucide-react'
 import { taskService } from '../../services/taskService'
+import FilterPanel from '../../components/common/FilterPanel'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import EmptyState from '../../components/common/EmptyState'
 import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
+import { resolveUuid } from '../../services/paramHelpers'
 
 const TABS = [
   { id: 'all',         label: 'All Tasks' },
@@ -39,12 +42,24 @@ const StatCard = ({ label, value, sub, barColor, valueColor }) => (
 
 const TasksPage = () => {
   const { addToast } = useToast()
+  const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('all')
   const [search, setSearch]       = useState('')
+  const [page, setPage]           = useState(1)
+  const [pageSize]                = useState(10)
+  const [showFilter, setShowFilter] = useState(false)
+  const [filters, setFilters] = useState({})
   const [tasks, setTasks]         = useState([])
   const [tabCounts, setTabCounts] = useState({})
   const [stats, setStats]         = useState(null)
   const [loading, setLoading]     = useState(true)
+  const [loadError, setLoadError]  = useState('')
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    page_size: 10,
+    total_pages: 0,
+    total_count: 0,
+  })
   const [remarkTarget, setRemarkTarget] = useState(null)
   const [remarkText, setRemarkText]     = useState('')
   const remarkRef = useRef(null)
@@ -58,12 +73,40 @@ const TasksPage = () => {
 
   const loadTasks = async () => {
     setLoading(true)
+    setLoadError('')
     try {
-      const d = await taskService.getTasks({ tab: activeTab, search })
-      setTasks(d.items || d.results || [])
-      setTabCounts(d.counts || {})
+      const statusMap = {
+        pending: 'PENDING',
+        in_progress: 'IN_PROGRESS',
+        completed: 'COMPLETED',
+        overdue: 'OVERDUE',
+      }
+
+      const params = {
+        search,
+        page,
+        page_size: pageSize,
+        professional_id: user?.professional_id || user?.id || undefined,
+        ...filters,
+      }
+
+      if (activeTab !== 'all') {
+        params.status = statusMap[activeTab]
+      }
+
+      const response = await taskService.getTasks(params)
+      const payload = response.data || response
+      setTasks(payload.items || [])
+      setTabCounts(payload.counts || {})
+      setPagination({
+        current_page: payload.current_page ?? page,
+        page_size: payload.page_size ?? pageSize,
+        total_pages: payload.total_pages ?? 0,
+        total_count: payload.total_count ?? 0,
+      })
     } catch {
       setTasks([])
+      setLoadError('Failed to load tasks')
     } finally {
       setLoading(false)
     }
@@ -74,19 +117,26 @@ const TasksPage = () => {
   useEffect(() => {
     const t = setTimeout(loadTasks, 300)
     return () => clearTimeout(t)
-  }, [activeTab, search])
+  }, [activeTab, search, page, pageSize, filters, user?.professional_id, user?.id])
+
+  const handleApplyFilters = (nextFilters) => {
+    setFilters(nextFilters)
+    setPage(1)
+  }
 
   const handleStart = async (id) => {
+    if (!id) return
     try {
-      await taskService.updateStatus(id, 'in_progress')
+      await taskService.updateStatus(id, 'IN_PROGRESS')
       addToast('Task started', 'success')
       loadTasks()
     } catch { addToast('Failed to update task', 'error') }
   }
 
   const handleComplete = async (id) => {
+    if (!id) return
     try {
-      await taskService.updateStatus(id, 'completed')
+      await taskService.updateStatus(id, 'COMPLETED')
       addToast('Task marked complete', 'success')
       loadTasks(); loadStats()
     } catch { addToast('Failed to update task', 'error') }
@@ -109,17 +159,34 @@ const TasksPage = () => {
       {/* Title + Search */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
         <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#1e293b' }}>My Tasks</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '7px 12px', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
-          <Search size={14} color="#94a3b8" />
-          <input
-            type="text"
-            placeholder="Search by Reference ID / Assessee Name…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ border: 'none', outline: 'none', fontSize: '12px', color: '#1e293b', background: 'transparent', width: '240px' }}
-          />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '7px', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '7px 12px', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}>
+            <Search size={14} color="#94a3b8" />
+            <input
+              type="text"
+              placeholder="Search by Reference ID / Assessee Name…"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1) }}
+              style={{ border: 'none', outline: 'none', fontSize: '12px', color: '#1e293b', background: 'transparent', width: '240px' }}
+            />
+          </div>
+          <button
+            onClick={() => setShowFilter(!showFilter)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '7px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#64748b', fontSize: '12px', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,.06)' }}
+          >
+            <Filter size={13} />Filter
+          </button>
         </div>
       </div>
+
+      {showFilter && (
+        <div style={{ marginBottom: '16px' }}>
+          <FilterPanel
+            onClose={() => setShowFilter(false)}
+            onApply={handleApplyFilters}
+          />
+        </div>
+      )}
 
       {/* Stat Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '20px' }}>
@@ -147,12 +214,12 @@ const TasksPage = () => {
       </div>
 
       {/* Table */}
-      {loading ? <LoadingSpinner /> : tasks.length === 0 ? <EmptyState message="No tasks found" /> : (
+      {loading ? <LoadingSpinner /> : loadError ? <EmptyState message={loadError} /> : tasks.length === 0 ? <EmptyState message="No tasks found" /> : (
         <div style={{ background: '#fff', borderRadius: '10px', border: '0.5px solid #e2e8f0', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                {['Reference ID', 'Assessee Name', 'Task Type', 'Priority', 'Due Date', 'Status', 'Assigned By', 'Actions'].map(col => (
+                {['Reference ID', 'Assessee Name', 'Proceeding Name', 'Due Date', 'Status', 'Assigned Professional', 'Actions'].map(col => (
                   <th key={col} style={{ fontSize: '11px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '10px 12px', textAlign: 'left', borderBottom: '1px solid #f1f5f9', whiteSpace: 'nowrap' }}>
                     {col}
                   </th>
@@ -160,17 +227,22 @@ const TasksPage = () => {
               </tr>
             </thead>
             <tbody>
-              {tasks.map((task, idx) => {
-                const statusKey = (task.status || '').toLowerCase().replace(' ', '_').replace('_', ' ')
-                const sp = statusPill[statusKey] || statusPill.pending
-                const priKey = (task.priority || '').toLowerCase()
-                const pb = priorityBadge[priKey] || priorityBadge.medium
-                const isDone = statusKey === 'completed'
-                const isOverdue = statusKey === 'overdue'
-                const isPending = statusKey === 'pending'
+              {tasks.map((task) => {
+                const statusKey = (task.status || '').toUpperCase()
+                const statusStyle = {
+                  PENDING: statusPill.pending,
+                  IN_PROGRESS: statusPill['in progress'],
+                  OVERDUE: statusPill.overdue,
+                  COMPLETED: statusPill.completed,
+                }
+                const sp = statusStyle[statusKey] || statusPill.pending
+                const isDone = statusKey === 'COMPLETED'
+                const isOverdue = statusKey === 'OVERDUE'
+                const isPending = statusKey === 'PENDING'
+                const taskUuid = resolveUuid(task.task_id, task.assignment_id, task.id)
 
                 return (
-                  <tr key={task.id || idx} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
+                  <tr key={taskUuid || task.reference_id} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
                     <td style={{ padding: '12px 12px', color: '#2563eb', fontWeight: '500' }}>{task.reference_id}</td>
                     <td style={{ padding: '12px 12px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
@@ -180,32 +252,28 @@ const TasksPage = () => {
                         <span style={{ fontWeight: '500' }}>{task.assessee_name}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '12px 12px' }}>
-                      <span style={{ background: '#f1f5f9', padding: '3px 9px', borderRadius: '5px', fontSize: '11px' }}>{task.task_type}</span>
-                    </td>
-                    <td style={{ padding: '12px 12px' }}>
-                      <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', ...pb }}>
-                        {(task.priority || '').toUpperCase()}
-                      </span>
-                    </td>
                     <td style={{ padding: '12px 12px', color: isOverdue ? '#dc2626' : '#1e293b', fontWeight: isOverdue ? '500' : '400' }}>
-                      {task.due_date}{isOverdue ? ' ⚠' : ''}
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: '500', color: '#1e293b', marginBottom: '2px' }}>{task.proceeding_name || task.task_type || '—'}</p>
+                        <p style={{ fontSize: '11px', color: '#64748b' }}>Due: {task.due_date || '—'}</p>
+                        <p style={{ fontSize: '11px', color: '#64748b' }}>Assigned: {task.assigned_at || '—'}</p>
+                      </div>
                     </td>
                     <td style={{ padding: '12px 12px' }}>
                       <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '600', ...sp }}>
                         {(task.status || '').toUpperCase()}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 12px', color: '#64748b' }}>{task.assigned_by}</td>
+                    <td style={{ padding: '12px 12px', color: '#64748b' }}>{task.assigned_professional || task.professional_name || '—'}</td>
                     <td style={{ padding: '12px 12px' }}>
                       <div style={{ display: 'flex', gap: '5px' }}>
                         {!isDone && (isPending || isOverdue) && (
-                          <button onClick={() => handleStart(task.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '500', border: 'none', cursor: 'pointer', background: '#2563eb', color: '#fff' }}>
+                          <button onClick={() => handleStart(taskUuid)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '500', border: 'none', cursor: 'pointer', background: '#2563eb', color: '#fff' }}>
                             <Play size={11} />Start
                           </button>
                         )}
-                        {!isDone && statusKey === 'in progress' && (
-                          <button onClick={() => handleComplete(task.id)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '500', border: 'none', cursor: 'pointer', background: '#16a34a', color: '#fff' }}>
+                        {!isDone && statusKey === 'IN_PROGRESS' && (
+                          <button onClick={() => handleComplete(taskUuid)} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '500', border: 'none', cursor: 'pointer', background: '#16a34a', color: '#fff' }}>
                             <Check size={11} />Complete
                           </button>
                         )}
@@ -213,7 +281,7 @@ const TasksPage = () => {
                           <Eye size={11} />View
                         </button>
                         <button
-                          onClick={() => { setRemarkTarget(task.id); setRemarkText('') }}
+                          onClick={() => { setRemarkTarget(taskUuid); setRemarkText('') }}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '5px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: '500', cursor: 'pointer', background: '#fff', color: '#64748b', border: '0.5px solid #e2e8f0' }}
                         >
                           <MessageSquare size={11} />Remark

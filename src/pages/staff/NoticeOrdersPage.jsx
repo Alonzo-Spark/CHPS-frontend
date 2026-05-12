@@ -4,6 +4,7 @@ import { ArrowLeft, Search, SlidersHorizontal, FileText, FileType } from 'lucide
 import { noticeOrderService } from '../../services/noticeOrderService'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import EmptyState from '../../components/common/EmptyState'
+import { resolveUuid } from '../../services/paramHelpers'
 
 const badgeStyle = {
   pending:     { background: '#fffbeb', color: '#92400e', border: '0.5px solid #fcd34d', padding: '3px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '500' },
@@ -61,7 +62,7 @@ const OrderCard = ({ order }) => {
               <p style={{ fontSize: '10px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '3px' }}>
                 {statusKey === 'completed' ? 'Closed on' : 'Response due'}
               </p>
-              <p style={{ fontSize: '13px', fontWeight: '500', color: dateColor }}>{order.response_due || order.closed_on}</p>
+              <p style={{ fontSize: '13px', fontWeight: '500', color: dateColor }}>{order.due_on || order.response_due || order.closed_on}</p>
             </div>
           </div>
         </div>
@@ -87,19 +88,36 @@ const NoticeOrdersPage = () => {
   const [orders, setOrders] = useState([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    page_size: 10,
+    total_pages: 0,
+    total_count: 0,
+  })
 
   useEffect(() => {
     const fetchAll = async () => {
       setLoading(true)
+      setLoadError('')
       try {
         const [procData, ordersData] = await Promise.all([
           noticeOrderService.getProceeding(id),
-          noticeOrderService.getOrders(id, { search }),
+          noticeOrderService.getOrders(id, { search, page: 1, page_size: 10 }),
         ])
-        setProceeding(procData)
-        setOrders(ordersData.items || ordersData.results || ordersData || [])
+        const proceedingPayload = procData.data || procData
+        const ordersPayload = ordersData.data || ordersData
+        setProceeding(proceedingPayload)
+        setOrders(ordersPayload.items || [])
+        setPagination({
+          current_page: ordersPayload.current_page ?? 1,
+          page_size: ordersPayload.page_size ?? 10,
+          total_pages: ordersPayload.total_pages ?? 0,
+          total_count: ordersPayload.total_count ?? 0,
+        })
       } catch {
         setOrders([])
+        setLoadError('Failed to load notice orders')
       } finally {
         setLoading(false)
       }
@@ -169,16 +187,19 @@ const NoticeOrdersPage = () => {
 
       {loading ? (
         <LoadingSpinner />
+      ) : loadError ? (
+        <EmptyState message={loadError} />
       ) : orders.length === 0 ? (
         <EmptyState message="No orders found" />
       ) : (
         <>
-          {orders.map((order, i) => <OrderCard key={order.id || i} order={order} />)}
+          {orders.map((order) => <OrderCard key={resolveUuid(order.order_id, order.id) || order.reference_id} order={order} />)}
           <p style={{ fontSize: '12px', color: '#64748b', textAlign: 'center', padding: '6px 0' }}>
             Showing {orders.length} of {orders.length} orders
           </p>
         </>
       )}
+
     </div>
   )
 }

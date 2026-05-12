@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Filter, Plus, ChevronLeft, ChevronRight, ClipboardList, AlertCircle, Clock } from 'lucide-react'
-import StatCard from '../../components/common/StatCard'
+import { Search, Filter, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
 import StatusBadge from '../../components/common/StatusBadge'
 import FilterPanel from '../../components/common/FilterPanel'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import EmptyState from '../../components/common/EmptyState'
+import DashboardCards from '../../components/common/DashboardCards'
 import { dashboardService } from '../../services/dashboardService'
-import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
+import { resolveUuid } from '../../services/paramHelpers'
 
 const StaffDashboard = () => {
   const navigate = useNavigate()
-  const { addToast } = useToast()
+  const { user } = useAuth()
 
   const [stats, setStats] = useState(null)
   const [assignments, setAssignments] = useState([])
@@ -21,6 +22,14 @@ const StaffDashboard = () => {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [showFilter, setShowFilter] = useState(false)
+  const [filters, setFilters] = useState({})
+  const [loadError, setLoadError] = useState('')
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    page_size: 10,
+    total_pages: 0,
+    total_count: 0,
+  })
   const pageSize = 10
 
   useEffect(() => {
@@ -41,59 +50,52 @@ const StaffDashboard = () => {
   useEffect(() => {
     const fetchAssignments = async () => {
       setTableLoading(true)
+      setLoadError('')
       try {
-        const data = await dashboardService.getAssignments({ search, page, page_size: pageSize })
-        setAssignments(data.items || data.results || [])
-        setTotalAssignments(data.total || data.count || 0)
+        const response = await dashboardService.getAssignments({
+          search,
+          page,
+          page_size: pageSize,
+          professional_id: user?.professional_id || user?.id || undefined,
+          ...filters,
+        })
+        const payload = response.data || response
+        setAssignments(payload.items || [])
+        setPagination({
+          current_page: payload.current_page ?? page,
+          page_size: payload.page_size ?? pageSize,
+          total_pages: payload.total_pages ?? 0,
+          total_count: payload.total_count ?? 0,
+        })
+        setTotalAssignments(payload.total_count ?? 0)
       } catch {
         setAssignments([])
+        setLoadError('Failed to load assignments')
       } finally {
         setTableLoading(false)
       }
     }
     const debounce = setTimeout(fetchAssignments, 300)
     return () => clearTimeout(debounce)
-  }, [search, page])
+  }, [search, page, filters, user?.professional_id, user?.id])
 
-  const totalPages = Math.ceil(totalAssignments / pageSize)
+  const totalPages = pagination.total_pages || Math.ceil(totalAssignments / pageSize)
 
   return (
     <div className="space-y-5">
       {/* Stats Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {statsLoading ? (
-          [1, 2, 3].map((i) => (
+      {statsLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+          {[1, 2, 3, 4, 5].map((i) => (
             <div key={i} className="bg-white rounded-xl border border-gray-200 p-5 h-28 animate-pulse">
               <div className="h-3 bg-gray-200 rounded w-1/2 mb-3" />
               <div className="h-8 bg-gray-200 rounded w-1/3" />
             </div>
-          ))
-        ) : (
-          <>
-            <StatCard
-              title="Total Assigned"
-              value={stats?.total_assigned}
-              trend={stats?.total_assigned_trend}
-              icon={ClipboardList}
-              color="blue"
-            />
-            <StatCard
-              title="Pending Tasks"
-              value={stats?.pending_tasks}
-              subtitle={stats?.pending_due_today ? `${stats.pending_due_today} Due today` : undefined}
-              icon={AlertCircle}
-              color="red"
-            />
-            <StatCard
-              title="Recently Updated"
-              value={stats?.recently_updated}
-              subtitle={stats?.recently_updated_period || 'Last 24h'}
-              icon={Clock}
-              color="gray"
-            />
-          </>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <DashboardCards stats={stats} />
+      )}
 
       {/* Assignments Table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -134,13 +136,21 @@ const StaffDashboard = () => {
         {/* Filter Panel */}
         {showFilter && (
           <div className="px-5 pb-4">
-            <FilterPanel onClose={() => setShowFilter(false)} />
+            <FilterPanel
+              onClose={() => setShowFilter(false)}
+              onApply={(nextFilters) => {
+                setFilters(nextFilters)
+                setPage(1)
+              }}
+            />
           </div>
         )}
 
         {/* Table */}
         {tableLoading ? (
           <LoadingSpinner />
+        ) : loadError ? (
+          <EmptyState message={loadError} />
         ) : assignments.length === 0 ? (
           <EmptyState message="No assignments found" />
         ) : (
@@ -159,12 +169,13 @@ const StaffDashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {assignments.map((row, idx) => {
+                  {assignments.map((row) => {
                     const initials = row.client_name
                       ? row.client_name.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase()
                       : '??'
+                    const assignmentUuid = resolveUuid(row.assignment_id, row.notice_id, row.id)
                     return (
-                      <tr key={row.id || idx} className="hover:bg-gray-50 transition-colors">
+                      <tr key={assignmentUuid || row.reference_id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-xs flex-shrink-0">

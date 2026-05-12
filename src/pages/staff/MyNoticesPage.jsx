@@ -5,6 +5,7 @@ import FilterPanel from '../../components/common/FilterPanel'
 import LoadingSpinner from '../../components/common/LoadingSpinner'
 import EmptyState from '../../components/common/EmptyState'
 import { noticeService } from '../../services/noticeService'
+import { resolveUuid } from '../../services/paramHelpers'
 
 const TABS = [
   { id: 'action', label: 'For your Action' },
@@ -16,7 +17,8 @@ const VIEWS = [
   { id: 'other', label: 'Of Other ID' },
 ]
 
-const NoticeCard = ({ notice }) => {
+const NoticeCard = ({ notice, onViewOrders }) => {
+  const noticeUuid = resolveUuid(notice.notice_id, notice.id)
   const isAssessment = notice.proceeding_type === 'assessment'
   const Icon = isAssessment ? FileText : Mail
   const iconBg = isAssessment ? 'bg-blue-50' : 'bg-yellow-50'
@@ -111,7 +113,10 @@ const NoticeCard = ({ notice }) => {
 
       {/* Footer */}
       <div className="px-5 pb-4">
-        <button className="flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold rounded-md transition-colors">
+        <button
+          onClick={() => noticeUuid && onViewOrders(noticeUuid)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold rounded-md transition-colors"
+        >
           <FileText size={13} />
           View Notices/Orders ({notice.notice_count ?? 0})
           <ChevronRight size={13} />
@@ -126,23 +131,38 @@ const MyNoticesPage = () => {
   const [activeView, setActiveView] = useState('self')
   const [search, setSearch] = useState('')
   const [showFilter, setShowFilter] = useState(false)
+  const [filters, setFilters] = useState({})
   const [notices, setNotices] = useState([])
   const [counts, setCounts] = useState({ action: 0, info: 0 })
   const [loading, setLoading] = useState(true)
+  const [pagination, setPagination] = useState({
+    current_page: 1,
+    page_size: 10,
+    total_pages: 0,
+    total_count: 0,
+  })
 
   useEffect(() => {
     const fetchNotices = async () => {
       setLoading(true)
       try {
-        const data = await noticeService.getNotices({
+        const response = await noticeService.getNotices({
           tab: activeTab,
           view: activeView,
           search,
+          ...filters,
         })
-        setNotices(data.items || data.results || [])
+        const payload = response.data || response
+        setNotices(payload.items || [])
         setCounts({
-          action: data.action_count ?? data.counts?.action ?? 0,
-          info: data.info_count ?? data.counts?.info ?? 0,
+          action: payload.action_count ?? payload.counts?.action ?? 0,
+          info: payload.info_count ?? payload.counts?.info ?? 0,
+        })
+        setPagination({
+          current_page: payload.current_page ?? 1,
+          page_size: payload.page_size ?? 10,
+          total_pages: payload.total_pages ?? 0,
+          total_count: payload.total_count ?? 0,
         })
       } catch {
         setNotices([])
@@ -152,7 +172,7 @@ const MyNoticesPage = () => {
     }
     const debounce = setTimeout(fetchNotices, 300)
     return () => clearTimeout(debounce)
-  }, [activeTab, activeView, search])
+  }, [activeTab, activeView, search, filters])
 
   return (
     <div>
@@ -209,7 +229,12 @@ const MyNoticesPage = () => {
       {/* Filter Panel */}
       {showFilter && (
         <div className="mb-4">
-          <FilterPanel onClose={() => setShowFilter(false)} />
+          <FilterPanel
+            onClose={() => setShowFilter(false)}
+            onApply={(nextFilters) => {
+              setFilters(nextFilters)
+            }}
+          />
         </div>
       )}
 
@@ -237,14 +262,22 @@ const MyNoticesPage = () => {
       {loading ? (
         <LoadingSpinner />
       ) : notices.length === 0 ? (
-        <EmptyState message="No notices found" icon={FileText} />
+        <EmptyState message="No data found" icon={FileText} />
       ) : (
         <div>
-          {notices.map((notice, idx) => (
-            <NoticeCard key={notice.id || idx} notice={notice} />
+          {notices.map((notice) => (
+            <NoticeCard
+              key={resolveUuid(notice.notice_id, notice.id) || notice.proceeding_name}
+              notice={notice}
+              onViewOrders={(id) => navigate(`/staff/notice-orders/${id}`)}
+            />
           ))}
+          <p className="text-xs text-gray-500 text-center py-1">
+            Showing {notices.length} of {notices.length} proceedings
+          </p>
         </div>
       )}
+
     </div>
   )
 }
