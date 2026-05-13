@@ -35,7 +35,7 @@ const Sidebar = () => {
             borderRadius: '8px', color: isActive ? '#fff' : '#94a3b8',
             background: isActive ? '#2563eb' : 'transparent', fontWeight: isActive ? '500' : '400',
             fontSize: '13px', textDecoration: 'none', cursor: 'pointer',
-          })}>
+          })} onClick={() => console.log('Sidebar navigation clicked', label, to)}>
             <Icon size={15} />{label}
           </NavLink>
         ))}
