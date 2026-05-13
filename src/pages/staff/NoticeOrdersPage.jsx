@@ -96,32 +96,33 @@ const NoticeOrdersPage = () => {
     total_count: 0,
   })
 
-  useEffect(() => {
-    const fetchAll = async () => {
-      setLoading(true)
-      setLoadError('')
-      try {
-        const [procData, ordersData] = await Promise.all([
-          noticeOrderService.getProceeding(id),
-          noticeOrderService.getOrders(id, { search, page: 1, page_size: 10 }),
-        ])
-        const proceedingPayload = procData.data || procData
-        const ordersPayload = ordersData.data || ordersData
-        setProceeding(proceedingPayload)
-        setOrders(ordersPayload.items || [])
-        setPagination({
-          current_page: ordersPayload.current_page ?? 1,
-          page_size: ordersPayload.page_size ?? 10,
-          total_pages: ordersPayload.total_pages ?? 0,
-          total_count: ordersPayload.total_count ?? 0,
-        })
-      } catch {
-        setOrders([])
-        setLoadError('Failed to load notice orders')
-      } finally {
-        setLoading(false)
-      }
+  const fetchAll = async () => {
+    setLoading(true)
+    setLoadError('')
+    try {
+      const [procData, ordersData] = await Promise.all([
+        noticeOrderService.getProceeding(id),
+        noticeOrderService.getOrders(id, { search, page: 1, page_size: 10 }),
+      ])
+      const proceedingPayload = procData?.data || procData || null
+      const ordersPayload = ordersData?.data || ordersData || {}
+      setProceeding(proceedingPayload)
+      setOrders(ordersPayload.items || [])
+      setPagination({
+        current_page: ordersPayload.current_page ?? 1,
+        page_size: ordersPayload.page_size ?? 10,
+        total_pages: ordersPayload.total_pages ?? 0,
+        total_count: ordersPayload.total_count ?? 0,
+      })
+    } catch {
+      setOrders([])
+      setLoadError('Failed to load notice orders')
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     const t = setTimeout(fetchAll, 300)
     return () => clearTimeout(t)
   }, [id, search])
@@ -188,9 +189,9 @@ const NoticeOrdersPage = () => {
       {loading ? (
         <LoadingSpinner />
       ) : loadError ? (
-        <EmptyState message={loadError} />
+        <EmptyState message={loadError} onAction={fetchAll} actionLabel="Retry" />
       ) : orders.length === 0 ? (
-        <EmptyState message="No orders found" />
+        <EmptyState message="No orders found" onAction={fetchAll} actionLabel="Reload" />
       ) : (
         <>
           {orders.map((order) => <OrderCard key={resolveUuid(order.order_id, order.id) || order.reference_id} order={order} />)}

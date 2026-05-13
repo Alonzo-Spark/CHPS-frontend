@@ -29,13 +29,15 @@ const LoginPage = () => {
     setLoading(true)
     try {
       const data = await login(form)
-      const roleMap = {
+      const role = data.role ? data.role.toLowerCase() : 'staff'
+      const fallbackMap = {
         admin: '/admin/dashboard',
         professor: '/professor/dashboard',
         staff: '/staff/dashboard',
-        professional: '/staff/dashboard',
+        professional: '/professional/dashboard',
       }
-      navigate(roleMap[data.role] || '/staff/dashboard')
+
+      navigate(data.redirect_url || fallbackMap[role] || '/staff/dashboard', { replace: true })
     } catch (err) {
       const msg = err?.response?.data?.detail || 'Invalid credentials. Please try again.'
       addToast(msg, 'error')

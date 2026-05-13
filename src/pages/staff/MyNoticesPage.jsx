@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Search, Filter, FileText, Mail, CheckCircle, Clock, ChevronRight } from 'lucide-react'
 import StatusBadge from '../../components/common/StatusBadge'
 import FilterPanel from '../../components/common/FilterPanel'
@@ -26,7 +26,6 @@ const NoticeCard = ({ notice, onViewOrders }) => {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-4">
-      {/* Header */}
       <div className="px-5 py-3 flex items-center justify-between border-b border-gray-100">
         <div className="flex items-center gap-3">
           <div className={`w-9 h-9 rounded-lg ${iconBg} flex items-center justify-center`}>
@@ -42,10 +41,8 @@ const NoticeCard = ({ notice, onViewOrders }) => {
         <StatusBadge status={notice.status} />
       </div>
 
-      {/* Body */}
       <div className="px-5 py-4">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {/* Col 1 */}
           <div className="space-y-4">
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Audit ID / PAN</p>
@@ -57,7 +54,6 @@ const NoticeCard = ({ notice, onViewOrders }) => {
             </div>
           </div>
 
-          {/* Col 2 */}
           <div className="space-y-4">
             <div>
               <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Limitation Date</p>
@@ -69,13 +65,11 @@ const NoticeCard = ({ notice, onViewOrders }) => {
             </div>
           </div>
 
-          {/* Col 3 */}
           <div>
             <p className="text-xs text-gray-400 uppercase tracking-wide mb-0.5">Financial Year</p>
             <p className="text-sm font-semibold text-gray-900">{notice.financial_year}</p>
           </div>
 
-          {/* Col 4 – Recent Activity */}
           <div>
             {notice.recent_activities && notice.recent_activities.length > 0 ? (
               <>
@@ -111,7 +105,6 @@ const NoticeCard = ({ notice, onViewOrders }) => {
         </div>
       </div>
 
-      {/* Footer */}
       <div className="px-5 pb-4">
         <button
           onClick={() => noticeUuid && onViewOrders(noticeUuid)}
@@ -135,6 +128,7 @@ const MyNoticesPage = () => {
   const [notices, setNotices] = useState([])
   const [counts, setCounts] = useState({ action: 0, info: 0 })
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [pagination, setPagination] = useState({
     current_page: 1,
     page_size: 10,
@@ -142,52 +136,52 @@ const MyNoticesPage = () => {
     total_count: 0,
   })
 
-  useEffect(() => {
-    const fetchNotices = async () => {
-      setLoading(true)
-      try {
-        const response = await noticeService.getNotices({
-          tab: activeTab,
-          view: activeView,
-          search,
-          ...filters,
-        })
-        const payload = response.data || response
-        setNotices(payload.items || [])
-        setCounts({
-          action: payload.action_count ?? payload.counts?.action ?? 0,
-          info: payload.info_count ?? payload.counts?.info ?? 0,
-        })
-        setPagination({
-          current_page: payload.current_page ?? 1,
-          page_size: payload.page_size ?? 10,
-          total_pages: payload.total_pages ?? 0,
-          total_count: payload.total_count ?? 0,
-        })
-      } catch {
-        setNotices([])
-      } finally {
-        setLoading(false)
-      }
+  const fetchNotices = async () => {
+    setLoading(true)
+    setLoadError('')
+    try {
+      const response = await noticeService.getNotices({
+        tab: activeTab,
+        view: activeView,
+        search,
+        ...filters,
+      })
+      const payload = response?.data || response || {}
+      setNotices(payload.items || [])
+      setCounts({
+        action: payload.action_count ?? payload.counts?.action ?? 0,
+        info: payload.info_count ?? payload.counts?.info ?? 0,
+      })
+      setPagination({
+        current_page: payload.current_page ?? 1,
+        page_size: payload.page_size ?? 10,
+        total_pages: payload.total_pages ?? 0,
+        total_count: payload.total_count ?? 0,
+      })
+    } catch {
+      setNotices([])
+      setLoadError('Failed to load notices')
+    } finally {
+      setLoading(false)
     }
+  }
+
+  useEffect(() => {
     const debounce = setTimeout(fetchNotices, 300)
     return () => clearTimeout(debounce)
   }, [activeTab, activeView, search, filters])
 
   return (
     <div>
-      {/* Breadcrumb */}
       <nav className="text-xs text-gray-400 mb-4">
         <span>Dashboard</span>
         <span className="mx-1.5 text-gray-300">&rsaquo;</span>
         <span className="text-gray-700 font-medium">My Notices</span>
       </nav>
 
-      {/* Page Header */}
       <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-gray-900">My Notices</h1>
-          {/* View Toggle */}
           <div className="flex border border-gray-300 rounded-md overflow-hidden">
             {VIEWS.map((v) => (
               <button
@@ -226,19 +220,15 @@ const MyNoticesPage = () => {
         </div>
       </div>
 
-      {/* Filter Panel */}
       {showFilter && (
         <div className="mb-4">
           <FilterPanel
             onClose={() => setShowFilter(false)}
-            onApply={(nextFilters) => {
-              setFilters(nextFilters)
-            }}
+            onApply={(nextFilters) => setFilters(nextFilters)}
           />
         </div>
       )}
 
-      {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-5">
         {TABS.map((tab) => {
           const count = tab.id === 'action' ? counts.action : counts.info
@@ -258,18 +248,21 @@ const MyNoticesPage = () => {
         })}
       </div>
 
-      {/* Notices List */}
       {loading ? (
         <LoadingSpinner />
+      ) : loadError ? (
+        <EmptyState message={loadError} onAction={fetchNotices} actionLabel="Retry" />
       ) : notices.length === 0 ? (
-        <EmptyState message="No data found" icon={FileText} />
+        <EmptyState message="No data found" onAction={fetchNotices} actionLabel="Reload" />
       ) : (
         <div>
           {notices.map((notice) => (
             <NoticeCard
               key={resolveUuid(notice.notice_id, notice.id) || notice.proceeding_name}
               notice={notice}
-              onViewOrders={(id) => navigate(`/staff/notice-orders/${id}`)}
+              onViewOrders={(id) => {
+                window.location.href = `/staff/notice-orders/${id}`
+              }}
             />
           ))}
           <p className="text-xs text-gray-500 text-center py-1">
@@ -277,7 +270,6 @@ const MyNoticesPage = () => {
           </p>
         </div>
       )}
-
     </div>
   )
 }

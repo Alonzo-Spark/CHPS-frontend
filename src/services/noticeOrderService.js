@@ -1,17 +1,18 @@
-import apiClient from '../api/axiosInstance'
-import { normalizePaginatedResponse } from './responseMappers'
+import apiClient from './api'
 import { buildListParams } from './paramHelpers'
+
+const extractData = (response) => response?.data?.data || response?.data || {}
 
 export const noticeOrderService = {
   getOrders: async (proceedingId, params = {}) => {
-    const response = await apiClient.get(`/notices/${proceedingId}/orders/`, {
+    const response = await apiClient.get(`/notices/${proceedingId}/orders`, {
       params: buildListParams(params),
     })
-    return normalizePaginatedResponse(response.data)
+    return extractData(response)
   },
 
   getProceeding: async (proceedingId) => {
-    const response = await apiClient.get(`/dashboard/view-notice/${proceedingId}/`)
-    return normalizePaginatedResponse(response.data)
+    const response = await apiClient.get(`/notices/${proceedingId}`)
+    return extractData(response)
   },
 }

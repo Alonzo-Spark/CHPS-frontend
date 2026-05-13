@@ -40,9 +40,9 @@ const RegisterPage = () => {
     setErrors({})
     setLoading(true)
     try {
-      await authService.register(form)
-      addToast('Registration successful! Check your email to verify your account.', 'success')
-      navigate('/password-setup')
+       await authService.register(form)
+       addToast('Registration successful! Check your email to verify your account.', 'success')
+       navigate('/registration-success')
     } catch (err) {
       const msg = err?.response?.data?.detail || 'Registration failed. Please try again.'
       addToast(msg, 'error')

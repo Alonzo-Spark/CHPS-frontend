@@ -12,9 +12,11 @@ const Topbar = ({ breadcrumbs }) => {
   const [unreadCount, setUnreadCount] = useState(0)
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const loadNotifications = async () => {
     setLoading(true)
+    setError('')
     try {
       const response = await notificationService.getNotifications()
       const payload = response.data || response
@@ -23,6 +25,7 @@ const Topbar = ({ breadcrumbs }) => {
     } catch {
       setNotifications([])
       setUnreadCount(0)
+      setError('Failed to load notifications')
     } finally {
       setLoading(false)
     }
@@ -88,6 +91,16 @@ const Topbar = ({ breadcrumbs }) => {
             </div>
             {loading ? (
               <div style={{ padding: '14px', fontSize: '12px', color: '#64748b' }}>Loading notifications...</div>
+            ) : error ? (
+              <div style={{ padding: '14px' }}>
+                <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '10px' }}>{error}</p>
+                <button
+                  onClick={loadNotifications}
+                  style={{ padding: '6px 10px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#fff', color: '#334155', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  Retry
+                </button>
+              </div>
             ) : formattedNotifications.length === 0 ? (
               <div style={{ padding: '14px', fontSize: '12px', color: '#64748b' }}>No notifications found</div>
             ) : (

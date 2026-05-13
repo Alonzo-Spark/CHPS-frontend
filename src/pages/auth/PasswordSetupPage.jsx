@@ -32,6 +32,23 @@ const PasswordSetupPage = () => {
     return errs
   }
 
+  React.useEffect(() => {
+    const validateToken = async () => {
+      if (!token) {
+        addToast('No verification token provided. Please use the link from your email.', 'error');
+        navigate('/login');
+        return;
+      }
+      try {
+        await authService.verifyEmail(token);
+      } catch (err) {
+        addToast(err?.response?.data?.detail || 'Invalid or expired verification token.', 'error');
+        navigate('/login');
+      }
+    };
+    validateToken();
+  }, [token, navigate, addToast]);
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     const errs = validate()

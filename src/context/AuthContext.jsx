@@ -3,49 +3,51 @@ import { authService } from '../services/authService'
 
 const AuthContext = createContext(null)
 
-const MOCK_USERS = {
-  'staff@test.com':     { role: 'staff',     username: 'Marcus Therne', token: 'mock-staff-token' },
-  'admin@test.com':     { role: 'admin',      username: 'Admin User',    token: 'mock-admin-token' },
-  'professor@test.com': { role: 'professor',  username: 'Prof. Smith',   token: 'mock-prof-token' },
-}
-const MOCK_PASSWORD = 'Password123'
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser]       = useState(null)
   const [token, setToken]     = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('access_token')
-    const storedUser  = localStorage.getItem('user')
-    if (storedToken && storedUser) {
+    const storedToken = localStorage.getItem('access_token') || localStorage.getItem('token')
+    const storedUser = localStorage.getItem('user')
+    const storedRole = localStorage.getItem('role')
+    const storedUsername = localStorage.getItem('username')
+
+    if (storedToken) {
       setToken(storedToken)
-      setUser(JSON.parse(storedUser))
+
+      if (storedUser) {
+        setUser(JSON.parse(storedUser))
+      } else if (storedRole || storedUsername) {
+        setUser({
+          role: storedRole || 'staff',
+          username: storedUsername || 'User',
+        })
+      }
     }
     setLoading(false)
   }, [])
 
   const login = async (credentials) => {
-    // MOCK — remove when backend is ready
-    const mock = MOCK_USERS[credentials.email_or_username]
-    if (mock && credentials.password === MOCK_PASSWORD) {
-      const data = { access_token: mock.token, role: mock.role, username: mock.username }
-      localStorage.setItem('access_token', data.access_token)
-      localStorage.setItem('user', JSON.stringify({ username: data.username, role: data.role }))
-      setToken(data.access_token)
-      setUser({ username: data.username, role: data.role })
-      return data
-    }
-    if (credentials.email_or_username in MOCK_USERS) {
-      throw { response: { data: { detail: 'Wrong password. Use: Password123' } } }
-    }
-    // REAL API — active for any email not in mock list
     const data = await authService.login(credentials)
-    localStorage.setItem('access_token', data.access_token)
-    localStorage.setItem('user', JSON.stringify({ username: data.username, role: data.role }))
-    setToken(data.access_token)
-    setUser({ username: data.username, role: data.role })
-    return data
+    const username = data?.username || data?.user?.full_name || data?.user?.username || credentials.email_or_username || 'User'
+    const role = data?.role || data?.user?.role || 'staff'
+    const userData = {
+      ...(data?.user || {}),
+      username,
+      role,
+    }
+
+    localStorage.setItem('access_token', data?.access_token || '')
+    localStorage.setItem('token', data?.access_token || '')
+    localStorage.setItem('role', role)
+    localStorage.setItem('username', username)
+    localStorage.setItem('user', JSON.stringify(userData))
+    setToken(data?.access_token || null)
+    setUser(userData)
+    
+    return { ...data, user: userData, role, username }
   }
 
   const logout = () => {

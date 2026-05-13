@@ -115,6 +115,7 @@ const NoticesActionPage = () => {
   const [notices, setNotices] = useState([])
   const [counts, setCounts] = useState({ action: 0, info: 0 })
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
   const [pagination, setPagination] = useState({
     current_page: 1,
     page_size: 10,
@@ -122,27 +123,30 @@ const NoticesActionPage = () => {
     total_count: 0,
   })
 
-  useEffect(() => {
-    const fetch = async () => {
-      setLoading(true)
-      try {
-        const response = await noticeService.getNotices({ tab: activeTab, search })
-        const payload = response.data || response
-        setNotices(payload.items || [])
-        setCounts({ action: payload.action_count ?? 0, info: payload.info_count ?? 0 })
-        setPagination({
-          current_page: payload.current_page ?? 1,
-          page_size: payload.page_size ?? 10,
-          total_pages: payload.total_pages ?? 0,
-          total_count: payload.total_count ?? 0,
-        })
-      } catch {
-        setNotices([])
-      } finally {
-        setLoading(false)
-      }
+  const fetchNotices = async () => {
+    setLoading(true)
+    setLoadError('')
+    try {
+      const response = await noticeService.getNotices({ tab: activeTab, search })
+      const payload = response?.data || response || {}
+      setNotices(payload.items || [])
+      setCounts({ action: payload.action_count ?? 0, info: payload.info_count ?? 0 })
+      setPagination({
+        current_page: payload.current_page ?? 1,
+        page_size: payload.page_size ?? 10,
+        total_pages: payload.total_pages ?? 0,
+        total_count: payload.total_count ?? 0,
+      })
+    } catch {
+      setNotices([])
+      setLoadError('Failed to load notices')
+    } finally {
+      setLoading(false)
     }
-    const t = setTimeout(fetch, 300)
+  }
+
+  useEffect(() => {
+    const t = setTimeout(fetchNotices, 300)
     return () => clearTimeout(t)
   }, [activeTab, search])
 
@@ -188,8 +192,10 @@ const NoticesActionPage = () => {
       {/* Cards */}
       {loading ? (
         <LoadingSpinner />
+      ) : loadError ? (
+        <EmptyState message={loadError} onAction={fetchNotices} actionLabel="Retry" />
       ) : notices.length === 0 ? (
-        <EmptyState message="No data found" />
+        <EmptyState message="No data found" onAction={fetchNotices} actionLabel="Reload" />
       ) : (
         <>
           {notices.map((notice) => (

@@ -214,7 +214,7 @@ const TasksPage = () => {
       </div>
 
       {/* Table */}
-      {loading ? <LoadingSpinner /> : loadError ? <EmptyState message={loadError} /> : tasks.length === 0 ? <EmptyState message="No tasks found" /> : (
+      {loading ? <LoadingSpinner /> : loadError ? <EmptyState message={loadError} onAction={loadTasks} actionLabel="Retry" /> : tasks.length === 0 ? <EmptyState message="No tasks found" onAction={loadTasks} actionLabel="Reload" /> : (
         <div style={{ background: '#fff', borderRadius: '10px', border: '0.5px solid #e2e8f0', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>

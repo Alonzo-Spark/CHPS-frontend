@@ -1,4 +1,4 @@
-import apiClient from '../api/axiosInstance'
+import apiClient from './api'
 
 // API endpoints
 export const API_ENDPOINTS = {
@@ -31,6 +31,9 @@ export const authService = {
 
   logout: () => {
     localStorage.removeItem('access_token')
+    localStorage.removeItem('token')
+    localStorage.removeItem('role')
+    localStorage.removeItem('username')
     localStorage.removeItem('user')
   },
 }
