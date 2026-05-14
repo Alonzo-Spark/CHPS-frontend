@@ -2,11 +2,12 @@ import api from '../api/axios'
 
 export const authService = {
   login: (data) => {
-    const params = new URLSearchParams()
-    params.append('username', data.username)
-    params.append('password', data.password)
-    return api.post('/api/auth/login', params, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    const payload = {
+      username: data.username,
+      password: data.password,
+    }
+    return api.post('/api/auth/login', payload, {
+      headers: { 'Content-Type': 'application/json' }
     })
   },
   register: (data) => api.post('/auth/register', data),
@@ -14,8 +15,8 @@ export const authService = {
 }
 
 export const dashboardService = {
-  getSummary: () => api.get('/staff/dashboard-summary'),
-  getAssignments: (params) => api.get('/staff/assignments', { params }),
+  getSummary: () => api.get('api/dashboard/summary')  
+
 }
 
 export const noticeService = {

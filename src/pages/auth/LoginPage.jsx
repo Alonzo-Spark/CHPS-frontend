@@ -30,11 +30,17 @@ export default function LoginPage() {
         username: form.email,
         password: form.password
       })
-
-
       login(res.data)
-      const user = res.data.user
-      navigate(`/${user.role}/dashboard`)
+
+      const redirectUrl = res.data?.redirect_url
+      const normalizedRole = (res.data?.role || res.data?.user?.role || '').toLowerCase()
+      if (redirectUrl) {
+        navigate(redirectUrl)
+      } else if (normalizedRole) {
+        navigate(`/${normalizedRole}/dashboard`)
+      } else {
+        navigate('/login')
+      }
 
     } catch (err) {
 
@@ -64,7 +70,8 @@ export default function LoginPage() {
 
         navigate("/staff/dashboard")
       } else {
-        setError("Invalid credentials. Please try again.")
+        const apiMessage = err?.response?.data?.detail || err?.response?.data?.message
+        setError(apiMessage || "Invalid credentials. Please try again.")
       }
 
     } finally {

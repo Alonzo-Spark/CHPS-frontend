@@ -5,7 +5,7 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(() => localStorage.getItem('access_token'))
-  const [role, setRole] = useState(() => localStorage.getItem('role'))
+  const [role, setRole] = useState(() => (localStorage.getItem('role') || '').toLowerCase() || null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
@@ -21,14 +21,16 @@ export function AuthProvider({ children }) {
       const data = usernameOrData
       const authToken = data.access_token || data.token || data.auth_token || 'dummy-token-123456'
       const userObj = data.user || { username: data.username || 'user', role: data.role || 'staff' }
+      const normalizedRole = (userObj.role || '').toLowerCase() || 'staff'
+      const normalizedUser = { ...userObj, role: normalizedRole }
       
       setToken(authToken)
-      setRole(userObj.role)
-      setUser(userObj)
+      setRole(normalizedRole)
+      setUser(normalizedUser)
 
       localStorage.setItem('access_token', authToken)
-      localStorage.setItem('role', userObj.role)
-      localStorage.setItem('user', JSON.stringify(userObj))
+      localStorage.setItem('role', normalizedRole)
+      localStorage.setItem('user', JSON.stringify(normalizedUser))
 
       return { success: true }
     }
