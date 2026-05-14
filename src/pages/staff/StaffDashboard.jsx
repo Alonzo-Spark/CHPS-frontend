@@ -8,7 +8,9 @@ export default function StaffDashboard() {
   const [summary, setSummary] = useState(null)
   const [assignments, setAssignments] = useState([])
   const [search, setSearch] = useState('')
-  const [query, setQuery] = useState('')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
@@ -32,23 +34,33 @@ export default function StaffDashboard() {
 
   const filtered = assignments.filter(a => {
     const term = search.trim().toLowerCase()
-    if (!term) return true
 
-    const professionalName = a.professional_name?.toLowerCase() ?? ''
-    const referenceId = (a.reference_id || `REF-${a.notice_id}`).toLowerCase()
-    const noticeId = String(a.notice_id)
+    // Search filter
+    const matchesSearch = !term || (() => {
+      const professionalName = a.professional_name?.toLowerCase() ?? ''
+      const referenceId = (a.reference_id || `REF-${a.notice_id}`).toLowerCase()
+      const noticeId = String(a.notice_id)
+      return professionalName.includes(term) || referenceId.includes(term) || noticeId.includes(term)
+    })()
 
-    return professionalName.includes(term) || referenceId.includes(term) || noticeId.includes(term)
+    // Date filter
+    const assignedDate = a.assigned_at ? new Date(a.assigned_at) : null
+    const fromDate = dateFrom ? new Date(dateFrom) : null
+    const toDate = dateTo ? new Date(dateTo) : null
+
+    const matchesDateRange = (() => {
+      if (!assignedDate) return !dateFrom && !dateTo
+      if (fromDate && assignedDate < fromDate) return false
+      if (toDate) {
+        const tomorrowDate = new Date(toDate)
+        tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+        if (assignedDate >= tomorrowDate) return false
+      }
+      return true
+    })()
+
+    return matchesSearch && matchesDateRange
   })
-
-  const handleSearch = () => {
-    setSearch(query)
-  }
-
-  const handleCancel = () => {
-    setQuery('')
-    setSearch('')
-  }
 
   const getInitials = (name = '') => name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const avatarColors = ['#7c3aed', '#059669', '#16a34a', '#ea580c', '#1d4ed8', '#dc2626']
@@ -83,19 +95,20 @@ export default function StaffDashboard() {
 
         {/* Assignments table */}
         <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, overflow: 'visible' }}>
-          <div style={{ padding: '14px 18px', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ padding: '14px 18px', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div>
               <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>My Assignments</p>
               <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Managing notification workflow and compliance deadlines</p>
             </div>
-            <div style={{ flex: '1 1 auto', minWidth: 0, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              <div style={{ flex: '1 1 260px', minWidth: 0, display: 'flex', alignItems: 'center', gap: 10, border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', background: '#fff', boxSizing: 'border-box' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 auto', minWidth: 280 }}>
+              {/* Search Bar */}
+              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', background: '#fff', boxSizing: 'border-box', minWidth: 280 }}>
                 <Search size={16} color="#64748b" />
                 <input
                   type="text"
-                  placeholder="Search user..."
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
+                  placeholder="Search user, reference ID..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
                   style={{
                     flex: 1,
                     minWidth: 0,
@@ -107,38 +120,90 @@ export default function StaffDashboard() {
                   }}
                 />
               </div>
+
+              {/* Filter Icon Button */}
               <button
-                onClick={handleSearch}
+                onClick={() => setShowFilterPanel(!showFilterPanel)}
                 style={{
-                  padding: '10px 18px',
-                  background: '#2563eb',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: 10,
-                  fontSize: 13,
-                  cursor: 'pointer',
-                  minWidth: 90
-                }}
-              >
-                Search
-              </button>
-              <button
-                onClick={handleCancel}
-                style={{
-                  padding: '10px 18px',
-                  background: '#f3f4f6',
-                  color: '#475569',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 40,
+                  height: 40,
                   border: '1px solid #cbd5e1',
                   borderRadius: 10,
-                  fontSize: 13,
+                  background: showFilterPanel ? '#e0e7ff' : '#fff',
                   cursor: 'pointer',
-                  minWidth: 90
+                  transition: 'all 0.2s'
                 }}
+                title="Filter by issued date"
               >
-                Cancel
+                <Filter size={18} color={showFilterPanel ? '#2563eb' : '#64748b'} />
               </button>
             </div>
           </div>
+
+          {/* Filter Panel */}
+          {showFilterPanel && (
+            <div style={{ padding: '12px 18px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Issued Date From:</label>
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  style={{
+                    padding: '8px 10px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    color: '#1e293b',
+                    background: '#fff',
+                    minWidth: 140,
+                    cursor: 'pointer'
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>To:</label>
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  style={{
+                    padding: '8px 10px',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    color: '#1e293b',
+                    background: '#fff',
+                    minWidth: 140,
+                    cursor: 'pointer'
+                  }}
+                />
+              </div>
+              {(dateFrom || dateTo) && (
+                <button
+                  onClick={() => {
+                    setDateFrom('')
+                    setDateTo('')
+                  }}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#f3f4f6',
+                    color: '#64748b',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+          )}
 
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, tableLayout: 'fixed' }}>
