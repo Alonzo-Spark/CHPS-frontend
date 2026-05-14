@@ -27,9 +27,10 @@ export default function LoginPage() {
     try {
       // ✅ Try API login first
       const res = await authService.login({
-        email: form.email,
+        username: form.email,
         password: form.password
       })
+
 
       login(res.data)
       const user = res.data.user
