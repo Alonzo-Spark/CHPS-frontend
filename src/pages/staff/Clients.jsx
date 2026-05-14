@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, UserPlus } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { clientService } from '../../services'
+import { userService } from '../../services'
 
 const statusBadge = (status = '') => {
   const map = {
@@ -25,23 +25,25 @@ export default function Clients() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    clientService.getClients()
-      .then(res => setClients(res.data))
+    userService.getUsers({ skip: 0, limit: 50 })
+      .then(res => setClients(res.data.items || res.data))
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
 
+
   const filtered = clients.filter(c =>
     search === '' ||
-    c.client_name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.pan_number?.toLowerCase().includes(search.toLowerCase())
+    c.name?.toLowerCase().includes(search.toLowerCase()) ||
+    c.email?.toLowerCase().includes(search.toLowerCase()) ||
+    c.assigned_professional?.professional_name?.toLowerCase().includes(search.toLowerCase())
   )
 
   const getInitials = (name = '') => name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const bgFor = (i) => ['#dbeafe', '#f0fdf4', '#fdf4ff', '#fff7ed', '#f0fdf4'][i % 5]
 
   const stats = [
-    { label: 'Total Clients', value: clients.length, color: '#1e293b', bar: '#2563eb' },
+    { label: 'Total Users', value: clients.length, color: '#1e293b', bar: '#2563eb' },
     { label: 'Under Review', value: clients.filter(c => c.status === 'under review').length, color: '#d97706', bar: '#d97706' },
     { label: 'Pending', value: clients.filter(c => !c.status || c.status === 'pending').length, color: '#dc2626', bar: '#dc2626' },
     { label: 'Completed', value: clients.filter(c => c.status === 'completed').length, color: '#16a34a', bar: '#16a34a' },
@@ -53,14 +55,14 @@ export default function Clients() {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 }}>
           <div>
-            <h2 style={{ fontSize: 20, fontWeight: 600, color: '#1e293b' }}>Clients</h2>
-            <p style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>Manage all registered clients and their proceedings</p>
+            <h2 style={{ fontSize: 20, fontWeight: 600, color: '#1e293b' }}>Users</h2>
+            <p style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>Manage all registered users and their professional assignments</p>
           </div>
           <button
             onClick={() => navigate('/staff/create-client')}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 12px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 500, cursor: 'pointer', marginTop: 4 }}
           >
-            <UserPlus size={13} /> Add Client
+            <UserPlus size={13} /> Add User
           </button>
         </div>
 
@@ -79,15 +81,15 @@ export default function Clients() {
         <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ padding: '14px 18px', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>All Clients</p>
-              <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>View and manage all client proceedings</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>All Users</p>
+              <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>View and manage all user assignments</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid #cbd5e1', borderRadius: 8, padding: '6px 11px', background: '#fff' }}>
                 <Search size={13} color="#94a3b8" />
                 <input
                   type="text"
-                  placeholder="Search clients..."
+                  placeholder="Search users..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', width: 150 }}
@@ -101,42 +103,54 @@ export default function Clients() {
 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: '18%' }} /><col style={{ width: '24%' }} /><col style={{ width: '22%' }} />
-              <col style={{ width: '12%' }} /><col style={{ width: '12%' }} /><col style={{ width: '12%' }} />
+              <col style={{ width: '25%' }} /><col style={{ width: '25%' }} /><col style={{ width: '25%' }} />
+              <col style={{ width: '15%' }} /><col style={{ width: '10%' }} />
             </colgroup>
             <thead>
               <tr>
-                {['Name', 'Document Reference ID', 'Issued On', 'Response Due', 'Status'].map(h => (
+                {['User', 'Email', 'Assigned Professional', 'Status', 'Action'].map(h => (
                   <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '9px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>Loading clients...</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>Loading users...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>No clients found.</td></tr>
+                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>No users found.</td></tr>
               ) : (
                 filtered.map((c, i) => (
-                  <tr key={c.pan_number || i} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
+                  <tr key={c.id || i} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
                     <td style={{ padding: '11px 10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{ width: 26, height: 26, borderRadius: '50%', background: bgFor(i), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: avatarColors[i % 5], flexShrink: 0 }}>
-                          {getInitials(c.client_name)}
+                          {getInitials(c.name)}
                         </div>
-                        <span style={{ fontWeight: 600, fontSize: 12 }}>{c.client_name}</span>
+                        <span style={{ fontWeight: 600, fontSize: 12 }}>{c.name}</span>
                       </div>
                     </td>
-                    <td style={{ padding: '11px 10px', color: '#dc2626', fontWeight: 500 }}>{c.response_due || '—'}</td>
+                    <td style={{ padding: '11px 10px' }}>{c.email}</td>
+                    <td style={{ padding: '11px 10px', color: '#1e3a8a', fontWeight: 500 }}>
+                      {c.assigned_professional?.professional_name || 'Unassigned'}
+                    </td>
                     <td style={{ padding: '11px 10px' }}>{statusBadge(c.status)}</td>
+                    <td style={{ padding: '11px 10px' }}>
+                      <button 
+                        style={{ background: '#fff', border: '0.5px solid #cbd5e1', borderRadius: 4, padding: '4px 8px', fontSize: 10, cursor: 'pointer' }}
+                        onClick={() => {/* Trigger assignment modal */}}
+                      >
+                        Assign
+                      </button>
+                    </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
 
+
           <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px solid #f1f5f9' }}>
-            <p style={{ fontSize: 12, color: '#64748b' }}>Showing {filtered.length} of {clients.length} clients</p>
+            <p style={{ fontSize: 12, color: '#64748b' }}>Showing {filtered.length} of {clients.length} users</p>
             <div style={{ display: 'flex', gap: 6 }}>
               {['‹', '›'].map(ch => (
                 <button key={ch} style={{ width: 28, height: 28, border: '0.5px solid #e2e8f0', borderRadius: 6, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{ch}</button>

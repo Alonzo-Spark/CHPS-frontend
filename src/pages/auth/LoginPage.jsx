@@ -5,7 +5,7 @@ import { authService } from '../../services'
 import { useAuth } from '../../context/AuthContext'
 
 export default function LoginPage() {
-  const [form, setForm] = useState({ email_or_username: '', password: '' })
+  const [form, setForm] = useState({ email: '', password: '' })
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -17,7 +17,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
 
-    if (!form.email_or_username || !form.password) {
+    if (!form.email || !form.password) {
       setError('All fields are required.')
       return
     }
@@ -26,36 +26,46 @@ export default function LoginPage() {
 
     try {
       // ✅ Try API login first
-      const res = await authService.login(form)
+      const res = await authService.login({
+        email: form.email,
+        password: form.password
+      })
 
       login(res.data)
-      navigate(res.data.redirect_url || `/${res.data.role}/dashboard`)
+      const user = res.data.user
+      navigate(`/${user.role}/dashboard`)
 
     } catch (err) {
+
       // ⚠️ If API fails → use dummy login
 
       const dummyUser = {
-        username: "staff123",
+        email: "staff123",
         password: "123456",
         role: "staff",
         access_token: "dummy-token-123"
       }
 
       if (
-        form.email_or_username === dummyUser.username &&
+        form.email === dummyUser.email &&
         form.password === dummyUser.password
       ) {
         // ✅ Dummy login success
         login({
           access_token: dummyUser.access_token,
-          role: dummyUser.role,
-          username: dummyUser.username
+          user: {
+            id: 99,
+            name: "Dummy Staff",
+            email: "staff@example.com",
+            role: dummyUser.role
+          }
         })
 
         navigate("/staff/dashboard")
       } else {
         setError("Invalid credentials. Please try again.")
       }
+
     } finally {
       setLoading(false)
     }
@@ -88,7 +98,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit}>
             
-            {/* Username */}
+            {/* Email / Username */}
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 13, color: '#374151', display: 'block', marginBottom: 6 }}>
                 Email / Username:
@@ -96,8 +106,8 @@ export default function LoginPage() {
               <input
                 type="text"
                 placeholder="Enter email or username"
-                value={form.email_or_username}
-                onChange={e => setForm({ ...form, email_or_username: e.target.value })}
+                value={form.email}
+                onChange={e => setForm({ ...form, email: e.target.value })}
                 style={{
                   width: '100%',
                   border: '1px solid #d1d5db',
@@ -109,6 +119,7 @@ export default function LoginPage() {
                 }}
               />
             </div>
+
 
             {/* Password */}
             <div style={{ marginBottom: 16 }}>

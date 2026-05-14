@@ -10,10 +10,19 @@ import Proceeding from './pages/staff/Proceeding'
 import Clients from './pages/staff/Clients'
 import CreateClient from './pages/staff/CreateClient'
 import AdminDashboard from './pages/admin/AdminDashboard'
+import { useEffect } from 'react'
+import { healthService } from './services'
 import ProfessorDashboard from './pages/professor/ProfessorDashboard'
 
 export default function App() {
+  useEffect(() => {
+    healthService.checkHealth()
+      .then(() => console.log('API is healthy'))
+      .catch(err => console.error('API Health check failed', err))
+  }, [])
+
   return (
+
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<LoginPage />} />

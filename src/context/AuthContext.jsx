@@ -4,7 +4,7 @@ const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [token, setToken] = useState(() => localStorage.getItem('token'))
+  const [token, setToken] = useState(() => localStorage.getItem('access_token'))
   const [role, setRole] = useState(() => localStorage.getItem('role'))
   const [loading, setLoading] = useState(false)
 
@@ -20,16 +20,15 @@ export function AuthProvider({ children }) {
     if (isObjectAuth) {
       const data = usernameOrData
       const authToken = data.access_token || data.token || data.auth_token || 'dummy-token-123456'
-      const userRole = data.role || 'staff'
-      const username = data.username || data.email || 'staff123'
-
+      const userObj = data.user || { username: data.username || 'user', role: data.role || 'staff' }
+      
       setToken(authToken)
-      setRole(userRole)
-      setUser({ username, role: userRole })
+      setRole(userObj.role)
+      setUser(userObj)
 
-      localStorage.setItem('token', authToken)
-      localStorage.setItem('role', userRole)
-      localStorage.setItem('user', JSON.stringify({ username, role: userRole }))
+      localStorage.setItem('access_token', authToken)
+      localStorage.setItem('role', userObj.role)
+      localStorage.setItem('user', JSON.stringify(userObj))
 
       return { success: true }
     }
@@ -43,23 +42,22 @@ export function AuthProvider({ children }) {
 
     if (usernameOrData === dummyStaff.username && password === dummyStaff.password) {
       const fakeToken = "dummy-token-123456"
+      const fakeUser = { username: dummyStaff.username, role: dummyStaff.role }
 
       setToken(fakeToken)
       setRole(dummyStaff.role)
-      setUser({ username: dummyStaff.username, role: dummyStaff.role })
+      setUser(fakeUser)
 
-      localStorage.setItem('token', fakeToken)
+      localStorage.setItem('access_token', fakeToken)
       localStorage.setItem('role', dummyStaff.role)
-      localStorage.setItem(
-        'user',
-        JSON.stringify({ username: dummyStaff.username, role: dummyStaff.role })
-      )
+      localStorage.setItem('user', JSON.stringify(fakeUser))
 
       return { success: true }
     } else {
       return { success: false, message: "Invalid credentials" }
     }
   }
+
 
   const logout = () => {
     setToken(null)
