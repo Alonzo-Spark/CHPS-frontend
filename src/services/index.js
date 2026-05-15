@@ -55,7 +55,7 @@ export const dashboardService = {
     ...res,
     data: normalizeDashboardSummary(res.data),
   })),
-  getRecentNotices: ({ limit = 20, offset = 0, since } = {}) => {
+  getRecentNotices: ({ limit = null, offset = 0, since } = {}) => {
     const params = { limit, offset }
     if (since) params.since = since
     return api.get('/api/dashboard/recent-notices', { params })
@@ -73,6 +73,10 @@ export const noticeService = {
 
   // Get notice orders/timeline/proceedings history
   getProceedings: (id) => api.get(`/api/notices/${id}/orders`),
+
+  // Get all notices for a proceeding name
+  getProceedingNotices: (proceedingName) =>
+    api.get(`/api/proceedings/${encodeURIComponent(proceedingName)}/notices`),
 
   // Download/Open PDF
   downloadNoticePdf: (id) =>
