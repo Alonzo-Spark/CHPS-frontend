@@ -22,19 +22,28 @@ export default function NoticeOrders() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [notices, setNotices] = useState([])
+  const [timeline, setTimeline] = useState([])
   const [proceeding, setProceeding] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetch = async () => {
       try {
-        const [noticeRes, procRes] = await Promise.all([
-          noticeService.getNotices(),
-          noticeService.getProceedings(),
-        ])
-        setNotices(noticeRes.data)
-        const proc = procRes.data.find(p => String(p.id) === String(id))
-        setProceeding(proc || null)
+        const res = await noticeService.getNoticeById(id)
+        const response = res.data || {}
+        const proceedingData = {
+          ...(response.proceeding_details || {}),
+          user_name: response.user_name,
+          user_pan: response.user_pan,
+        }
+
+        console.log('API Response:', response)
+        console.log('Proceeding:', proceedingData)
+        console.log('Orders:', response.notice_orders)
+
+        setProceeding(proceedingData)
+        setNotices(Array.isArray(response.notice_orders) ? response.notice_orders : [])
+        setTimeline(Array.isArray(response.activity_timeline) ? response.activity_timeline : [])
       } catch (e) {
         console.error(e)
       } finally {
@@ -44,8 +53,8 @@ export default function NoticeOrders() {
     fetch()
   }, [id])
 
-  const handleViewPdf = (pdfPath) => {
-    if (pdfPath) window.open(`${import.meta.env.VITE_API_BASE_URL}${pdfPath}`, '_blank')
+  const handleViewPdf = (noticeId) => {
+    window.open(`http://localhost:8000/api/notices/${noticeId}/download`, '_blank')
   }
 
   const extractSection = (desc = '') => {
@@ -90,11 +99,11 @@ export default function NoticeOrders() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 16 }}>
               {[
                 { label: 'Proceeding name', value: proceeding.proceeding_name, small: true },
-                { label: 'PAN', value: proceeding.pan_number, mono: true },
-                { label: 'Assessee name', value: proceeding.assessee_name, small: true },
+                { label: 'PAN', value: proceeding.user_pan || proceeding.pan || proceeding.pan_number || proceeding.user_pan || 'N/A', mono: true },
+                { label: 'Assessee name', value: proceeding.user_name || proceeding.assessee_name || 'N/A', small: true },
                 { label: 'Assessment year', value: proceeding.assessment_year },
                 { label: 'Financial year', value: proceeding.financial_year },
-                { label: 'Applicable act', value: 'Income Tax Act 1961', small: true },
+                { label: 'Applicable act', value: proceeding.applicable_act || 'N/A', small: true },
               ].map(({ label, value, mono, small }) => (
                 <div key={label}>
                   <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>{label}</p>
@@ -117,41 +126,41 @@ export default function NoticeOrders() {
           <p style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>No notice orders found.</p>
         ) : (
           notices.map((n) => (
-            <div key={n.id} style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+            <div key={n.notice_id} style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
               <div style={{ background: '#f8fafc', borderBottom: '0.5px solid #e2e8f0', padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <FileText size={15} color="#2563eb" />
                 <p style={{ fontSize: 12, fontWeight: 500, color: '#1e293b', flex: 1 }}>
-                  Reference ID: <span style={{ fontFamily: 'monospace', color: '#1d4ed8' }}>{n.reference_id}</span>
+                  Reference ID: <span style={{ fontFamily: 'monospace', color: '#1d4ed8' }}>{n.reference_id || 'N/A'}</span>
                 </p>
                 {statusBadge(n.status || (n.is_new ? 'pending' : 'completed'))}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr 1fr 110px' }}>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0' }}>
                   <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Section</p>
-                  <p style={{ fontSize: 22, fontWeight: 500, color: '#1e293b', lineHeight: 1.1 }}>{extractSection(n.description)}</p>
+                  <p style={{ fontSize: 22, fontWeight: 500, color: '#1e293b', lineHeight: 1.1 }}>{extractSection(n.description || '')}</p>
                   <p style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Notice u/s</p>
                 </div>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0' }}>
                   <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Document reference ID</p>
-                  <p style={{ fontSize: 11, color: '#1d4ed8', fontFamily: 'monospace', marginTop: 2, lineHeight: 1.5 }}>{n.document_reference_id || n.reference_id}</p>
+                  <p style={{ fontSize: 11, color: '#1d4ed8', fontFamily: 'monospace', marginTop: 2, lineHeight: 1.5 }}>{n.document_reference_id || n.reference_id || 'N/A'}</p>
                 </div>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0' }}>
                   <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Description</p>
-                  <p style={{ fontSize: 12, color: '#1e293b', lineHeight: 1.6, marginTop: 2 }}>{n.description}</p>
+                  <p style={{ fontSize: 12, color: '#1e293b', lineHeight: 1.6, marginTop: 2 }}>{n.description || 'No description'}</p>
                   <div style={{ display: 'flex', gap: 20, marginTop: 10 }}>
                     <div>
                       <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Issued on</p>
-                      <p style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{n.issued_on}</p>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{n.issued_on || 'N/A'}</p>
                     </div>
                     <div>
                       <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Response due</p>
-                      <p style={{ fontSize: 13, fontWeight: 500, color: '#dc2626' }}>{n.response_due_date}</p>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: '#dc2626' }}>{n.response_due_date || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
                 <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
                   <button
-                    onClick={() => handleViewPdf(n.pdf_path)}
+                    onClick={() => handleViewPdf(n.notice_id)}
                     style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '6px 13px', background: '#fff', color: '#1e293b', border: '0.5px solid #e2e8f0', borderRadius: 7, fontSize: 11, cursor: 'pointer', fontWeight: 500 }}
                   >
                     <FileType size={13} /> View PDF

@@ -65,9 +65,18 @@ export const dashboardService = {
 }
 
 export const noticeService = {
-  getNotices: () => api.get('/staff/notices'),
-  getNoticeById: (id) => api.get(`/staff/notices/${id}`),
-  getProceedings: () => api.get('/staff/proceedings'),
+  // Get all notices/proceedings list
+  getNotices: () => api.get('/api/notices'),
+
+  // Get single notice detail
+  getNoticeById: (id) => api.get(`/api/dashboard/view-notice/${id}`),
+
+  // Get notice orders/timeline/proceedings history
+  getProceedings: (id) => api.get(`/api/notices/${id}/orders`),
+
+  // Download/Open PDF
+  downloadNoticePdf: (id) =>
+    window.open(`http://localhost:8000/api/notices/${id}/download`, '_blank'),
 }
 
 export const assignmentService = {

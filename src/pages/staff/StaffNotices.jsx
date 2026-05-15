@@ -30,8 +30,11 @@ export default function StaffNotices() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    noticeService.getProceedings()
-      .then(res => setProceedings(res.data))
+    noticeService.getNotices()
+      .then(res => {
+        const raw = res.data?.items || res.data?.data || res.data || []
+        setProceedings(Array.isArray(raw) ? raw : [])
+      })
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])
