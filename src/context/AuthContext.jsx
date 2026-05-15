@@ -5,69 +5,95 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(() => localStorage.getItem('access_token'))
-  const [role, setRole] = useState(() => localStorage.getItem('role'))
+  const [role, setRole] = useState(() => localStorage.getItem('role')?.toLowerCase() || null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user')
-    if (storedUser) setUser(JSON.parse(storedUser))
+
+    if (storedUser) {
+      const parsedUser = JSON.parse(storedUser)
+      setUser({
+        ...parsedUser,
+        role: parsedUser?.role?.toLowerCase() || 'staff'
+      })
+    }
   }, [])
 
-  // ✅ Login helper supports both credential pairs and auth objects
-  const login = (usernameOrData, password) => {
-    const isObjectAuth = typeof usernameOrData === 'object' && usernameOrData !== null
+  /*
+    Backend Login Response Expected:
 
-    if (isObjectAuth) {
-      const data = usernameOrData
-      const authToken = data.access_token || data.token || data.auth_token || 'dummy-token-123456'
-      const userObj = data.user || { username: data.username || 'user', role: data.role || 'staff' }
-      
+    {
+      "access_token": "...",
+      "token_type": "bearer",
+      "role": "staff",
+      "username": "Midde Puja"
+    }
+  */
+
+  const login = (data) => {
+    try {
+      if (!data || !data.access_token) {
+        return {
+          success: false,
+          message: 'Invalid authentication response'
+        }
+      }
+
+      const authToken = data.access_token
+      const normalizedRole = (data.role || data.user?.role)?.toLowerCase() || 'staff'
+
+      const userObj = {
+        username: data.username || data.user?.username || '',
+        role: normalizedRole
+      }
+
+      // Set state
       setToken(authToken)
-      setRole(userObj.role)
+      setRole(normalizedRole)
       setUser(userObj)
 
+      // Store in localStorage
       localStorage.setItem('access_token', authToken)
-      localStorage.setItem('role', userObj.role)
+      localStorage.setItem('role', normalizedRole)
       localStorage.setItem('user', JSON.stringify(userObj))
 
-      return { success: true }
-    }
+      return {
+        success: true
+      }
 
-    // 🔥 Hardcoded staff credentials fallback
-    const dummyStaff = {
-      username: "staff123",
-      password: "123456",
-      role: "staff"
-    }
+    } catch (error) {
+      console.error('Login context error:', error)
 
-    if (usernameOrData === dummyStaff.username && password === dummyStaff.password) {
-      const fakeToken = "dummy-token-123456"
-      const fakeUser = { username: dummyStaff.username, role: dummyStaff.role }
-
-      setToken(fakeToken)
-      setRole(dummyStaff.role)
-      setUser(fakeUser)
-
-      localStorage.setItem('access_token', fakeToken)
-      localStorage.setItem('role', dummyStaff.role)
-      localStorage.setItem('user', JSON.stringify(fakeUser))
-
-      return { success: true }
-    } else {
-      return { success: false, message: "Invalid credentials" }
+      return {
+        success: false,
+        message: 'Authentication failed'
+      }
     }
   }
-
 
   const logout = () => {
     setToken(null)
     setRole(null)
     setUser(null)
-    localStorage.clear()
+
+    localStorage.removeItem('access_token')
+    localStorage.removeItem('role')
+    localStorage.removeItem('user')
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, role, loading, setLoading, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        role,
+        loading,
+        setLoading,
+        login,
+        logout
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

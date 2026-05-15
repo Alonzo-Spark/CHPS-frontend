@@ -12,19 +12,71 @@ export default function StaffDashboard() {
   const [dateTo, setDateTo] = useState('')
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [recentNotices, setRecentNotices] = useState([])
+  const [recentMeta, setRecentMeta] = useState({})
+  const [recentLoading, setRecentLoading] = useState(false)
+  const [recentError, setRecentError] = useState(null)
+  const [recentOffset, setRecentOffset] = useState(0)
   const navigate = useNavigate()
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [sumRes, assignRes] = await Promise.all([
-          dashboardService.getSummary(),
-          dashboardService.getAssignments(),
-        ])
-        setSummary(sumRes.data)
-        setAssignments(assignRes.data)
+        // 1) Summary
+        try {
+          const sumRes = await dashboardService.getSummary()
+          setSummary(sumRes.data)
+        } catch (err) {
+          console.warn('Summary fetch failed', err)
+        }
+
+        // 2) Recent notices
+        let recentRes = null
+        try {
+          recentRes = await dashboardService.getRecentNotices({ limit: 10, offset: 0 })
+          const raw = recentRes.data?.items || recentRes.data?.data || recentRes.data || []
+          const meta = recentRes.data?.meta || recentRes.meta || {}
+          const mapped = (Array.isArray(raw) ? raw : []).map(mapNotice)
+          setRecentNotices(mapped)
+          setRecentMeta(meta)
+        } catch (err) {
+          console.warn('Recent notices fetch failed', err)
+        }
+
+        // 3) Assignments (fallback to recent notices when missing)
+        try {
+          const assignRes = await dashboardService.getAssignments()
+          const hasAssign = assignRes?.data && Array.isArray(assignRes.data) && assignRes.data.length
+          if (hasAssign) {
+            setAssignments(assignRes.data)
+          } else {
+            const rawNotices = recentRes?.data?.items || recentRes?.data?.data || recentRes?.data || []
+            const mappedAssignments = (Array.isArray(rawNotices) ? rawNotices : []).map(n => ({
+              notice_id: n.notice_id ?? n.id,
+              professional_name: n.user_name || n.assigned_to || '',
+              proceeding_name: n.proceeding_name || n.notice_type || '',
+              reference_id: n.reference_id || '',
+              assigned_at: n.issued_on || n.assigned_at || n.createdAt || null,
+              due_date: n.due_date || null,
+            }))
+            setAssignments(mappedAssignments)
+          }
+        } catch (err) {
+          console.warn('Assignments fetch failed, falling back to recent notices', err)
+          const rawNotices = recentRes?.data?.items || recentRes?.data?.data || recentRes?.data || []
+          const mappedAssignments = (Array.isArray(rawNotices) ? rawNotices : []).map(n => ({
+            notice_id: n.notice_id ?? n.id,
+            professional_name: n.user_name || n.assigned_to || '',
+            proceeding_name: n.proceeding_name || n.notice_type || '',
+            reference_id: n.reference_id || '',
+            assigned_at: n.issued_on || n.assigned_at || n.createdAt || null,
+            due_date: n.due_date || null,
+          }))
+          setAssignments(mappedAssignments)
+        }
+
       } catch (err) {
-        console.error(err)
+        console.error('Unexpected fetch error', err)
       } finally {
         setLoading(false)
       }
@@ -72,16 +124,28 @@ export default function StaffDashboard() {
     return d.toLocaleDateString('en-GB')
   }
 
+  const mapNotice = (item) => ({
+    id: item.id ?? item.notice_id,
+    title: item.proceeding_name || item.notice_type || `Notice ${item.notice_id ?? item.id}`,
+    summary: item.reference_id ? `${item.reference_id} • ${item.user_name || ''}`.trim() : (item.status || ''),
+    body: item.body ?? null,
+    type: item.notice_type ?? 'notification',
+    severity: item.severity ?? 'info',
+    relatedUrl: item.view_notice?.proceeding_id ? `/staff/proceeding/${item.view_notice.proceeding_id}` : `/staff/notice-orders/${item.notice_id ?? item.id}`,
+    isRead: !!item.is_read || !!item.isRead || false,
+    createdAt: item.issued_on || item.createdAt || item.created_at || null,
+  })
+
   return (
     <DashboardLayout breadcrumbs={[{ label: 'Dashboard' }]}>
       <div style={{ padding: '20px 22px' }}>
         {/* Stat cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
           {[
-            { label: 'Total Users', value: summary?.total_users ?? '—', color: '#2563eb', sub: '↑ +12%', subColor: '#16a34a' },
-            { label: 'Pending Tasks', value: summary?.pending_notices ?? '—', color: '#dc2626', sub: 'Due today', subColor: '#64748b' },
-            { label: 'Users', value: summary?.active_users ?? '—', color: '#1e293b', sub: 'Active', subColor: '#64748b' },
-          ].map(({ label, value, color, sub, subColor }) => (
+              { label: 'Total Assigned', value: summary?.total_assigned ?? summary?.total_notices ?? '—', color: '#2563eb', sub: 'Assigned', subColor: '#16a34a' },
+              { label: 'Pending Tasks', value: summary?.pending_tasks ?? summary?.pending_notices ?? '—', color: '#dc2626', sub: 'Due today', subColor: '#64748b' },
+              { label: 'Recently Updated', value: summary?.recently_updated ?? '—', color: '#1e293b', sub: 'Updated', subColor: '#64748b' },
+            ].map(({ label, value, color, sub, subColor }) => (
             <div key={label} style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, padding: '18px 20px' }}>
               <p style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.07em' }}>{label}</p>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
@@ -266,6 +330,98 @@ export default function StaffDashboard() {
                 <button key={ch} style={{ width: 28, height: 28, border: '0.5px solid #e2e8f0', borderRadius: 6, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{ch}</button>
               ))}
             </div>
+          </div>
+        </div>
+
+        {/* Recent Notices */}
+        <div style={{ marginTop: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>Recent Notices</p>
+              <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Latest system and assignment notifications</p>
+            </div>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button
+                onClick={async () => {
+                  try {
+                    setRecentLoading(true)
+                    await dashboardService.markAllNoticesRead()
+                    setRecentNotices(prev => prev.map(it => ({ ...it, isRead: true })))
+                    setRecentMeta(m => ({ ...m, unreadCount: 0 }))
+                  } catch (err) {
+                    console.error(err)
+                    setRecentError('Failed to mark all read')
+                  } finally { setRecentLoading(false) }
+                }}
+                style={{ padding: '8px 12px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 8, cursor: 'pointer', fontSize: 12 }}
+              >
+                Mark all read
+              </button>
+            </div>
+          </div>
+
+          <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, padding: 12 }}>
+            {recentLoading && recentNotices.length === 0 ? (
+              <p style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>Loading notices...</p>
+            ) : recentNotices.length === 0 ? (
+              <p style={{ padding: 24, textAlign: 'center', color: '#94a3b8' }}>No notices found.</p>
+            ) : (
+              <ul role="list" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+                {recentNotices.map((n) => (
+                  <li key={n.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderBottom: '1px solid #f1f5f9', cursor: 'pointer' }} onClick={async () => {
+                    try {
+                      // optimistic
+                      setRecentNotices(prev => prev.map(it => it.id === n.id ? { ...it, isRead: true } : it))
+                      setRecentMeta(m => ({ ...m, unreadCount: Math.max(0, (m.unreadCount || 0) - (n.isRead ? 0 : 1)) }))
+                      // mark read on backend
+                      await dashboardService.markNoticeRead(n.id)
+                      if (n.relatedUrl) navigate(n.relatedUrl)
+                    } catch (err) {
+                      console.error(err)
+                      setRecentError('Failed to open notice')
+                    }
+                  }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: n.isRead ? '#e6e7eb' : '#2563eb', marginTop: 6 }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                        <div style={{ fontWeight: 600, color: '#1e293b' }}>{n.title}</div>
+                        <div style={{ fontSize: 12, color: '#94a3b8' }}>{(function timeAgo(ts) {
+                          if (!ts) return '-'
+                          const d = new Date(ts)
+                          const diff = Math.floor((Date.now() - d.getTime()) / 1000)
+                          if (diff < 60) return `${diff}s`
+                          if (diff < 3600) return `${Math.floor(diff/60)}m`
+                          if (diff < 86400) return `${Math.floor(diff/3600)}h`
+                          return `${Math.floor(diff/86400)}d`
+                        })(n.createdAt)}</div>
+                      </div>
+                      <div style={{ color: '#64748b', fontSize: 13, marginTop: 6 }}>{n.summary}</div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {recentMeta?.hasMore ? (
+              <div style={{ padding: 12, textAlign: 'center' }}>
+                <button onClick={async () => {
+                  try {
+                    setRecentLoading(true)
+                    const nextOffset = recentOffset + (recentMeta.limit || 20)
+                    const res = await dashboardService.getRecentNotices({ limit: recentMeta.limit || 20, offset: nextOffset })
+                    const raw = res.data?.items || res.data?.data || res.data || []
+                    const meta = res.data?.meta || res.meta || {}
+                    const mapped = (Array.isArray(raw) ? raw : []).map(mapNotice)
+                    setRecentNotices(prev => [...prev, ...mapped])
+                    setRecentMeta(meta)
+                    setRecentOffset(nextOffset)
+                  } catch (err) {
+                    console.error(err)
+                    setRecentError('Failed to load more')
+                  } finally { setRecentLoading(false) }
+                }} style={{ padding: '8px 12px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: 8, cursor: 'pointer' }}>{recentLoading ? 'Loading...' : 'Load more'}</button>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

@@ -1,12 +1,49 @@
 import api from '../api/axios'
 
+const toNumber = (value, fallback = 0) => {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
+}
+
+const pickFirst = (...values) => values.find(v => v !== undefined && v !== null)
+
+const normalizeDashboardSummary = (payload) => {
+  const source = payload?.summary || payload?.data || payload || {}
+
+  return {
+    total_users: toNumber(
+      pickFirst(source.total_users, source.totalUsers, source.users_total, source.totalUsersCount, source.total)
+    ),
+    pending_notices: toNumber(
+      pickFirst(source.pending_notices, source.pendingNotices, source.pending_tasks, source.pendingTasks, source.pending)
+    ),
+    active_users: toNumber(
+      pickFirst(source.active_users, source.activeUsers, source.users_active, source.activeUsersCount, source.active)
+    ),
+    total_notices: toNumber(
+      pickFirst(source.total_notices, source.totalNotices, source.notices_total, source.noticeCount, source.total_cases)
+    ),
+    // New backend fields requested
+    total_assigned: toNumber(
+      pickFirst(source.total_assigned, source.totalAssigned, source.assigned_total)
+    ),
+    pending_tasks: toNumber(
+      pickFirst(source.pending_tasks, source.pendingTasks, source.pending_tasks_count)
+    ),
+    recently_updated: toNumber(
+      pickFirst(source.recently_updated, source.recentlyUpdated, source.recent_updates)
+    ),
+  }
+}
+
 export const authService = {
   login: (data) => {
-    const params = new URLSearchParams()
-    params.append('username', data.username)
-    params.append('password', data.password)
-    return api.post('/api/auth/login', params, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    const payload = {
+      username: data.username,
+      password: data.password
+    }
+    return api.post('/api/auth/login', payload, {
+      headers: { 'Content-Type': 'application/json' }
     })
   },
   register: (data) => api.post('/auth/register', data),
@@ -14,8 +51,17 @@ export const authService = {
 }
 
 export const dashboardService = {
-  getSummary: () => api.get('/staff/dashboard-summary'),
-  getAssignments: (params) => api.get('/staff/assignments', { params }),
+  getSummary: () => api.get('/api/dashboard/summary').then((res) => ({
+    ...res,
+    data: normalizeDashboardSummary(res.data),
+  })),
+  getRecentNotices: ({ limit = 20, offset = 0, since } = {}) => {
+    const params = { limit, offset }
+    if (since) params.since = since
+    return api.get('/api/dashboard/recent-notices', { params })
+  },
+  markNoticeRead: (id) => api.post(`/api/notices/${id}/mark-read`),
+  markAllNoticesRead: () => api.post('/api/notices/mark-all-read'),
 }
 
 export const noticeService = {

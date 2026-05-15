@@ -5,7 +5,7 @@ import { authService } from '../../services'
 import { useAuth } from '../../context/AuthContext'
 
 export default function LoginPage() {
-  const [form, setForm] = useState({ email: '', password: '' })
+  const [form, setForm] = useState({ username: '', password: '' })
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -17,7 +17,7 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
 
-    if (!form.email || !form.password) {
+    if (!form.username || !form.password) {
       setError('All fields are required.')
       return
     }
@@ -27,14 +27,14 @@ export default function LoginPage() {
     try {
       // ✅ Try API login first
       const res = await authService.login({
-        username: form.email,
+        username: form.username,
         password: form.password
       })
 
-
       login(res.data)
-      const user = res.data.user
-      navigate(`/${user.role}/dashboard`)
+      const normalizedRole = res.data?.role?.toLowerCase() || 'staff'
+      const redirectPath = res.data?.redirect_url || `/${normalizedRole}/dashboard`
+      navigate(redirectPath)
 
     } catch (err) {
 
@@ -106,9 +106,10 @@ export default function LoginPage() {
               </label>
               <input
                 type="text"
+                name="username"
                 placeholder="Enter email or username"
-                value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
+                value={form.username}
+                onChange={e => setForm({ ...form, username: e.target.value })}
                 style={{
                   width: '100%',
                   border: '1px solid #d1d5db',
@@ -129,6 +130,7 @@ export default function LoginPage() {
               </label>
               <input
                 type={showPw ? 'text' : 'password'}
+                name="password"
                 placeholder="Enter password"
                 value={form.password}
                 onChange={e => setForm({ ...form, password: e.target.value })}
