@@ -33,7 +33,7 @@ export default function StaffDashboard() {
         // 2) Recent notices
         let recentRes = null
         try {
-          recentRes = await dashboardService.getRecentNotices({ limit: 10, offset: 0 })
+          recentRes = await dashboardService.getRecentNotices({ limit: null, offset: 0 })
           const raw = recentRes.data?.items || recentRes.data?.data || recentRes.data || []
           const meta = recentRes.data?.meta || recentRes.meta || {}
           const mapped = (Array.isArray(raw) ? raw : []).map(mapNotice)
