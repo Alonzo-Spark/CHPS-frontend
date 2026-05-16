@@ -136,7 +136,7 @@ export default function StaffNotices() {
                 {/* Col 4 - Action */}
                 <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                   <button
-                    onClick={() => navigate(`/staff/notice-orders/${p.id}`)}
+                    onClick={() => navigate(`/staff/notice-orders/${p.proceeding_id || p.id || p.notice_id}`)}
                     style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '7px 14px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 7, fontSize: 11, fontWeight: 500, cursor: 'pointer', width: '100%' }}
                   >
                     <Eye size={13} /> View Notices/Orders

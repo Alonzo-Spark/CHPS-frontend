@@ -4,6 +4,13 @@ import { ArrowLeft, Search, Filter, FileText, FileType } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import { noticeService } from '../../services'
 
+const toList = (value) => {
+  if (Array.isArray(value)) return value
+  if (Array.isArray(value?.items)) return value.items
+  if (Array.isArray(value?.data)) return value.data
+  return []
+}
+
 const statusBadge = (status = 'pending') => {
   const map = {
     pending: { bg: '#fffbeb', color: '#92400e', border: '#fcd34d', label: 'Pending' },
@@ -22,28 +29,40 @@ export default function NoticeOrders() {
   const { id } = useParams()
   const navigate = useNavigate()
   const [notices, setNotices] = useState([])
-  const [timeline, setTimeline] = useState([])
   const [proceeding, setProceeding] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetch = async () => {
       try {
-        const res = await noticeService.getNoticeById(id)
-        const response = res.data || {}
+        const detailRes = await noticeService.getNoticeById(id)
+        const detail = detailRes.data || {}
         const proceedingData = {
-          ...(response.proceeding_details || {}),
-          user_name: response.user_name,
-          user_pan: response.user_pan,
+          ...(detail.proceeding_details || {}),
+          proceeding_name: detail.proceeding_details?.proceeding_name || detail.proceeding_name || detail.notice_type || '',
+          user_name: detail.user_name,
+          user_pan: detail.user_pan,
         }
 
-        console.log('API Response:', response)
-        console.log('Proceeding:', proceedingData)
-        console.log('Orders:', response.notice_orders)
+        const proceedingName = proceedingData.proceeding_name || detail.proceeding_details?.proceeding_name || detail.proceeding_name
 
         setProceeding(proceedingData)
-        setNotices(Array.isArray(response.notice_orders) ? response.notice_orders : [])
-        setTimeline(Array.isArray(response.activity_timeline) ? response.activity_timeline : [])
+
+        if (!proceedingName) {
+          setNotices([])
+          return
+        }
+
+        const noticesRes = await noticeService.getProceedingNotices(proceedingName)
+        const response = noticesRes.data || {}
+
+        setProceeding({
+          ...proceedingData,
+          proceeding_name: response.proceeding_name || proceedingData.proceeding_name,
+          user_name: response.user?.name || proceedingData.user_name,
+          user_pan: response.user?.pan || proceedingData.user_pan,
+        })
+        setNotices(toList(response.notices))
       } catch (e) {
         console.error(e)
       } finally {
@@ -160,7 +179,7 @@ export default function NoticeOrders() {
                 </div>
                 <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
                   <button
-                    onClick={() => handleViewPdf(n.notice_id)}
+                    onClick={() => handleViewPdf(n.notice_id || n.id)}
                     style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '6px 13px', background: '#fff', color: '#1e293b', border: '0.5px solid #e2e8f0', borderRadius: 7, fontSize: 11, cursor: 'pointer', fontWeight: 500 }}
                   >
                     <FileType size={13} /> View PDF
