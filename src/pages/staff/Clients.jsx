@@ -103,21 +103,21 @@ export default function Clients() {
 
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: '25%' }} /><col style={{ width: '25%' }} /><col style={{ width: '25%' }} />
+              <col style={{ width: '20%' }} /><col style={{ width: '20%' }} /><col style={{ width: '15%' }} /><col style={{ width: '20%' }} />
               <col style={{ width: '15%' }} /><col style={{ width: '10%' }} />
             </colgroup>
             <thead>
               <tr>
-                {['User', 'Email', 'Assigned Professional', 'Status', 'Action'].map(h => (
+                {['User', 'Email', 'PAN', 'Assigned Professional', 'Status', 'Action'].map(h => (
                   <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '9px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>Loading users...</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>Loading users...</td></tr>
               ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>No users found.</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>No users found.</td></tr>
               ) : (
                 filtered.map((c, i) => (
                   <tr key={c.id || i} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
@@ -130,8 +130,9 @@ export default function Clients() {
                       </div>
                     </td>
                     <td style={{ padding: '11px 10px' }}>{c.email}</td>
+                    <td style={{ padding: '11px 10px', color: '#64748b', fontSize: 11 }}>{c.pan}</td>
                     <td style={{ padding: '11px 10px', color: '#1e3a8a', fontWeight: 500 }}>
-                      {c.assigned_professional?.professional_name || 'Unassigned'}
+                      {c.assigned_professional?.professional_name || c.assigned_professional}
                     </td>
                     <td style={{ padding: '11px 10px' }}>{statusBadge(c.status)}</td>
                     <td style={{ padding: '11px 10px' }}>
