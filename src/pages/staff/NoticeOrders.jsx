@@ -99,8 +99,9 @@ export default function NoticeOrders() {
     }
   }
 
-  const extractSection = (desc = '') => {
-    const m = desc.match(/\d+\(\d+\)|\d+[A-Z]?/)
+  const extractSection = (desc) => {
+    if (!desc) return '—'
+    const m = String(desc).match(/\d+\(\d+\)|\d+[A-Z]?/)
     return m ? m[0] : '—'
   }
 
