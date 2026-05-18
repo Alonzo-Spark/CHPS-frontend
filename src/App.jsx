@@ -10,6 +10,7 @@ import Proceeding from './pages/staff/Proceeding'
 import EProceedings from './pages/staff/EProceedings'
 import Clients from './pages/staff/Clients'
 import CreateClient from './pages/staff/CreateClient'
+import ClientProceedings from './pages/staff/ClientProceedings'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import { useEffect } from 'react'
 import { healthService } from './services'
@@ -35,6 +36,7 @@ export default function App() {
       <Route path="/staff/notice-orders/:id" element={<ProtectedRoute allowedRoles={['staff']}><NoticeOrders /></ProtectedRoute>} />
       <Route path="/staff/proceeding/:id" element={<ProtectedRoute allowedRoles={['staff']}><Proceeding /></ProtectedRoute>} />
       <Route path="/staff/clients" element={<ProtectedRoute allowedRoles={['staff']}><Clients /></ProtectedRoute>} />
+      <Route path="/staff/clients/:notice_id/proceedings" element={<ProtectedRoute allowedRoles={['staff']}><ClientProceedings /></ProtectedRoute>} />
       <Route path="/staff/create-client" element={<ProtectedRoute allowedRoles={['staff']}><CreateClient /></ProtectedRoute>} />
       
       <Route path="/e-proceedings" element={<ProtectedRoute allowedRoles={['staff']}><EProceedings /></ProtectedRoute>} />

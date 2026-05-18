@@ -97,21 +97,25 @@ export const noticeService = {
     return apiService.download(url);
   },
 
-  getAdjournment: (noticeId) => 
-    apiService.get(`/api/notices/${noticeId}/adjournment`)
-      .then(res => ({ data: res }))
-      .catch(err => {
-        console.warn(`getAdjournment API for ${noticeId} failed`, err);
-        return { data: null };
-      }),
+  getAdjournment: async (noticeId) => {
+    try {
+      const res = await apiService.get(`/api/notices/${noticeId}/adjournment`)
+      return { data: res }
+    } catch (err) {
+      console.warn(`getAdjournment API for ${noticeId} failed`, err)
+      return { data: null, error: err }
+    }
+  },
 
-  getResponse: (noticeId) => 
-    apiService.get(`/api/notices/${noticeId}/response`)
-      .then(res => ({ data: res }))
-      .catch(err => {
-        console.warn(`getResponse API for ${noticeId} failed`, err);
-        return { data: null };
-      }),
+  getResponse: async (noticeId) => {
+    try {
+      const res = await apiService.get(`/api/notices/${noticeId}/response`)
+      return { data: res }
+    } catch (err) {
+      console.warn(`getResponse API for ${noticeId} failed`, err)
+      return { data: null, error: err }
+    }
+  },
 
   getProceedingsNotices: (proceedingName) => 
     apiService.get(`/api/proceedings/${encodeURIComponent(proceedingName)}/notices`)
@@ -122,7 +126,7 @@ export const noticeService = {
       }),
 
   getProceedings: () => 
-    apiService.get('/staff/proceedings')
+    apiService.get('/api/proceedings')
       .then(res => ({ data: res }))
       .catch(err => {
         console.warn("getProceedings API failed, returning empty list", err);
@@ -148,13 +152,15 @@ export const clientService = {
     apiService.post('/api/users/create-client', data)
       .then(res => ({ data: res })),
 
-  getClientProceedings: (userId) => 
-    apiService.get(`/api/clients/${userId}/proceedings`)
-      .then(res => ({ data: res }))
-      .catch(err => {
-        console.warn(`getClientProceedings API for ${userId} failed`, err);
-        return { data: [] };
-      }),
+  getClientProceedings: async (noticeId) => {
+    try {
+      const res = await apiService.get(`/api/clients/${noticeId}/proceedings`)
+      return { data: res }
+    } catch (err) {
+      console.warn(`getClientProceedings API for ${noticeId} failed`, err)
+      return { data: null, error: err }
+    }
+  },
 }
 
 export const healthService = {

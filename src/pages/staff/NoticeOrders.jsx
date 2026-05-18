@@ -105,6 +105,9 @@ export default function NoticeOrders() {
     return m ? m[0] : '—'
   }
 
+  const displayValue = (val) => (val !== null && val !== undefined && val !== '') ? val : '—'
+  const formatDate = (iso) => iso ? new Date(iso).toLocaleDateString('en-IN') : '—'
+
   const handleApplyFilters = () => {
     setAppliedFilters({ ...filters })
     setShowFilterPanel(false)
@@ -122,11 +125,11 @@ export default function NoticeOrders() {
     try {
       const noticeId = item?.notice_id || item?.id
       const res = await noticeService.getResponse(noticeId)
-      if (res?.data) {
-        setResponseDetails(res.data)
-      } else {
-        setResponseDetails(null)
-      }
+      const payload = res?.data || {}
+      setResponseDetails({
+        notice_details: payload.notice_details || payload.noticeDetails || null,
+        response_details: payload.response_details || payload.responseDetails || null
+      })
     } catch (err) {
       console.warn("Fetch response details failed", err)
       setResponseDetails(null)
@@ -142,11 +145,11 @@ export default function NoticeOrders() {
     try {
       const noticeId = item?.notice_id || item?.id
       const res = await noticeService.getAdjournment(noticeId)
-      if (res?.data) {
-        setAdjournmentDetails(res.data)
-      } else {
-        setAdjournmentDetails(null)
-      }
+      const payload = res?.data || {}
+      setAdjournmentDetails({
+        notice_details: payload.notice_details || payload.noticeDetails || null,
+        adjournment_details: payload.adjournment_details || payload.adjournmentDetails || null
+      })
     } catch (err) {
       console.warn("Fetch adjournment details failed", err)
       setAdjournmentDetails(null)
@@ -441,42 +444,48 @@ export default function NoticeOrders() {
             </div>
 
             {/* Response Box matching screenshot */}
-            <div style={{ 
-              border: '1px solid #e2e8f0', 
-              borderRadius: '8px', 
-              padding: '18px 24px', 
-              background: '#fff',
-              display: 'grid',
-              gridTemplateColumns: '1fr 2.5fr 1fr',
-              gap: '24px'
-            }}>
-              <div>
-                <p style={{ fontSize: '11px', fontWeight: 500, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '6px' }}>
-                  Response Date
-                </p>
-                <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
-                  {responseDetails?.response_date || "29-Dec-2025"}
-                </p>
+            {!responseDetails?.response_details ? (
+              <div style={{ padding: 28, textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                No response has been filed yet for this notice.
               </div>
-              
-              <div>
-                <p style={{ fontSize: '11px', fontWeight: 500, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '6px' }}>
-                  Response
-                </p>
-                <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155', lineHeight: '1.5' }}>
-                  {responseDetails?.response_text || responseDetails?.response || `Response submitted against notice u/s ${extractSection(activeNotice.description) !== '—' ? extractSection(activeNotice.description) : '148'} with acknowledgement number 118392270291225`}
-                </p>
-              </div>
+            ) : (
+              <div style={{ 
+                border: '1px solid #e2e8f0', 
+                borderRadius: '8px', 
+                padding: '18px 24px', 
+                background: '#fff',
+                display: 'grid',
+                gridTemplateColumns: '1fr 2.5fr 1fr',
+                gap: '24px'
+              }}>
+                <div>
+                  <p style={{ fontSize: '11px', fontWeight: 500, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '6px' }}>
+                    Response Date
+                  </p>
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+                    {formatDate(responseDetails?.response_details?.response_submitted_on)}
+                  </p>
+                </div>
+                
+                <div>
+                  <p style={{ fontSize: '11px', fontWeight: 500, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '6px' }}>
+                    Response
+                  </p>
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155', lineHeight: '1.5' }}>
+                    {displayValue(responseDetails?.response_details?.response_remarks)}
+                  </p>
+                </div>
 
-              <div>
-                <p style={{ fontSize: '11px', fontWeight: 500, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '6px' }}>
-                  Response Filed By
-                </p>
-                <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
-                  {responseDetails?.filed_by || "SELF"}
-                </p>
+                <div>
+                  <p style={{ fontSize: '11px', fontWeight: 500, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '6px' }}>
+                    Response Filed By
+                  </p>
+                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155' }}>
+                    {displayValue(responseDetails?.response_details?.response_filed_by)}
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Modal Actions */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
@@ -560,93 +569,103 @@ export default function NoticeOrders() {
             </div>
 
             {/* Adjournment Table Container */}
-            <div style={{ 
-              border: '1px solid #e2e8f0', 
-              borderRadius: '8px', 
-              overflow: 'hidden',
-              background: '#fff',
-              marginBottom: '24px'
-            }}>
-              {/* Table Header */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1.2fr 2fr 1.2fr 1fr 1.5fr 1fr',
-                background: '#f8fafc',
-                borderBottom: '1px solid #e2e8f0',
-                padding: '12px 16px',
-                gap: '12px'
-              }}>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', lineHeight: '1.3' }}>Adjournment Request Date</div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', lineHeight: '1.3', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  Reason for seeking Adjournment
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="12" y1="16" x2="12" y2="12"></line>
-                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
-                  </svg>
-                </div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', lineHeight: '1.3' }}>Adjournment sought up to</div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', lineHeight: '1.3' }}>Status/Action</div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', lineHeight: '1.3' }}>Adjourned date for submission of response</div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', lineHeight: '1.3' }}>ITD Remarks</div>
+            {!adjournmentDetails?.adjournment_details ? (
+              <div style={{ padding: 28, textAlign: 'center', color: '#64748b', background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0', marginBottom: '24px' }}>
+                No adjournment has been filed yet for this notice.
               </div>
-
-              {/* Table Body Row */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: '1.2fr 2fr 1.2fr 1fr 1.5fr 1fr',
-                padding: '16px',
-                gap: '12px',
-                alignItems: 'center',
-                background: '#fff',
-                fontSize: '13px',
-                color: '#334155'
-              }}>
-                <div style={{ fontWeight: 500 }}>{adjournmentDetails?.request_date || "07-Jan-2026"}</div>
-                <div style={{ color: '#2563eb', cursor: 'pointer', fontWeight: 500, textDecoration: 'none' }}>
-                  {adjournmentDetails?.reason_category || "Gathering of material from client/third parties"}
-                </div>
-                <div style={{ fontWeight: 500 }}>{adjournmentDetails?.sought_up_to || "22-Jan-2026"}</div>
-                <div style={{ fontWeight: 500 }}>{adjournmentDetails?.status || "Open"}</div>
-                <div style={{ color: '#64748b' }}>{adjournmentDetails?.adjourned_date || "-"}</div>
-                <div style={{ color: '#64748b' }}>{adjournmentDetails?.itd_remarks || "-"}</div>
-              </div>
-            </div>
-
-            {/* Divider Line */}
-            <div style={{ height: '1.5px', backgroundColor: '#f1f5f9', margin: '24px 0' }} />
-
-            {/* Reason Detail Block (Matching second screenshot) */}
-            <div style={{ marginBottom: '10px', textAlign: 'left' }}>
-              <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b', marginBottom: '16px' }}>Reason for seeking Adjournment</h4>
+            ) : (
               <div style={{ 
                 border: '1px solid #e2e8f0', 
                 borderRadius: '8px', 
-                padding: '18px 24px', 
+                overflow: 'hidden',
                 background: '#fff',
-                display: 'grid',
-                gridTemplateColumns: '1fr 1.5fr',
-                gap: '32px'
+                marginBottom: '24px'
               }}>
-                <div>
-                  <p style={{ fontSize: '11px', fontWeight: 500, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '8px' }}>
+                {/* Table Header */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1.2fr 2fr 1.2fr 1fr 1.5fr 1fr',
+                  background: '#f8fafc',
+                  borderBottom: '1px solid #e2e8f0',
+                  padding: '12px 16px',
+                  gap: '12px'
+                }}>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', lineHeight: '1.3' }}>Adjournment Request Date</div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', lineHeight: '1.3', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     Reason for seeking Adjournment
-                  </p>
-                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155', lineHeight: '1.5' }}>
-                    {adjournmentDetails?.reason_summary || "Gathering of material from multiple sources requires time"}
-                  </p>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.7 }}>
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <line x1="12" y1="16" x2="12" y2="12"></line>
+                      <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                  </div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', lineHeight: '1.3' }}>Adjournment sought up to</div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', lineHeight: '1.3' }}>Status/Action</div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', lineHeight: '1.3' }}>Adjourned date for submission of response</div>
+                  <div style={{ fontSize: '11px', fontWeight: 600, color: '#475569', lineHeight: '1.3' }}>ITD Remarks</div>
                 </div>
-                
-                <div>
-                  <p style={{ fontSize: '11px', fontWeight: 500, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '8px' }}>
-                    Reason
-                  </p>
-                  <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155', lineHeight: '1.6' }}>
-                    {adjournmentDetails?.reason_detail || "Dear Sir, We are gathering the information for submission of reply, in this regard we need some more time to obtain the required documents. Please consider our request and grant adjournment till 22nd January 2026."}
-                  </p>
+
+                {/* Table Body Row */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1.2fr 2fr 1.2fr 1fr 1.5fr 1fr',
+                  padding: '16px',
+                  gap: '12px',
+                  alignItems: 'center',
+                  background: '#fff',
+                  fontSize: '13px',
+                  color: '#334155'
+                }}>
+                  <div style={{ fontWeight: 500 }}>{formatDate(adjournmentDetails?.adjournment_details?.adjournment_request_date)}</div>
+                  <div style={{ color: '#2563eb', cursor: 'pointer', fontWeight: 500, textDecoration: 'none' }}>
+                    {displayValue(adjournmentDetails?.adjournment_details?.reason_for_seeking_adjournment)}
+                  </div>
+                  <div style={{ fontWeight: 500 }}>{formatDate(adjournmentDetails?.adjournment_details?.adjournment_sought_upto)}</div>
+                  <div style={{ fontWeight: 500 }}>{displayValue(adjournmentDetails?.adjournment_details?.status_action)}</div>
+                  <div style={{ color: '#64748b' }}>{formatDate(adjournmentDetails?.adjournment_details?.adjourned_date_for_submission_of_response)}</div>
+                  <div style={{ color: '#64748b' }}>{displayValue(adjournmentDetails?.adjournment_details?.itd_remarks)}</div>
                 </div>
               </div>
-            </div>
+            )}
+
+            {adjournmentDetails?.adjournment_details && (
+              <>
+                {/* Divider Line */}
+                <div style={{ height: '1.5px', backgroundColor: '#f1f5f9', margin: '24px 0' }} />
+
+                {/* Reason Detail Block (Matching second screenshot) */}
+                <div style={{ marginBottom: '10px', textAlign: 'left' }}>
+                  <h4 style={{ fontSize: '15px', fontWeight: 600, color: '#1e293b', marginBottom: '16px' }}>Reason for seeking Adjournment</h4>
+                  <div style={{ 
+                    border: '1px solid #e2e8f0', 
+                    borderRadius: '8px', 
+                    padding: '18px 24px', 
+                    background: '#fff',
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1.5fr',
+                    gap: '32px'
+                  }}>
+                    <div>
+                      <p style={{ fontSize: '11px', fontWeight: 500, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '8px' }}>
+                        Reason for seeking Adjournment
+                      </p>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155', lineHeight: '1.5' }}>
+                        {displayValue(adjournmentDetails?.adjournment_details?.reason_for_seeking_adjournment)}
+                      </p>
+                    </div>
+                    
+                    <div>
+                      <p style={{ fontSize: '11px', fontWeight: 500, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '8px' }}>
+                        Reason
+                      </p>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#334155', lineHeight: '1.6' }}>
+                        {displayValue(adjournmentDetails?.adjournment_details?.reason_for_seeking_adjournment)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Modal Actions */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '24px' }}>

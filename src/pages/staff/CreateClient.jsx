@@ -1,39 +1,58 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { UserPlus, Eye, EyeOff } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { clientService } from '../../services'
+import { clientService, professionalService } from '../../services'
 
 export default function CreateClient() {
-  const [form, setForm] = useState({ client_name: '', pan_number: '', password: '', email: '', professor: '' })
+  const [form, setForm] = useState({ name: '', pan: '', password: '', email: '', professional_id: '' })
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState({})
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
+  const [professionals, setProfessionals] = useState([])
   const navigate = useNavigate()
 
-  const professors = ['Dr. Priya Sharma', 'Dr. Arun Mehta', 'Prof. Kavita Rao', 'Dr. Suresh Iyer', 'Prof. Nandini Verma']
+  useEffect(() => {
+    professionalService.getProfessionals()
+      .then(res => setProfessionals(res.data || res || []))
+      .catch(err => {
+        console.error('Failed to load professionals', err)
+      })
+  }, [])
+
+  const validateForm = () => {
+    const errors = {}
+    if (!form.name.trim()) errors.name = 'Name is required'
+    if (form.pan.trim().length !== 10) errors.pan = 'PAN must be exactly 10 characters'
+    if (!form.email.trim()) errors.email = 'Email is required'
+    if (form.password.length < 6) errors.password = 'Password must be at least 6 characters'
+    if (!form.professional_id) errors.professional_id = 'Please select a professional'
+    return errors
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setError(''); setSuccess('')
-    if (!form.client_name || !form.pan_number || !form.email || !form.password) {
-      setError('Name, PAN, Email, and Password are required.'); return
-    }
+    setError('')
+    setSuccess('')
+    const errors = validateForm()
+    setFieldErrors(errors)
+    if (Object.keys(errors).length) return
+
     setLoading(true)
     try {
-      await clientService.createClient({
-        name: form.client_name,
-        client_name: form.client_name,
-        email: form.email,
-        pan: form.pan_number,
-        pan_number: form.pan_number,
+      const payload = {
+        name: form.name.trim().toUpperCase(),
+        pan: form.pan.trim().toUpperCase(),
         password: form.password,
-        phone_number: '',
-        reference_id: `REF-${Date.now()}`,
-      })
-      setSuccess('Client created successfully!')
-      setTimeout(() => navigate('/staff/clients'), 1500)
+        email: form.email.trim().toLowerCase(),
+        professional_id: Number(form.professional_id)
+      }
+
+      const data = await clientService.createClient(payload)
+      setSuccess(`Client created! ID: ${data?.data?.user_id || data?.user_id || ''}`)
+      setTimeout(() => navigate('/staff/clients'), 1400)
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create client.')
     } finally {
@@ -63,12 +82,14 @@ export default function CreateClient() {
           <form onSubmit={handleSubmit}>
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>Name</label>
-              <input type="text" placeholder="Enter full name" value={form.client_name} onChange={e => setForm({ ...form, client_name: e.target.value })} style={inputStyle} />
+              <input type="text" placeholder="Enter full name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={inputStyle} />
+              {fieldErrors.name && <p style={{ marginTop: 6, color: '#dc2626', fontSize: 12 }}>{fieldErrors.name}</p>}
             </div>
 
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>PAN No.</label>
-              <input type="text" placeholder="e.g. ABCDE1234F" value={form.pan_number} onChange={e => setForm({ ...form, pan_number: e.target.value.toUpperCase() })} style={{ ...inputStyle, fontFamily: 'monospace', letterSpacing: '.04em' }} />
+              <input type="text" placeholder="e.g. ABCDE1234F" value={form.pan} onChange={e => setForm({ ...form, pan: e.target.value.toUpperCase() })} style={{ ...inputStyle, fontFamily: 'monospace', letterSpacing: '.04em' }} />
+              {fieldErrors.pan && <p style={{ marginTop: 6, color: '#dc2626', fontSize: 12 }}>{fieldErrors.pan}</p>}
             </div>
 
             <div style={{ marginBottom: 16 }}>
@@ -85,26 +106,31 @@ export default function CreateClient() {
                   {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
+              {fieldErrors.password && <p style={{ marginTop: 6, color: '#dc2626', fontSize: 12 }}>{fieldErrors.password}</p>}
             </div>
 
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>Mail</label>
               <input type="email" placeholder="client@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} style={inputStyle} />
+              {fieldErrors.email && <p style={{ marginTop: 6, color: '#dc2626', fontSize: 12 }}>{fieldErrors.email}</p>}
             </div>
 
             <div style={{ marginBottom: 24 }}>
-              <label style={labelStyle}>Professors Assignment</label>
+              <label style={labelStyle}>Professional</label>
               <div style={{ position: 'relative' }}>
                 <select
-                  value={form.professor}
-                  onChange={e => setForm({ ...form, professor: e.target.value })}
+                  value={form.professional_id}
+                  onChange={e => setForm({ ...form, professional_id: e.target.value })}
                   style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', paddingRight: 36 }}
                 >
-                  <option value="" disabled>Select a professor</option>
-                  {professors.map(p => <option key={p} value={p}>{p}</option>)}
+                  <option value="">Select Professional</option>
+                  {professionals.map((prof) => (
+                    <option key={prof.id} value={prof.id}>{prof.professional_name}</option>
+                  ))}
                 </select>
                 <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }}>▾</span>
               </div>
+              {fieldErrors.professional_id && <p style={{ marginTop: 6, color: '#dc2626', fontSize: 12 }}>{fieldErrors.professional_id}</p>}
             </div>
 
             <button
