@@ -17,15 +17,18 @@ export default function CreateClient() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError(''); setSuccess('')
-    if (!form.client_name || !form.pan_number || !form.email) {
-      setError('Name, PAN, and Email are required.'); return
+    if (!form.client_name || !form.pan_number || !form.email || !form.password) {
+      setError('Name, PAN, Email, and Password are required.'); return
     }
     setLoading(true)
     try {
       await clientService.createClient({
+        name: form.client_name,
         client_name: form.client_name,
-        pan_number: form.pan_number,
         email: form.email,
+        pan: form.pan_number,
+        pan_number: form.pan_number,
+        password: form.password,
         phone_number: '',
         reference_id: `REF-${Date.now()}`,
       })

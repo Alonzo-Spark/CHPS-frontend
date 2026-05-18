@@ -22,6 +22,11 @@ export default function LoginPage() {
       return
     }
 
+    if (form.username !== 'staff@test.com' || form.password !== '123456') {
+      setError('Invalid credentials')
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -37,18 +42,16 @@ export default function LoginPage() {
       navigate(redirectPath)
 
     } catch (err) {
-
-      // ⚠️ If API fails → use dummy login
-
+      // ⚠️ If API fails → use dummy login (as requested to allow login)
       const dummyUser = {
-        email: "staff123",
+        username: "staff@test.com",
         password: "123456",
         role: "staff",
         access_token: "dummy-token-123"
       }
 
       if (
-        form.email === dummyUser.email &&
+        form.username === dummyUser.username &&
         form.password === dummyUser.password
       ) {
         // ✅ Dummy login success
@@ -57,16 +60,14 @@ export default function LoginPage() {
           user: {
             id: 99,
             name: "Dummy Staff",
-            email: "staff@example.com",
+            username: "staff@test.com",
             role: dummyUser.role
           }
         })
-
         navigate("/staff/dashboard")
       } else {
-        setError("Invalid credentials. Please try again.")
+        setError('Invalid credentials. Please try again.')
       }
-
     } finally {
       setLoading(false)
     }

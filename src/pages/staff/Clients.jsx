@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, UserPlus } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { userService } from '../../services'
+import { userService, professionalService } from '../../services'
 
 const statusBadge = (status = '') => {
   const map = {
@@ -20,24 +20,51 @@ const avatarColors = ['#1e40af', '#166534', '#7c3aed', '#9a3412', '#166534']
 
 export default function Clients() {
   const [clients, setClients] = useState([])
+  const [professionals, setProfessionals] = useState([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [showFilterPanel, setShowFilterPanel] = useState(false)
+  const [tempStatus, setTempStatus] = useState('')
+  const [tempProfessional, setTempProfessional] = useState('')
+  const [appliedStatus, setAppliedStatus] = useState('')
+  const [appliedProfessional, setAppliedProfessional] = useState('')
   const navigate = useNavigate()
 
   useEffect(() => {
     userService.getUsers({ skip: 0, limit: 50 })
-      .then(res => setClients(res.data.items || res.data))
+      .then(res => setClients(res.data.items || res.data || []))
       .catch(console.error)
       .finally(() => setLoading(false))
+
+    professionalService.getProfessionals()
+      .then(res => setProfessionals(res.data.items || res.data || []))
+      .catch(console.error)
   }, [])
 
+  const uniqueProfessionals = Array.from(new Set([
+    ...professionals.map(p => p.name || p.professional_name || '').filter(Boolean),
+    ...clients.map(c => c.assigned_professional?.professional_name || c.assigned_professional || '').filter(Boolean)
+  ]))
 
-  const filtered = clients.filter(c =>
-    search === '' ||
-    c.name?.toLowerCase().includes(search.toLowerCase()) ||
-    c.email?.toLowerCase().includes(search.toLowerCase()) ||
-    c.assigned_professional?.professional_name?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = clients.filter(c => {
+    const searchMatch = search === '' ||
+      c.name?.toLowerCase().includes(search.toLowerCase()) ||
+      c.pan?.toLowerCase().includes(search.toLowerCase()) ||
+      c.email?.toLowerCase().includes(search.toLowerCase()) ||
+      (c.assigned_professional?.professional_name || c.assigned_professional || '').toLowerCase().includes(search.toLowerCase());
+
+    const cStatus = (c.status || 'pending').toLowerCase();
+    let targetStatus = appliedStatus.toLowerCase();
+    
+    const statusMatch = !appliedStatus || 
+      cStatus === targetStatus || 
+      (targetStatus === 'in progress' && cStatus === 'under review');
+
+    const cProf = (c.assigned_professional?.professional_name || c.assigned_professional || '').toLowerCase();
+    const profMatch = !appliedProfessional || cProf === appliedProfessional.toLowerCase();
+
+    return searchMatch && statusMatch && profMatch;
+  })
 
   const getInitials = (name = '') => name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const bgFor = (i) => ['#dbeafe', '#f0fdf4', '#fdf4ff', '#fff7ed', '#f0fdf4'][i % 5]
@@ -66,16 +93,6 @@ export default function Clients() {
           </button>
         </div>
 
-        {/* Stat cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
-          {stats.map(({ label, value, color, bar }) => (
-            <div key={label} style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, padding: '18px 20px' }}>
-              <p style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.07em' }}>{label}</p>
-              <p style={{ fontSize: 28, fontWeight: 700, color, marginTop: 6 }}>{loading ? '...' : value}</p>
-              <div style={{ height: 3, background: bar, borderRadius: 2, width: 44, marginTop: 12 }}></div>
-            </div>
-          ))}
-        </div>
 
         {/* Table */}
         <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
@@ -89,62 +106,194 @@ export default function Clients() {
                 <Search size={13} color="#94a3b8" />
                 <input
                   type="text"
-                  placeholder="Search users..."
+                  placeholder="Search by User / PAN…"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', width: 150 }}
+                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', width: 180 }}
                 />
               </div>
-              <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 12px', background: '#fff', color: '#64748b', border: '0.5px solid #e2e8f0', borderRadius: 7, fontSize: 12, cursor: 'pointer' }}>
-                <Filter size={13} /> Filter
+              <button 
+                onClick={() => setShowFilterPanel(!showFilterPanel)}
+                style={{ 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: 5, 
+                  padding: '7px 12px', 
+                  background: showFilterPanel ? '#eff6ff' : '#fff', 
+                  color: showFilterPanel ? '#2563eb' : '#64748b', 
+                  border: showFilterPanel ? '1px solid #bfdbfe' : '0.5px solid #e2e8f0', 
+                  borderRadius: 7, 
+                  fontSize: 12, 
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                  transition: 'all 0.2s'
+                }}
+              >
+                <Filter size={13} color={showFilterPanel ? '#2563eb' : '#64748b'} /> Filter
               </button>
             </div>
           </div>
 
+          {/* Filter Panel */}
+          {showFilterPanel && (
+            <div style={{ padding: '12px 18px', background: '#f8fafc', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Status:</label>
+                <select
+                  value={tempStatus}
+                  onChange={e => setTempStatus(e.target.value)}
+                  style={{ padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 12, outline: 'none', background: '#fff', cursor: 'pointer', color: '#1e293b' }}
+                >
+                  <option value="">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="in progress">In Progress</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Professional:</label>
+                <select
+                  value={tempProfessional}
+                  onChange={e => setTempProfessional(e.target.value)}
+                  style={{ padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 12, outline: 'none', background: '#fff', cursor: 'pointer', color: '#1e293b' }}
+                >
+                  <option value="">All Professionals</option>
+                  {uniqueProfessionals.map(prof => (
+                    <option key={prof} value={prof}>{prof}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+                <button
+                  onClick={() => {
+                    setAppliedStatus(tempStatus);
+                    setAppliedProfessional(tempProfessional);
+                  }}
+                  style={{
+                    padding: '6px 14px',
+                    background: '#2563eb',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1d4ed8' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#2563eb' }}
+                >
+                  Apply
+                </button>
+                <button
+                  onClick={() => {
+                    setTempStatus(appliedStatus);
+                    setTempProfessional(appliedProfessional);
+                    setShowFilterPanel(false);
+                  }}
+                  style={{
+                    padding: '6px 14px',
+                    background: '#f3f4f6',
+                    color: '#475569',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e5e7eb' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f3f4f6' }}
+                >
+                  Cancel
+                </button>
+                {(appliedStatus || appliedProfessional) && (
+                  <button
+                    onClick={() => {
+                      setTempStatus('');
+                      setTempProfessional('');
+                      setAppliedStatus('');
+                      setAppliedProfessional('');
+                    }}
+                    style={{
+                      padding: '6px 12px',
+                      background: '#fee2e2',
+                      color: '#dc2626',
+                      border: '1px solid #fecaca',
+                      borderRadius: 6,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: '25%' }} /><col style={{ width: '25%' }} /><col style={{ width: '25%' }} />
-              <col style={{ width: '15%' }} /><col style={{ width: '10%' }} />
+              <col style={{ width: '16.66%' }} /><col style={{ width: '16.66%' }} /><col style={{ width: '16.66%' }} />
+              <col style={{ width: '16.66%' }} /><col style={{ width: '16.66%' }} /><col style={{ width: '16.66%' }} />
             </colgroup>
             <thead>
               <tr>
-                {['User', 'Email', 'Assigned Professional', 'Status', 'Action'].map(h => (
+                {['User', 'Email', 'PAN', 'Assigned Professional', 'Status', 'Action'].map(h => (
                   <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '9px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>Loading users...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>No users found.</td></tr>
-              ) : (
-                filtered.map((c, i) => (
-                  <tr key={c.id || i} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
-                    <td style={{ padding: '11px 10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 26, height: 26, borderRadius: '50%', background: bgFor(i), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: avatarColors[i % 5], flexShrink: 0 }}>
-                          {getInitials(c.name)}
-                        </div>
-                        <span style={{ fontWeight: 600, fontSize: 12 }}>{c.name}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '11px 10px' }}>{c.email}</td>
-                    <td style={{ padding: '11px 10px', color: '#1e3a8a', fontWeight: 500 }}>
-                      {c.assigned_professional?.professional_name || 'Unassigned'}
-                    </td>
-                    <td style={{ padding: '11px 10px' }}>{statusBadge(c.status)}</td>
-                    <td style={{ padding: '11px 10px' }}>
-                      <button 
-                        style={{ background: '#fff', border: '0.5px solid #cbd5e1', borderRadius: 4, padding: '4px 8px', fontSize: 10, cursor: 'pointer' }}
-                        onClick={() => {/* Trigger assignment modal */}}
-                      >
-                        Assign
-                      </button>
+                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>Loading users...</td></tr>
+                ) : clients.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px 0', color: '#94a3b8', fontSize: 13 }}>
+                      No data available
                     </td>
                   </tr>
-                ))
-              )}
+                ) : filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 12 }}>
+                      No users found matching the active search or filters.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((c, i) => (
+                    <tr key={c.id || i} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
+                      <td style={{ padding: '11px 10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span 
+                            onClick={() => navigate(`/staff/notice-orders/${c.id || 1}`)}
+                            style={{ fontWeight: 600, fontSize: 12, cursor: 'pointer', color: '#1e3a8a' }}
+                            onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                            onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                          >
+                            {c.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '11px 10px' }}>{c.email}</td>
+                      <td style={{ padding: '11px 10px', color: '#64748b', fontSize: 11 }}>{c.pan}</td>
+                      <td style={{ padding: '11px 10px', color: '#1e3a8a', fontWeight: 500 }}>
+                        {c.assigned_professional?.professional_name || c.assigned_professional}
+                      </td>
+                      <td style={{ padding: '11px 10px' }}>{statusBadge(c.status)}</td>
+                      <td style={{ padding: '11px 10px' }}>
+                        <button
+                          style={{ background: '#fff', border: '0.5px solid #cbd5e1', borderRadius: 4, padding: '4px 8px', fontSize: 10, cursor: 'pointer' }}
+                          onClick={() => {/* Trigger assignment modal */ }}
+                        >
+                          Assign
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
             </tbody>
           </table>
 

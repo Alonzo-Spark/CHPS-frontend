@@ -34,7 +34,6 @@ export default function Topbar({ breadcrumbs = [] }) {
             {user?.role === 'staff' ? 'Staff Administrator' : user?.role || 'Staff'}
           </p>
         </div>
-        <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#fff' }}>{initials}</div>
         <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 3 }}>
           <LogOut size={16} />
         </button>

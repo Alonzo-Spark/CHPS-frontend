@@ -7,6 +7,7 @@ import StaffDashboard from './pages/staff/StaffDashboard'
 import StaffNotices from './pages/staff/StaffNotices'
 import NoticeOrders from './pages/staff/NoticeOrders'
 import Proceeding from './pages/staff/Proceeding'
+import EProceedings from './pages/staff/EProceedings'
 import Clients from './pages/staff/Clients'
 import CreateClient from './pages/staff/CreateClient'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -35,6 +36,8 @@ export default function App() {
       <Route path="/staff/proceeding/:id" element={<ProtectedRoute allowedRoles={['staff']}><Proceeding /></ProtectedRoute>} />
       <Route path="/staff/clients" element={<ProtectedRoute allowedRoles={['staff']}><Clients /></ProtectedRoute>} />
       <Route path="/staff/create-client" element={<ProtectedRoute allowedRoles={['staff']}><CreateClient /></ProtectedRoute>} />
+      
+      <Route path="/e-proceedings" element={<ProtectedRoute allowedRoles={['staff']}><EProceedings /></ProtectedRoute>} />
 
       <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
       <Route path="/professor/dashboard" element={<ProtectedRoute allowedRoles={['professor']}><ProfessorDashboard /></ProtectedRoute>} />
