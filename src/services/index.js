@@ -53,7 +53,7 @@ export const dashboardService = {
   }),
 
   getRecentNotices: ({ limit = 20, offset = 0 } = {}) => 
-    apiService.get('/api/dashboard/recent-notices', { params: { limit, offset } })
+    apiService.get('/api/dashboard/recent-notices/api/dashboard/recent-notices', { params: { limit, offset } })
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
         console.warn("Recent notices API failed, returning empty", err);
@@ -61,7 +61,7 @@ export const dashboardService = {
       }),
 
   getAssignments: () => 
-    apiService.get('/api/dashboard/recent-notices')
+    apiService.get('/api/dashboard/recent-notices/api/dashboard/recent-notices')
       .then(res => {
         const raw = res?.items || res || [];
         return { data: raw };

@@ -26,6 +26,7 @@ export default function NoticeOrders() {
   const [notices, setNotices] = useState([])
   const [proceeding, setProceeding] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [filters, setFilters] = useState({ section: '', referenceId: '', date: '' })
   const [appliedFilters, setAppliedFilters] = useState({ section: '', referenceId: '', date: '' })
@@ -42,43 +43,28 @@ export default function NoticeOrders() {
     const fetch = async () => {
       try {
         setLoading(true)
-        // 1) Try to fetch proceeding notices by proceeding name/ID
-        try {
-          const res = await noticeService.getProceedingsNotices(id)
-          if (res?.data) {
-            setNotices(res.data.notices || [])
-            setProceeding({
-              proceedingName: res.data.proceeding_name || id || "N/A",
-              pan: res.data.user?.pan || res.data.pan || "N/A",
-              assesseeName: res.data.user?.name || res.data.assessee_name || "N/A",
-              assessmentYear: res.data.assessment_year || "N/A",
-              financialYear: res.data.financial_year || "N/A",
-              applicableAct: res.data.applicable_act || "Income Tax Act 1961"
-            })
-            setLoading(false)
-            return
-          }
-        } catch (err) {
-          console.warn("Proceedings notices fetch failed, using fallback", err)
+        setError(null)
+        const res = await noticeService.getNoticeById(id)
+        if (res?.data) {
+          const data = res.data
+          const noticesList = data.notices || [data]
+          setNotices(noticesList)
+          setProceeding({
+            proceedingName: data.proceeding_name || data.proceeding?.proceeding_name || id || "N/A",
+            pan: data.pan || data.pan_number || data.user?.pan || "N/A",
+            assesseeName: data.assessee_name || data.assesseeName || data.user?.name || "N/A",
+            assessmentYear: data.assessment_year || "N/A",
+            financialYear: data.financial_year || "N/A",
+            applicableAct: data.applicable_act || "Income Tax Act 1961"
+          })
+        } else {
+          setNotices([])
+          setError("No data available")
         }
-
-        // 2) Fallback to list all notices and find proceeding
-        const [noticeRes, procRes] = await Promise.all([
-          noticeService.getNotices(),
-          noticeService.getProceedings(),
-        ])
-        setNotices(noticeRes.data || [])
-        const proc = procRes.data?.find(p => String(p.id) === String(id) || String(p.proceeding_name) === String(id))
-        setProceeding(proc || {
-          proceedingName: id || "N/A",
-          pan: "N/A",
-          assesseeName: "N/A",
-          assessmentYear: "N/A",
-          financialYear: "N/A",
-          applicableAct: "Income Tax Act 1961"
-        })
-      } catch (e) {
-        console.error(e)
+      } catch (err) {
+        console.error("NoticeOrders fetch failed:", err)
+        setError(err.response?.status === 404 ? "Not Found" : "Server Error")
+        setNotices([])
       } finally {
         setLoading(false)
       }
@@ -297,7 +283,11 @@ export default function NoticeOrders() {
           Notice orders <span style={{ color: '#64748b', fontWeight: 400, fontSize: 12 }}>· {filteredNotices.length} orders</span>
         </p>
 
-        {loading ? (
+        {error ? (
+          <div style={{ textAlign: 'center', padding: '48px 0', color: '#dc2626', fontSize: 13, background: '#fef2f2', border: '0.5px solid #fecaca', borderRadius: 10 }}>
+            {error}
+          </div>
+        ) : loading ? (
           <p style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>Loading notices...</p>
         ) : filteredNotices.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '48px 0', color: '#64748b', fontSize: 13, background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10 }}>
