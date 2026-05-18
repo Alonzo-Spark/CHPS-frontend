@@ -69,7 +69,10 @@ export const noticeService = {
   getNotices: () => api.get('/api/notices'),
 
   // Get single notice detail
-  getNoticeById: (id) => api.get(`/api/dashboard/view-notice/${id}`),
+
+  getNoticeById: (id) =>
+    api.get(`/api/dashboard/recent-notices/view-notice/${id}`),
+
 
   // Get notice orders/timeline/proceedings history
   getProceedings: (id) => api.get(`/api/notices/${id}/orders`),

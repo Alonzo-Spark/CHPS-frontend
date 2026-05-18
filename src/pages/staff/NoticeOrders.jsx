@@ -33,44 +33,56 @@ export default function NoticeOrders() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetch = async () => {
-      try {
-        const detailRes = await noticeService.getNoticeById(id)
-        const detail = detailRes.data || {}
-        const proceedingData = {
-          ...(detail.proceeding_details || {}),
-          proceeding_name: detail.proceeding_details?.proceeding_name || detail.proceeding_name || detail.notice_type || '',
-          user_name: detail.user_name,
-          user_pan: detail.user_pan,
-        }
+  const fetch = async () => {
+    try {
+      setLoading(true)
 
-        const proceedingName = proceedingData.proceeding_name || detail.proceeding_details?.proceeding_name || detail.proceeding_name
+      console.log("Selected notice ID:", id)
 
-        setProceeding(proceedingData)
+      // MAIN API CALL
+      const detailRes = await noticeService.getNoticeById(id)
 
-        if (!proceedingName) {
-          setNotices([])
-          return
-        }
+      console.log("API Response:", detailRes.data)
 
-        const noticesRes = await noticeService.getProceedingNotices(proceedingName)
-        const response = noticesRes.data || {}
+      const detail = detailRes.data || {}
 
-        setProceeding({
-          ...proceedingData,
-          proceeding_name: response.proceeding_name || proceedingData.proceeding_name,
-          user_name: response.user?.name || proceedingData.user_name,
-          user_pan: response.user?.pan || proceedingData.user_pan,
-        })
-        setNotices(toList(response.notices))
-      } catch (e) {
-        console.error(e)
-      } finally {
-        setLoading(false)
+      // Proceeding Details
+      const proceedingData = {
+        ...(detail.proceeding_details || {}),
+
+        proceeding_name:
+          detail.proceeding_details?.proceeding_name || '',
+
+        user_name: detail.user_name || '',
+
+        user_pan: detail.user_pan || '',
       }
+
+      // SET PROCEEDING
+      setProceeding(proceedingData)
+
+      // IMPORTANT:
+      // DIRECTLY USE notice_orders FROM BACKEND
+      // DO NOT CALL getProceedingNotices AGAIN
+      setNotices(
+        Array.isArray(detail.notice_orders)
+          ? detail.notice_orders
+          : []
+      )
+
+    } catch (e) {
+      console.error("Notice fetch error:", e)
+
+      setProceeding(null)
+      setNotices([])
+
+    } finally {
+      setLoading(false)
     }
-    fetch()
-  }, [id])
+  }
+
+  fetch()
+}, [id])
 
   const handleViewPdf = (noticeId) => {
     window.open(`http://localhost:8000/api/notices/${noticeId}/download`, '_blank')
