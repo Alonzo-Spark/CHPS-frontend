@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { authService } from '../services'
 
 const AuthContext = createContext(null)
 
@@ -9,14 +10,30 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    const storedToken = localStorage.getItem('access_token')
     const storedUser = localStorage.getItem('user')
 
-    if (storedUser) {
-      const parsedUser = JSON.parse(storedUser)
-      setUser({
-        ...parsedUser,
-        role: parsedUser?.role?.toLowerCase() || 'staff'
-      })
+    if (storedToken) {
+      setLoading(true)
+      authService.verifyToken()
+        .then(() => {
+          if (storedUser) {
+            const parsedUser = JSON.parse(storedUser)
+            setUser({
+              ...parsedUser,
+              role: parsedUser?.role?.toLowerCase() || 'staff'
+            })
+          }
+        })
+        .catch(err => {
+          console.warn("Invalid token on verify token, logging out:", err)
+          logout()
+        })
+        .finally(() => {
+          setLoading(false)
+        })
+    } else {
+      logout()
     }
   }, [])
 

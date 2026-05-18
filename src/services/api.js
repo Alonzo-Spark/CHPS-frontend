@@ -10,6 +10,20 @@ const instance = axios.create({
   }
 });
 
+// Request interceptor to automatically add authorization header
+instance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
 // Automatic retry mechanism: Retry once automatically if a request fails
 instance.interceptors.response.use(
   (response) => response,

@@ -10,15 +10,21 @@ const pickFirst = (...values) => values.find(v => v !== undefined && v !== null)
 export const authService = {
   login: (data) => {
     const payload = {
-      username: data.username,
+      email: data.username || data.email,
+      username: data.username || data.email,
       password: data.password
     }
     return apiService.post('/api/auth/login', payload).then(res => {
       return { data: res };
     });
   },
-  register: (data) => apiService.post('/auth/register', data).then(res => ({ data: res })),
-  setPassword: (data) => apiService.post('/auth/set-password', data).then(res => ({ data: res })),
+  verifyToken: () => apiService.post('/api/auth/verify-token', {}).then(res => ({ data: res })),
+  register: (data) => apiService.post('/api/auth/register', data).then(res => ({ data: res })),
+  sendVerification: (data) => apiService.post('/api/auth/send-verification', data).then(res => ({ data: res })),
+  verifyEmail: (token) => apiService.get(`/api/auth/verify-email/${token}`).then(res => ({ data: res })),
+  setPassword: (data) => apiService.post('/api/auth/set-password', data).then(res => ({ data: res })),
+  completeRegistration: (data) => apiService.post('/api/auth/complete-registration', data).then(res => ({ data: res })),
+  registrationStatus: (userId) => apiService.get(`/api/auth/registration-status/${userId}`).then(res => ({ data: res }))
 }
 
 export const dashboardService = {
