@@ -52,7 +52,7 @@ export const apiService = {
       const response = await instance.get(url, config);
       return response.data;
     } catch (error) {
-      console.error(`API GET error on ${url}:`, error);
+      // Intentionally suppressed console.error for clean logs
       throw error;
     }
   },
@@ -62,7 +62,6 @@ export const apiService = {
       const response = await instance.post(url, data, config);
       return response.data;
     } catch (error) {
-      console.error(`API POST error on ${url}:`, error);
       throw error;
     }
   },
@@ -72,7 +71,6 @@ export const apiService = {
       const response = await instance.put(url, data, config);
       return response.data;
     } catch (error) {
-      console.error(`API PUT error on ${url}:`, error);
       throw error;
     }
   },
@@ -84,7 +82,6 @@ export const apiService = {
       window.open(downloadUrl, '_blank');
       return true;
     } catch (error) {
-      console.error(`API download error on ${url}:`, error);
       throw error;
     }
   }

@@ -54,6 +54,13 @@ export default function NoticeOrders() {
   const [approvedNotes, setApprovedNotes] = useState("")
   const [closedNotes, setClosedNotes] = useState("")
   
+  const [origAssigned, setOrigAssigned] = useState("")
+  const [origReviewing, setOrigReviewing] = useState("")
+  const [origApproved, setOrigApproved] = useState("")
+  const [origClosed, setOrigClosed] = useState("")
+  
+  const [activities, setActivities] = useState([])
+  
   const [activityNote, setActivityNote] = useState("")
   const [activityTitle, setActivityTitle] = useState("")
 
@@ -150,31 +157,10 @@ export default function NoticeOrders() {
             applicableAct: data.applicable_act || "Income Tax Act 1961"
           })
         } else {
-          // Fallback to mock notice if API has no data
-          const fallbackMock = defaultMockNotices["101"]
-          setNotices([fallbackMock])
-          setProceeding({
-            proceedingName: fallbackMock.proceeding_name,
-            pan: fallbackMock.pan,
-            assesseeName: fallbackMock.assessee_name,
-            assessmentYear: fallbackMock.assessment_year,
-            financialYear: fallbackMock.financial_year,
-            applicableAct: fallbackMock.applicable_act
-          })
+          setNotices([])
         }
       } catch (err) {
-        console.error("NoticeOrders fetch failed, falling back to mock:", err)
-        // Fallback to mock notice if API fails
-        const fallbackMock = defaultMockNotices["101"]
-        setNotices([fallbackMock])
-        setProceeding({
-          proceedingName: fallbackMock.proceeding_name,
-          pan: fallbackMock.pan,
-          assesseeName: fallbackMock.assessee_name,
-          assessmentYear: fallbackMock.assessment_year,
-          financialYear: fallbackMock.financial_year,
-          applicableAct: fallbackMock.applicable_act
-        })
+        setNotices([])
       } finally {
         setLoading(false)
       }
@@ -197,6 +183,16 @@ export default function NoticeOrders() {
           setAssignedCaseTitle(n.proceeding_name || n.description || '')
           setDeadline(n.response_due_date || n.issued_on || '')
           setStatusText(n.status || 'In Progress')
+          
+          setProceeding({
+            proceedingName: n.proceeding_name || n.description || id || "N/A",
+            pan: n.pan || n.pan_number || "N/A",
+            assesseeName: n.assessee_name || "N/A",
+            assessmentYear: n.assessment_year || "N/A",
+            financialYear: n.financial_year || "N/A",
+            applicableAct: n.applicable_act || "Income Tax Act 1961"
+          })
+          setNotices([n])
         }
 
         // Bind workflow-level notes
@@ -206,14 +202,23 @@ export default function NoticeOrders() {
           setReviewingNotes(w.reviewing_notes || '')
           setApprovedNotes(w.approved_notes || '')
           setClosedNotes(w.closed_notes || '')
+          
+          setOrigAssigned(w.assigned_notes || '')
+          setOrigReviewing(w.reviewing_notes || '')
+          setOrigApproved(w.approved_notes || '')
+          setOrigClosed(w.closed_notes || '')
+          
           setStatusText(w.workflow_status || wf.notice?.status || 'In Progress')
         }
 
         // Bind activity
         if (wf.activity) {
-          const a = Array.isArray(wf.activity) ? wf.activity[0] : wf.activity
-          setActivityTitle(a?.title || a?.activity_title || '')
-          setActivityNote(a?.description || a?.activity_description || '')
+          const aList = Array.isArray(wf.activity) ? wf.activity : [wf.activity]
+          setActivities(aList.filter(Boolean))
+          if (aList.length > 0) {
+            setActivityNote(aList[0].description || aList[0].activity_description || '')
+            setActivityTitle(aList[0].title || aList[0].activity_title || '')
+          }
         }
 
         // Bind officer info from professional profile if available
@@ -234,19 +239,47 @@ export default function NoticeOrders() {
     if (!id) return
     setWorkflowSaving(true)
     try {
+      const newActivities = [...activities]
+      const timestamp = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      let latestTitle = activityTitle
+      
+      if (assignedNotes !== origAssigned) {
+        latestTitle = 'Assigned stage updated'
+        newActivities.unshift({ title: latestTitle, date: timestamp })
+      }
+      if (reviewingNotes !== origReviewing) {
+        latestTitle = 'Reviewing stage updated'
+        newActivities.unshift({ title: latestTitle, date: timestamp })
+      }
+      if (approvedNotes !== origApproved) {
+        latestTitle = 'Approved stage updated'
+        newActivities.unshift({ title: latestTitle, date: timestamp })
+      }
+      if (closedNotes !== origClosed) {
+        latestTitle = 'Closed stage updated'
+        newActivities.unshift({ title: latestTitle, date: timestamp })
+      }
+      
+      setActivities(newActivities)
+
       const payload = {
         workflow_status: statusText,
         assigned_notes: assignedNotes,
         reviewing_notes: reviewingNotes,
         approved_notes: approvedNotes,
         closed_notes: closedNotes,
-        activity_title: activityTitle,
+        activity_title: latestTitle,
         activity_description: activityNote
       }
       await professionalWorkflowService.updateWorkflow(id, payload)
+      
+      setOrigAssigned(assignedNotes)
+      setOrigReviewing(reviewingNotes)
+      setOrigApproved(approvedNotes)
+      setOrigClosed(closedNotes)
+      
       setIsEditMode(false)
     } catch (err) {
-      console.error('Failed to save workflow:', err)
       alert('Failed to save workflow changes.')
     } finally {
       setWorkflowSaving(false)
@@ -475,36 +508,36 @@ export default function NoticeOrders() {
             No data available
           </div>
         ) : (
-          filteredNotices.map((n) => (
-            <div key={n.id} style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
+          filteredNotices.map((n, idx) => (
+            <div key={n.id || n.notice_id || idx} style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
               <div style={{ background: '#f8fafc', borderBottom: '0.5px solid #e2e8f0', padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <FileText size={15} color="#2563eb" />
                 <p style={{ fontSize: 12, fontWeight: 500, color: '#1e293b', flex: 1 }}>
-                  Reference ID: <span style={{ fontFamily: 'monospace', color: '#1d4ed8' }}>{n.reference_id}</span>
+                  Reference ID: <span style={{ fontFamily: 'monospace', color: '#1d4ed8' }}>{n.reference_id || "—"}</span>
                 </p>
                 {statusBadge(n.status || (n.is_new ? 'pending' : 'completed'))}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 110px' }}>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0' }}>
                   <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Section</p>
-                  <p style={{ fontSize: 22, fontWeight: 500, color: '#1e293b', lineHeight: 1.1 }}>{extractSection(n.description)}</p>
+                  <p style={{ fontSize: 22, fontWeight: 500, color: '#1e293b', lineHeight: 1.1 }}>{n.section || extractSection(n.description) || "—"}</p>
                   <p style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Notice u/s</p>
 
                   <div style={{ marginTop: 16 }}>
                     <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Description</p>
-                    <p style={{ fontSize: 12, color: '#1e293b', lineHeight: 1.6, marginTop: 2 }}>{n.description}</p>
+                    <p style={{ fontSize: 12, color: '#1e293b', lineHeight: 1.6, marginTop: 2 }}>{n.description || "—"}</p>
                   </div>
                 </div>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0' }}>
                   <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Document reference ID</p>
-                  <p style={{ fontSize: 11, color: '#1d4ed8', fontFamily: 'monospace', marginTop: 2, lineHeight: 1.5 }}>{n.document_reference_id || n.reference_id}</p>
+                  <p style={{ fontSize: 11, color: '#1d4ed8', fontFamily: 'monospace', marginTop: 2, lineHeight: 1.5 }}>{n.document_reference_id || n.reference_id || "—"}</p>
                   <div style={{ marginTop: 16 }}>
                     <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Issued on</p>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{n.issued_on}</p>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{n.issued_on || "—"}</p>
                   </div>
                   <div style={{ marginTop: 10 }}>
                     <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Response due</p>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: '#dc2626' }}>{n.response_due_date || n.due_date}</p>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: '#dc2626' }}>{n.response_due_date || n.due_date || "—"}</p>
                   </div>
                 </div>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
@@ -549,20 +582,6 @@ export default function NoticeOrders() {
                   {/* Header Section */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                      <div style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '50%',
-                        background: '#dbeafe',
-                        color: '#1e40af',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 'bold',
-                        fontSize: '18px'
-                      }}>
-                        RK
-                      </div>
                       <div>
                         <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#1e293b', margin: 0 }}>{officerName}</h3>
                         <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>{officerInfo}</p>
@@ -705,20 +724,19 @@ export default function NoticeOrders() {
                     </p>
                     
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', marginTop: '5px' }} />
-                        <div>
-                          <p style={{ fontSize: '13px', fontWeight: '600', color: '#334155', margin: 0 }}>Document submitted</p>
-                          <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0' }}>28-Apr-2025</p>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2563eb', marginTop: '5px' }} />
-                        <div>
-                          <p style={{ fontSize: '13px', fontWeight: '600', color: '#334155', margin: 0 }}>Review in progress</p>
-                          <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0' }}>30-Apr-2025</p>
-                        </div>
-                      </div>
+                      {activities.length > 0 ? (
+                        activities.map((act, index) => (
+                          <div key={index} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: index === 0 ? '#2563eb' : '#22c55e', marginTop: '5px' }} />
+                            <div>
+                              <p style={{ fontSize: '13px', fontWeight: '600', color: '#334155', margin: 0 }}>{act.title || act.activity_title}</p>
+                              <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0 0' }}>{act.date || act.created_at || "Just now"}</p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p style={{ fontSize: 12, color: '#64748b' }}>No recent activity.</p>
+                      )}
                     </div>
 
                     {/* Large notes text area */}
