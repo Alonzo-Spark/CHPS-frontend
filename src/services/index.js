@@ -18,7 +18,10 @@ export const authService = {
       return { data: res };
     });
   },
-  verifyToken: () => apiService.post('/api/auth/verify-token', {}).then(res => ({ data: res })),
+  verifyToken: () => {
+    const token = localStorage.getItem('access_token');
+    return apiService.post('/api/auth/verify-token', { token }).then(res => ({ data: res }));
+  },
   register: (data) => apiService.post('/api/auth/register', data).then(res => ({ data: res })),
   sendVerification: (data) => apiService.post('/api/auth/send-verification', data).then(res => ({ data: res })),
   verifyEmail: (token) => apiService.get(`/api/auth/verify-email/${token}`).then(res => ({ data: res })),
@@ -53,7 +56,7 @@ export const dashboardService = {
   }),
 
   getRecentNotices: ({ limit = 20, offset = 0 } = {}) => 
-    apiService.get('/api/dashboard/recent-notices/api/dashboard/recent-notices', { params: { limit, offset } })
+    apiService.get('/api/dashboard/recent-notices', { params: { limit, offset } })
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
         console.warn("Recent notices API failed, returning empty", err);
@@ -61,7 +64,7 @@ export const dashboardService = {
       }),
 
   getAssignments: () => 
-    apiService.get('/api/dashboard/recent-notices/api/dashboard/recent-notices')
+    apiService.get('/api/dashboard/recent-notices')
       .then(res => {
         const raw = res?.items || res || [];
         return { data: raw };
