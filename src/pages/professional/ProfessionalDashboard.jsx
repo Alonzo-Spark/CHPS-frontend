@@ -35,7 +35,17 @@ export default function ProfessionalDashboard() {
           const raw = recentRes.data?.items || recentRes.data?.data || recentRes.data || []
           console.log("API DATA: Recent Notices", raw);
           const meta = recentRes.data?.meta || recentRes.meta || {}
-          const mapped = (Array.isArray(raw) ? raw : []).map(mapNotice)
+          const mapped = (Array.isArray(raw) ? raw : []).map(n => ({
+            ...n,
+            notice_id: n.notice_id ?? n.id,
+            user: n.user || n.user_name || n.professional_name || "N/A",
+            user_name: n.user || n.user_name || n.professional_name || "N/A",
+            proceeding_name: n.proceeding_name || n.notice_type || "N/A",
+            reference_id: n.reference_id || `REF-${n.notice_id ?? n.id}`,
+            issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
+            due_date: n.due_date || "-",
+            status: n.status || "N/A"
+          }))
           setRecentNotices(mapped)
           setRecentMeta(meta)
         } catch (err) {
