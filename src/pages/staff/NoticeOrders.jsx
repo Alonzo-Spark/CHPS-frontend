@@ -145,7 +145,6 @@ export default function NoticeOrders() {
         const res = await noticeService.getNoticeById(id)
         if (res?.data) {
           const data = res.data
-          console.log("API DATA: Notice Details", data);
           const noticesList = data.notices || [data]
           setNotices(noticesList)
           setProceeding({

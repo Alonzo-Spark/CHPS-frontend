@@ -36,7 +36,6 @@ export default function StaffDashboard() {
         try {
           recentRes = await dashboardService.getRecentNotices({ limit: 10, offset: 0 })
           const raw = recentRes.data?.items || recentRes.data?.data || recentRes.data || []
-          console.log("API DATA: Recent Notices", raw);
           const meta = recentRes.data?.meta || recentRes.meta || {}
           const mapped = (Array.isArray(raw) ? raw : []).map(n => ({
             ...n,
@@ -58,7 +57,6 @@ export default function StaffDashboard() {
         // 3) Assignments (fallback to recent notices or defaultMockData when missing)
         try {
           const assignRes = await dashboardService.getAssignments()
-          console.log("API DATA: Assignments", assignRes?.data);
           const hasAssign = assignRes?.data && Array.isArray(assignRes.data) && assignRes.data.length
           
           let rawList = []
