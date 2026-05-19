@@ -1,16 +1,19 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { LayoutDashboard, Users, CheckSquare, FileText } from 'lucide-react'
-
-const navItems = [
-  { label: 'Dashboard', icon: LayoutDashboard, path: '/staff/dashboard' },
-  { label: 'Clients', icon: Users, path: '/staff/clients' },
-  { label: 'Tasks', icon: CheckSquare, path: '#' },
-  { label: 'Documents', icon: FileText, path: '#' },
-]
+import { useAuth } from '../../context/AuthContext'
 
 export default function Sidebar() {
   const navigate = useNavigate()
   const location = useLocation()
+  const { user } = useAuth()
+  const role = user?.role?.toLowerCase() || 'staff'
+
+  const navItems = [
+    { label: 'Dashboard', icon: LayoutDashboard, path: role === 'professional' ? '/professional-dashboard' : '/staff/dashboard' },
+    { label: 'Clients', icon: Users, path: '/staff/clients' },
+    { label: 'Tasks', icon: CheckSquare, path: '#' },
+    { label: 'Documents', icon: FileText, path: '#' },
+  ]
 
   return (
     <aside style={{ width: 190, background: '#1a2340', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>

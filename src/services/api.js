@@ -67,6 +67,16 @@ export const apiService = {
     }
   },
 
+  put: async (url, data, config = {}) => {
+    try {
+      const response = await instance.put(url, data, config);
+      return response.data;
+    } catch (error) {
+      console.error(`API PUT error on ${url}:`, error);
+      throw error;
+    }
+  },
+
   download: async (url) => {
     try {
       // Support blob download or clean window.open depending on preference

@@ -15,6 +15,7 @@ import AdminDashboard from './pages/admin/AdminDashboard'
 import { useEffect } from 'react'
 import { healthService } from './services'
 import ProfessorDashboard from './pages/professor/ProfessorDashboard'
+import ProfessionalDashboard from './pages/professional/ProfessionalDashboard'
 
 export default function App() {
   useEffect(() => {
@@ -33,7 +34,7 @@ export default function App() {
 
       <Route path="/staff/dashboard" element={<ProtectedRoute allowedRoles={['staff']}><StaffDashboard /></ProtectedRoute>} />
       <Route path="/staff/notices" element={<ProtectedRoute allowedRoles={['staff']}><StaffNotices /></ProtectedRoute>} />
-      <Route path="/staff/notice-orders/:id" element={<ProtectedRoute allowedRoles={['staff']}><NoticeOrders /></ProtectedRoute>} />
+      <Route path="/staff/notice-orders/:id" element={<ProtectedRoute allowedRoles={['staff', 'professional']}><NoticeOrders /></ProtectedRoute>} />
       <Route path="/staff/proceeding/:id" element={<ProtectedRoute allowedRoles={['staff']}><Proceeding /></ProtectedRoute>} />
       <Route path="/staff/clients" element={<ProtectedRoute allowedRoles={['staff']}><Clients /></ProtectedRoute>} />
       <Route path="/staff/clients/:notice_id/proceedings" element={<ProtectedRoute allowedRoles={['staff']}><ClientProceedings /></ProtectedRoute>} />
@@ -43,6 +44,7 @@ export default function App() {
 
       <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
       <Route path="/professor/dashboard" element={<ProtectedRoute allowedRoles={['professor']}><ProfessorDashboard /></ProtectedRoute>} />
+      <Route path="/professional-dashboard" element={<ProtectedRoute allowedRoles={['professional']}><ProfessionalDashboard /></ProtectedRoute>} />
     </Routes>
   )
 }

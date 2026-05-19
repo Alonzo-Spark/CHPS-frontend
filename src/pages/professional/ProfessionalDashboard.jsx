@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Filter, X, Calendar } from 'lucide-react'
+import { Search, Filter } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import { dashboardService } from '../../services'
 
 
-export default function StaffDashboard() {
+export default function ProfessionalDashboard() {
   const [summary, setSummary] = useState(null)
   const [assignments, setAssignments] = useState([])
   const [search, setSearch] = useState('')
@@ -15,9 +15,6 @@ export default function StaffDashboard() {
   const [loading, setLoading] = useState(true)
   const [recentNotices, setRecentNotices] = useState([])
   const [recentMeta, setRecentMeta] = useState({})
-  const [recentLoading, setRecentLoading] = useState(false)
-  const [recentError, setRecentError] = useState(null)
-  const [recentOffset, setRecentOffset] = useState(0)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -134,12 +131,8 @@ export default function StaffDashboard() {
     setShowFilterPanel(false)
   }
 
-  const getInitials = (name = '') => name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-  const avatarColors = ['#7c3aed', '#059669', '#16a34a', '#ea580c', '#1d4ed8', '#dc2626']
-  const colorFor = (i) => avatarColors[i % avatarColors.length]
-
   const formatDate = (str) => {
-    if (!str) return '-'
+    if (!str || str === '-') return '-'
     const d = new Date(str)
     return d.toLocaleDateString('en-GB')
   }

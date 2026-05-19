@@ -5,7 +5,7 @@ import DashboardLayout from '../../layouts/DashboardLayout'
 import { clientService, professionalService } from '../../services'
 
 export default function CreateClient() {
-  const [form, setForm] = useState({ name: '', pan: '', password: '', email: '', professional_id: '' })
+  const [form, setForm] = useState({ name: '', pan: '', password: '', email: '', professional_id: '', referred_by: '' })
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
@@ -47,7 +47,8 @@ export default function CreateClient() {
         pan: form.pan.trim().toUpperCase(),
         password: form.password,
         email: form.email.trim().toLowerCase(),
-        professional_id: Number(form.professional_id)
+        professional_id: Number(form.professional_id),
+        ...(form.referred_by.trim() && { referred_by: form.referred_by.trim() })
       }
 
       const data = await clientService.createClient(payload)
@@ -131,6 +132,17 @@ export default function CreateClient() {
                 <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }}>▾</span>
               </div>
               {fieldErrors.professional_id && <p style={{ marginTop: 6, color: '#dc2626', fontSize: 12 }}>{fieldErrors.professional_id}</p>}
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={labelStyle}>Referred By</label>
+              <input
+                type="text"
+                placeholder="Enter referrer name (optional)"
+                value={form.referred_by}
+                onChange={e => setForm({ ...form, referred_by: e.target.value })}
+                style={inputStyle}
+              />
             </div>
 
             <button

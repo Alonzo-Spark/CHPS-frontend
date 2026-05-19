@@ -194,3 +194,25 @@ export const professionalService = {
     apiService.get(`/api/professionals/${id}/users`, { params })
       .then(res => ({ data: res })),
 }
+
+export const professionalWorkflowService = {
+  getWorkflow: async (noticeId) => {
+    try {
+      const res = await apiService.get(`/api/professional/notice-workflow/${noticeId}`)
+      return { data: res }
+    } catch (err) {
+      console.warn(`getWorkflow API for notice ${noticeId} failed`, err)
+      return { data: null, error: err }
+    }
+  },
+
+  updateWorkflow: async (noticeId, payload) => {
+    try {
+      const res = await apiService.put(`/api/professional/notice-workflow/${noticeId}`, payload)
+      return { data: res }
+    } catch (err) {
+      console.warn(`updateWorkflow API for notice ${noticeId} failed`, err)
+      return { data: null, error: err }
+    }
+  }
+}

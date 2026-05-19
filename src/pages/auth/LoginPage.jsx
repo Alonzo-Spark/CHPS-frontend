@@ -25,16 +25,20 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      // ✅ Try API login first
       const res = await authService.login({
         username: form.username,
         password: form.password
       })
 
       login(res.data)
-      const normalizedRole = res.data?.role?.toLowerCase() || 'staff'
-      const redirectPath = res.data?.redirect_url || `/${normalizedRole}/dashboard`
-      navigate(redirectPath)
+      const normalizedRole = (res.data?.role || '').toLowerCase()
+      if (normalizedRole === 'professional') {
+        navigate('/professional-dashboard')
+      } else if (normalizedRole === 'staff') {
+        navigate('/staff/dashboard')
+      } else {
+        navigate(res.data?.redirect_url || `/${normalizedRole}/dashboard`)
+      }
 
     } catch (err) {
       setError(err.response?.data?.detail || 'Invalid credentials. Please try again.')
