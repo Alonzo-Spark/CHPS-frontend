@@ -32,19 +32,51 @@ export default function ProfessionalDashboard() {
         let recentRes = null
         try {
           recentRes = await professionalDashboardService.getRecentNotices({ limit: 10, offset: 0 })
-          const raw = recentRes.data?.items || recentRes.data?.data || recentRes.data || []
+          const raw =
+  recentRes.data?.recent_notices ||
+  recentRes.data?.items ||
+  recentRes.data?.data ||
+  []
           const meta = recentRes.data?.meta || recentRes.meta || {}
           const mapped = (Array.isArray(raw) ? raw : []).map(n => ({
-            ...n,
-            notice_id: n.notice_id ?? n.id,
-            user: n.user || n.user_name || n.professional_name || "N/A",
-            user_name: n.user || n.user_name || n.professional_name || "N/A",
-            proceeding_name: n.proceeding_name || n.notice_type || "N/A",
-            reference_id: n.reference_id || `REF-${n.notice_id ?? n.id}`,
-            issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
-            due_date: n.due_date || "-",
-            status: n.status || "N/A"
-          }))
+  ...n,
+
+  notice_id: n.notice_id ?? n.id,
+
+  user:
+    n.client_name ||
+    n.user ||
+    n.user_name ||
+    "N/A",
+
+  user_name:
+    n.client_name ||
+    n.user ||
+    n.user_name ||
+    "N/A",
+
+  proceeding_name:
+    n.proceeding_name ||
+    n.notice_type ||
+    "N/A",
+
+  reference_id:
+    n.reference_id ||
+    `REF-${n.notice_id ?? n.id}`,
+
+  issued_on:
+    n.issued_on ||
+    "-",
+
+  due_date:
+    n.response_due_date ||
+    n.due_date ||
+    "-",
+
+  status:
+    n.status ||
+    "Pending"
+}))
           setRecentNotices(mapped)
           setAssignments(mapped)
           setRecentMeta(meta)
@@ -110,6 +142,13 @@ export default function ProfessionalDashboard() {
     isRead: !!item.is_read || !!item.isRead || false,
     createdAt: item.issued_on || item.createdAt || item.created_at || null,
   })
+
+  const handleViewNotice = (notice) => {
+    console.log("Clicked Notice ID:", notice.notice_id)
+    if (notice.notice_id) {
+      navigate(`/staff/notice-orders/${notice.notice_id}`)
+    }
+  }
 
   return (
     <DashboardLayout breadcrumbs={[{ label: 'Dashboard' }]}>
@@ -311,7 +350,7 @@ export default function ProfessionalDashboard() {
                       </td>
                       <td
                         style={{ padding: '10px 10px', fontWeight: 600, color: '#1e293b', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                        onClick={() => navigate(`/staff/notice-orders/${a.notice_id}`)}
+                        onClick={() => handleViewNotice(a)}
                         title="Click to view proceeding"
                       >
                         {a?.proceeding_name || "N/A"}
@@ -327,7 +366,7 @@ export default function ProfessionalDashboard() {
                       </td>
                       <td style={{ padding: '10px 10px' }}>
                         <button
-                          onClick={() => navigate(`/staff/notice-orders/${a.notice_id}`)}
+                          onClick={() => handleViewNotice(a)}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 9px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 7, fontSize: 10, fontWeight: 500, cursor: 'pointer' }}
                         >
                           VIEW NOTICE

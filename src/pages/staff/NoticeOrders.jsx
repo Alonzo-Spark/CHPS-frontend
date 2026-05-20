@@ -69,78 +69,10 @@ export default function NoticeOrders() {
   const [modalLoading, setModalLoading] = useState(false)
 
   useEffect(() => {
-    const defaultMockNotices = {
-      "101": {
-        id: 101,
-        notice_id: 101,
-        reference_id: "100109622829",
-        description: "[ITBA]Issue Letter",
-        document_reference_id: "ITBA/COM/F/17/2025-26/1086235720(1)",
-        issued_on: "2026-02-19",
-        response_due_date: "2026-06-15",
-        status: "PENDING",
-        proceeding_name: "Scrutiny Notice u/s 143(3)",
-        pan: "ABCDE1234F",
-        assessee_name: "Sri Vikas Agarwal",
-        assessment_year: "2025-26",
-        financial_year: "2024-25",
-        applicable_act: "Income Tax Act 1961"
-      },
-      "102": {
-        id: 102,
-        notice_id: 102,
-        reference_id: "PROC_1779107161081_0",
-        description: "Notice u/s 148 for assessment review.",
-        document_reference_id: "N/A",
-        issued_on: "2026-05-18",
-        response_due_date: "2026-06-30",
-        status: "PENDING",
-        proceeding_name: "GST Audit FY 2024-25",
-        pan: "FGHIJ5678K",
-        assessee_name: "Nippon Paint India",
-        assessment_year: "2025-26",
-        financial_year: "2024-25",
-        applicable_act: "GST Act 2017"
-      },
-      "103": {
-        id: 103,
-        notice_id: 103,
-        reference_id: "100098805618",
-        description: "[ITBA]Issue Letter for Scrutiny",
-        document_reference_id: "ITBA/COM/F/17/2025-26/1078678780(1)",
-        issued_on: "2025-07-18",
-        response_due_date: "2026-05-25",
-        status: "PENDING",
-        proceeding_name: "Transfer Pricing Assessment",
-        pan: "KLMNO9012P",
-        assessee_name: "Aditya Birla Group",
-        assessment_year: "2025-26",
-        financial_year: "2024-25",
-        applicable_act: "Income Tax Act 1961"
-      }
-    }
-
     const fetch = async () => {
       try {
         setLoading(true)
         setError(null)
-        
-        // Check if route ID is a mock ID
-        const targetId = String(id)
-        if (defaultMockNotices[targetId]) {
-          const mockData = defaultMockNotices[targetId]
-          setNotices([mockData])
-          setProceeding({
-            proceedingName: mockData.proceeding_name,
-            pan: mockData.pan,
-            assesseeName: mockData.assessee_name,
-            assessmentYear: mockData.assessment_year,
-            financialYear: mockData.financial_year,
-            applicableAct: mockData.applicable_act
-          })
-          setLoading(false)
-          return
-        }
 
         const res = await noticeService.getNoticeById(id)
         if (res?.data) {

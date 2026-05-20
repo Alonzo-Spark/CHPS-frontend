@@ -5,12 +5,12 @@ const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
-  const [token, setToken] = useState(() => localStorage.getItem('access_token'))
+  const [token, setToken] = useState(() => localStorage.getItem('token') || localStorage.getItem('access_token'))
   const [role, setRole] = useState(() => localStorage.getItem('role')?.toLowerCase() || null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('access_token')
+    const storedToken = localStorage.getItem('token') || localStorage.getItem('access_token')
     const storedUser = localStorage.getItem('user')
 
     if (storedToken && storedToken !== 'undefined' && storedToken !== 'null') {
@@ -71,6 +71,7 @@ export function AuthProvider({ children }) {
       setUser(userObj)
 
       // Store in localStorage
+      localStorage.setItem('token', authToken)
       localStorage.setItem('access_token', authToken)
       localStorage.setItem('role', normalizedRole)
       localStorage.setItem('user', JSON.stringify(userObj))
@@ -94,6 +95,7 @@ export function AuthProvider({ children }) {
     setRole(null)
     setUser(null)
 
+    localStorage.removeItem('token')
     localStorage.removeItem('access_token')
     localStorage.removeItem('role')
     localStorage.removeItem('user')

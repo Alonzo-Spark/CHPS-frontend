@@ -19,7 +19,7 @@ export const authService = {
     });
   },
   verifyToken: () => {
-    const token = localStorage.getItem('access_token');
+    const token = localStorage.getItem('token') || localStorage.getItem('access_token');
     if (!token || token === 'undefined' || token === 'null') {
       return Promise.reject(new Error("No valid token"));
     }

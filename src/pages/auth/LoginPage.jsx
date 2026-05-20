@@ -30,6 +30,11 @@ export default function LoginPage() {
         password: form.password
       })
 
+      console.log("LOGIN RESPONSE:", res.data)
+      if (res.data?.access_token) {
+        localStorage.setItem("token", res.data.access_token)
+      }
+
       login(res.data)
       const normalizedRole = (res.data?.role || '').toLowerCase()
       if (normalizedRole === 'professional') {
