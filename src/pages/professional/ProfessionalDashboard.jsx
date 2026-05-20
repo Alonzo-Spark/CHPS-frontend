@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { dashboardService } from '../../services'
+import { dashboardService, professionalDashboardService } from '../../services'
 
 
 export default function ProfessionalDashboard() {
@@ -31,7 +31,7 @@ export default function ProfessionalDashboard() {
         // 2) Recent notices
         let recentRes = null
         try {
-          recentRes = await dashboardService.getRecentNotices({ limit: 10, offset: 0 })
+          recentRes = await professionalDashboardService.getRecentNotices({ limit: 10, offset: 0 })
           const raw = recentRes.data?.items || recentRes.data?.data || recentRes.data || []
           const meta = recentRes.data?.meta || recentRes.meta || {}
           const mapped = (Array.isArray(raw) ? raw : []).map(n => ({
@@ -46,56 +46,10 @@ export default function ProfessionalDashboard() {
             status: n.status || "N/A"
           }))
           setRecentNotices(mapped)
+          setAssignments(mapped)
           setRecentMeta(meta)
         } catch (err) {
-          console.warn('Recent notices fetch failed', err)
-        }
-
-        // 3) Assignments (fallback to recent notices or defaultMockData when missing)
-        try {
-          const assignRes = await dashboardService.getAssignments()
-          const hasAssign = assignRes?.data && Array.isArray(assignRes.data) && assignRes.data.length
-          
-          let rawList = []
-          if (hasAssign) {
-            rawList = assignRes.data
-          } else {
-            const recentRaw = recentRes?.data?.items || recentRes?.data?.data || recentRes?.data || []
-            if (recentRaw && recentRaw.length > 0) {
-              rawList = recentRaw
-            } else {
-              rawList = []
-            }
-          }
-
-          const mapped = rawList.map(n => ({
-            ...n,
-            notice_id: n.notice_id ?? n.id,
-            user: n.user || n.user_name || n.professional_name || "N/A",
-            user_name: n.user || n.user_name || n.professional_name || "N/A",
-            proceeding_name: n.proceeding_name || n.notice_type || "N/A",
-            reference_id: n.reference_id || `REF-${n.notice_id ?? n.id}`,
-            issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
-            due_date: n.due_date || "-",
-            status: n.status || "N/A"
-          }))
-          setAssignments(mapped)
-        } catch (err) {
-          console.warn('Assignments fetch failed, falling back to mock data', err)
-          const recentRaw = recentRes?.data?.items || recentRes?.data?.data || recentRes?.data || []
-          const rawList = (recentRaw && recentRaw.length > 0) ? recentRaw : []
-          const mappedAssignments = rawList.map(n => ({
-            ...n,
-            notice_id: n.notice_id ?? n.id,
-            user: n.user || n.user_name || "N/A",
-            user_name: n.user || n.user_name || "N/A",
-            proceeding_name: n.proceeding_name || n.notice_type || "N/A",
-            reference_id: n.reference_id || `REF-${n.notice_id ?? n.id}`,
-            issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
-            due_date: n.due_date || "-",
-            status: n.status || "N/A"
-          }))
-          setAssignments(mappedAssignments)
+          // silently handle
         }
 
       } catch (err) {
