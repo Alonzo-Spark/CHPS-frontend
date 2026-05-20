@@ -4,9 +4,10 @@ const BASE_URL = "http://localhost:8000";
 
 const instance = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json'
   }
 });
 
@@ -14,7 +15,7 @@ const instance = axios.create({
 instance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('access_token');
-    if (token) {
+    if (token && token !== 'undefined' && token !== 'null') {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
     return config;

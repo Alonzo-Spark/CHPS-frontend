@@ -13,7 +13,7 @@ export function AuthProvider({ children }) {
     const storedToken = localStorage.getItem('access_token')
     const storedUser = localStorage.getItem('user')
 
-    if (storedToken) {
+    if (storedToken && storedToken !== 'undefined' && storedToken !== 'null') {
       setLoading(true)
       authService.verifyToken()
         .then(() => {

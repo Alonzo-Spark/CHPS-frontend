@@ -28,7 +28,7 @@ export default function StaffDashboard() {
           const sumRes = await dashboardService.getSummary()
           setSummary(sumRes.data)
         } catch (err) {
-          console.warn('Summary fetch failed', err)
+          // silent error handling
         }
 
         // 2) Recent notices
@@ -51,7 +51,7 @@ export default function StaffDashboard() {
           setRecentNotices(mapped)
           setRecentMeta(meta)
         } catch (err) {
-          console.warn('Recent notices fetch failed', err)
+          // silent error handling
         }
 
         // 3) Assignments (fallback to recent notices or defaultMockData when missing)
@@ -84,7 +84,7 @@ export default function StaffDashboard() {
           }))
           setAssignments(mapped)
         } catch (err) {
-          console.warn('Assignments fetch failed, falling back to mock data', err)
+          // silent error handling
           const recentRaw = recentRes?.data?.items || recentRes?.data?.data || recentRes?.data || []
           const rawList = (recentRaw && recentRaw.length > 0) ? recentRaw : []
           const mappedAssignments = rawList.map(n => ({
@@ -102,7 +102,7 @@ export default function StaffDashboard() {
         }
 
       } catch (err) {
-        console.error('Unexpected fetch error', err)
+        // silent error handling
       } finally {
         setLoading(false)
       }

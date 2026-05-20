@@ -20,6 +20,9 @@ export const authService = {
   },
   verifyToken: () => {
     const token = localStorage.getItem('access_token');
+    if (!token || token === 'undefined' || token === 'null') {
+      return Promise.reject(new Error("No valid token"));
+    }
     return apiService.post('/api/auth/verify-token', { token }).then(res => ({ data: res }));
   },
   register: (data) => apiService.post('/api/auth/register', data).then(res => ({ data: res })),
@@ -43,7 +46,6 @@ export const dashboardService = {
       }
     };
   }).catch(err => {
-    console.warn("Summary API failed, returning zeros", err);
     return {
       data: {
         total_users: 0,
@@ -55,11 +57,10 @@ export const dashboardService = {
     };
   }),
 
-  getRecentNotices: ({ limit = 20, offset = 0 } = {}) => 
-    apiService.get('/api/dashboard/recent-notices', { params: { limit, offset } })
+  getRecentNotices: () => 
+    apiService.get('/api/dashboard/recent-notices')
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
-        console.warn("Recent notices API failed, returning empty", err);
         return { data: [] };
       }),
 
@@ -70,7 +71,6 @@ export const dashboardService = {
         return { data: raw };
       })
       .catch(err => {
-        console.warn("Assignments API failed", err);
         return { data: [] };
       }),
 
@@ -83,7 +83,6 @@ export const noticeService = {
     apiService.get('/api/notices/all')
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
-        console.warn("getNotices API failed, returning empty list", err);
         return { data: [] };
       }),
 
@@ -91,7 +90,6 @@ export const noticeService = {
     apiService.get(`/api/dashboard/recent-notices/view-notice/${id}`)
       .then(res => ({ data: res }))
       .catch(err => {
-        console.warn(`getNoticeById API for ${id} failed`, err);
         return { data: null };
       }),
 
