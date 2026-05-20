@@ -73,25 +73,63 @@ export default function NoticeOrders() {
       try {
         setLoading(true)
         setError(null)
+        console.log('=== Fetching Notice Details for ID:', id)
 
         const res = await noticeService.getNoticeById(id)
+        console.log('=== Full API Response:', res)
+        
         if (res?.data) {
           const data = res.data
-          const noticesList = data.notices || [data]
+          console.log('=== Response data object:', data)
+          console.log('=== notice_orders:', data.notice_orders)
+          console.log('=== proceeding_details:', data.proceeding_details)
+          
+          // Handle both response formats:
+          // Format 1: notice_orders array (new API structure)
+          // Format 2: single notice object (fallback)
+          let noticesList = []
+          
+          if (Array.isArray(data.notice_orders) && data.notice_orders.length > 0) {
+            noticesList = data.notice_orders
+            console.log('=== Using notice_orders array, count:', noticesList.length)
+          } else if (Array.isArray(data.notices) && data.notices.length > 0) {
+            noticesList = data.notices
+            console.log('=== Using notices array, count:', noticesList.length)
+          } else if (data.notice_id) {
+            noticesList = [data]
+            console.log('=== Using single notice from root data')
+          } else {
+            console.warn('=== No notices found in any format')
+          }
+          
+          console.log('=== Final noticesList:', noticesList)
           setNotices(noticesList)
-          setProceeding({
-            proceedingName: data.proceeding_name || data.proceeding?.proceeding_name || id || "N/A",
-            pan: data.pan || data.pan_number || data.user?.pan || "N/A",
-            assesseeName: data.assessee_name || data.assesseeName || data.user?.name || "N/A",
-            assessmentYear: data.assessment_year || "N/A",
-            financialYear: data.financial_year || "N/A",
-            applicableAct: data.applicable_act || "Income Tax Act 1961"
-          })
+          
+          // Extract proceeding info from proceeding_details or root level
+          const procDetails = data.proceeding_details || data
+          console.log('=== Using procDetails from:', data.proceeding_details ? 'proceeding_details' : 'root data')
+          
+          const procData = {
+            proceedingName: procDetails.proceeding_name || data.proceeding_name || id || "N/A",
+            pan: data.user_pan || procDetails.pan || data.pan || data.pan_number || "N/A",
+            assesseeName: data.user_name || procDetails.assessee_name || data.assessee_name || data.user?.name || "N/A",
+            assessmentYear: procDetails.assessment_year || data.assessment_year || "N/A",
+            financialYear: procDetails.financial_year || data.financial_year || "N/A",
+            applicableAct: procDetails.applicable_act || data.applicable_act || "Income Tax Act 1961"
+          }
+          console.log('=== Setting proceeding data:', procData)
+          setProceeding(procData)
         } else {
+          console.error('=== No data in response')
           setNotices([])
+          setError('No data received from server')
         }
       } catch (err) {
+        console.error('=== NoticeOrders fetch error:', err)
+        console.error('=== Error message:', err?.message)
+        console.error('=== Error details:', err)
         setNotices([])
+        setError(err?.message || 'Failed to load notices')
       } finally {
         setLoading(false)
       }
@@ -114,16 +152,57 @@ export default function NoticeOrders() {
           setAssignedCaseTitle(n.proceeding_name || n.description || '')
           setDeadline(n.response_due_date || n.issued_on || '')
           setStatusText(n.status || 'In Progress')
-          
           setProceeding({
-            proceedingName: n.proceeding_name || n.description || id || "N/A",
-            pan: n.pan || n.pan_number || "N/A",
-            assesseeName: n.assessee_name || "N/A",
-            assessmentYear: n.assessment_year || "N/A",
-            financialYear: n.financial_year || "N/A",
-            applicableAct: n.applicable_act || "Income Tax Act 1961"
-          })
-          setNotices([n])
+  proceedingName:
+    wf.proceeding_details?.proceeding_name ||
+    n.proceeding_name ||
+    n.description ||
+    id ||
+    "N/A",
+
+  pan:
+    wf.user?.pan ||
+    n.pan ||
+    n.pan_number ||
+    "N/A",
+
+  assesseeName:
+    wf.user?.name ||
+    n.assessee_name ||
+    "N/A",
+
+  assessmentYear:
+    wf.proceeding_details?.assessment_year ||
+    n.assessment_year ||
+    "N/A",
+
+  financialYear:
+    wf.proceeding_details?.financial_year ||
+    n.financial_year ||
+    "N/A",
+
+  applicableAct:
+    wf.proceeding_details?.applicable_act ||
+    n.applicable_act ||
+    "Income Tax Act 1961"
+})
+
+
+// DO NOT overwrite notices
+setNotices(prev => {
+  if (prev.length > 0) return prev
+
+  return [{
+    ...n,
+    notice_id: n.id,
+    reference_id: n.reference_id,
+    issued_on: n.issued_on,
+    response_due_date: n.response_due_date,
+    description: n.description,
+    status: n.status
+  }]
+})
+          
         }
 
         // Bind workflow-level notes

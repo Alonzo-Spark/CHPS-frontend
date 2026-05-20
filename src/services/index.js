@@ -88,9 +88,17 @@ export const noticeService = {
 
   getNoticeById: (id) => 
     apiService.get(`/api/dashboard/recent-notices/view-notice/${id}`)
-      .then(res => ({ data: res }))
+      .then(res => {
+        console.log('✅ getNoticeById SUCCESS for ID:', id)
+        console.log('✅ Response:', res)
+        return { data: res }
+      })
       .catch(err => {
-        return { data: null };
+        console.error('❌ getNoticeById ERROR for ID:', id)
+        console.error('❌ Error status:', err.response?.status)
+        console.error('❌ Error message:', err.response?.data?.detail || err.message)
+        console.error('❌ Full error:', err)
+        return { data: null, error: err };
       }),
 
   downloadNoticePdf: (id) => {
