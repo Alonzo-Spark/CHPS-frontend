@@ -4,17 +4,25 @@ import { authService } from '../services'
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)
+  // Initialize from localStorage synchronously
+  const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem('user')
+    return storedUser ? JSON.parse(storedUser) : null
+  })
   const [token, setToken] = useState(() => localStorage.getItem('token') || localStorage.getItem('access_token'))
   const [role, setRole] = useState(() => localStorage.getItem('role')?.toLowerCase() || null)
-  const [loading, setLoading] = useState(false)
+  
+  // Set loading to true initially if there is a token to verify
+  const [loading, setLoading] = useState(() => {
+    const storedToken = localStorage.getItem('token') || localStorage.getItem('access_token')
+    return !!(storedToken && storedToken !== 'undefined' && storedToken !== 'null')
+  })
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token') || localStorage.getItem('access_token')
     const storedUser = localStorage.getItem('user')
 
     if (storedToken && storedToken !== 'undefined' && storedToken !== 'null') {
-      setLoading(true)
       authService.verifyToken()
         .then(() => {
           if (storedUser) {
@@ -26,13 +34,18 @@ export function AuthProvider({ children }) {
           }
         })
         .catch(err => {
-          console.warn("Invalid token on verify token, logging out:", err)
-          logout()
+          console.warn("Error verifying token:", err)
+          // Only logout if token is explicitly invalid (401/403)
+          if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+            console.warn("Token expired or invalid, logging out")
+            logout()
+          }
         })
         .finally(() => {
           setLoading(false)
         })
     } else {
+      setLoading(false)
       logout()
     }
   }, [])

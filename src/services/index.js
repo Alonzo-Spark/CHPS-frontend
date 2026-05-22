@@ -226,7 +226,7 @@ export const professionalWorkflowService = {
 
 export const professionalDashboardService = {
   getRecentNotices: ({ limit = 20, offset = 0 } = {}) =>
-    apiService.get('/api/professional/dashboard/recent-notices', { params: { limit, offset } })
+    apiService.get('/api/dashboard/recent-notices', { params: { limit, offset } })
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
         return { data: [] };
