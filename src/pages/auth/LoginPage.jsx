@@ -38,11 +38,11 @@ export default function LoginPage() {
       login(res.data)
       const normalizedRole = (res.data?.role || '').toLowerCase()
       if (normalizedRole === 'professional') {
-        navigate('/professional-dashboard')
+        navigate('/professional-dashboard', { replace: true })
       } else if (normalizedRole === 'staff') {
-        navigate('/staff/dashboard')
+        navigate('/staff/dashboard', { replace: true })
       } else {
-        navigate(res.data?.redirect_url || `/${normalizedRole}/dashboard`)
+        navigate(res.data?.redirect_url || `/${normalizedRole}/dashboard`, { replace: true })
       }
 
     } catch (err) {

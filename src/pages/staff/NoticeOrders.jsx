@@ -379,15 +379,15 @@ setNotices(prev => {
 
   return (
     <DashboardLayout breadcrumbs={[
-      { label: 'Dashboard', path: '/staff/dashboard' },
-      { label: 'My Assignments', path: '/staff/dashboard' },
+      { label: 'Dashboard', path: isProfessional ? '/professional-dashboard' : '/staff/dashboard' },
+      { label: 'My Assignments', path: isProfessional ? '/professional-dashboard' : '/staff/dashboard' },
       { label: 'Notice Orders' }
     ]}>
       <div style={{ padding: '18px 20px' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5, cursor: 'pointer' }} onClick={() => navigate(-1)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5, cursor: 'pointer' }} onClick={() => navigate(isProfessional ? '/professional-dashboard' : '/staff/dashboard')}>
               <ArrowLeft size={13} color="#64748b" />
               <span style={{ fontSize: 12, color: '#64748b' }}>Back to assignments</span>
             </div>

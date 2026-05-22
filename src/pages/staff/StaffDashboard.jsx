@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, X, Calendar } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { dashboardService } from '../../services'
+import { dashboardService, noticeService } from '../../services'
 
 
 export default function StaffDashboard() {
@@ -13,11 +13,14 @@ export default function StaffDashboard() {
   const [appliedFilters, setAppliedFilters] = useState({ month: '', year: '', assessment: '' })
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [allNotices, setAllNotices] = useState([])
+  const [allNoticesLoaded, setAllNoticesLoaded] = useState(false)
   const [recentNotices, setRecentNotices] = useState([])
   const [recentMeta, setRecentMeta] = useState({})
   const [recentLoading, setRecentLoading] = useState(false)
   const [recentError, setRecentError] = useState(null)
   const [recentOffset, setRecentOffset] = useState(0)
+  const [unreadCount, setUnreadCount] = useState(0)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -46,7 +49,8 @@ export default function StaffDashboard() {
             reference_id: n.reference_id || `REF-${n.notice_id ?? n.id}`,
             issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
             due_date: n.due_date || "-",
-            status: n.status || "N/A"
+            status: n.status || n.workflow_status || 'N/A',
+            is_read: n.is_read ?? n.isRead ?? false
           }))
           setRecentNotices(mapped)
           setRecentMeta(meta)
@@ -80,7 +84,8 @@ export default function StaffDashboard() {
             reference_id: n.reference_id || `REF-${n.notice_id ?? n.id}`,
             issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
             due_date: n.due_date || "-",
-            status: n.status || "N/A"
+            status: n.status || n.workflow_status || 'N/A',
+            is_read: n.is_read ?? n.isRead ?? false
           }))
           setAssignments(mapped)
         } catch (err) {
@@ -96,7 +101,8 @@ export default function StaffDashboard() {
             reference_id: n.reference_id || `REF-${n.notice_id ?? n.id}`,
             issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
             due_date: n.due_date || "-",
-            status: n.status || "N/A"
+            status: n.status || n.workflow_status || 'N/A',
+            is_read: n.is_read ?? n.isRead ?? false
           }))
           setAssignments(mappedAssignments)
         }
@@ -107,10 +113,64 @@ export default function StaffDashboard() {
         setLoading(false)
       }
     }
+
+    const fetchAllNotices = async () => {
+      try {
+        const res = await noticeService.getNotices()
+        const raw = res?.data?.items || res?.data || []
+        const mapped = (Array.isArray(raw) ? raw : []).map(n => ({
+          ...n,
+          notice_id: n.notice_id ?? n.id,
+          user: n.user || n.user_name || n.professional_name || 'N/A',
+          user_name: n.user || n.user_name || n.professional_name || 'N/A',
+          proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
+          reference_id: n.reference_id || `REF-${n.notice_id ?? n.id}`,
+          issued_on: n.issued_on || n.assigned_at || n.createdAt || '-',
+          due_date: n.due_date || '-',
+          status: n.status || n.workflow_status || 'N/A',
+          is_read: n.is_read ?? n.isRead ?? false
+        }))
+        setAllNotices(mapped)
+        setAllNoticesLoaded(true)
+      } catch (err) {
+        // silent error handling
+        setAllNoticesLoaded(true)
+      }
+    }
+
     fetchData()
+    fetchAllNotices()
   }, [])
 
-  const filtered = assignments.filter(a => {
+
+  const handleViewNotice = async (a) => {
+    const noticeId = a.notice_id ?? a.id
+    try {
+      if (noticeId) {
+        await dashboardService.markNoticeRead(noticeId)
+      }
+    } catch (err) {
+      console.warn("Failed to mark notice as read on backend", err)
+    }
+
+    if (noticeId) {
+      setAssignments(prev => prev.map(item => (item.notice_id === noticeId || item.id === noticeId) ? { ...item, is_read: true } : item))
+      setAllNotices(prev => prev.map(item => (item.notice_id === noticeId || item.id === noticeId) ? { ...item, is_read: true } : item))
+    }
+    navigate(`/staff/notice-orders/${noticeId}`)
+  }
+
+  const noFiltersApplied = !appliedFilters.month && !appliedFilters.year && !appliedFilters.assessment
+  const sourceData = (noFiltersApplied && allNoticesLoaded && allNotices.length > 0) ? allNotices : assignments
+
+  // Keep unread count in sync with what's visible
+  useEffect(() => {
+    const count = sourceData.filter(n => !n.is_read).length
+    setUnreadCount(count)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assignments, allNotices, appliedFilters])
+
+  const filtered = sourceData.filter(a => {
     const term = search.trim().toLowerCase()
 
     // Search filter
@@ -126,7 +186,7 @@ export default function StaffDashboard() {
     const matchesMonth = !appliedFilters.month || (assignedDate && assignedDate.getMonth() + 1 === parseInt(appliedFilters.month))
     const matchesYear = !appliedFilters.year || (assignedDate && assignedDate.getFullYear() === parseInt(appliedFilters.year))
     
-    const status = (a?.status || 'pending').toLowerCase()
+    const status = (a?.status || '').toLowerCase()
     const matchesAssessment = !appliedFilters.assessment || status === appliedFilters.assessment.toLowerCase()
 
     return matchesSearch && matchesMonth && matchesYear && matchesAssessment
@@ -167,6 +227,18 @@ export default function StaffDashboard() {
   return (
     <DashboardLayout breadcrumbs={[{ label: 'Dashboard' }]}>
       <div style={{ padding: '20px 22px' }}>
+
+        {/* Recent Notices Summary Card */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+          <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, padding: '18px 20px', minWidth: 240, display: 'inline-block' }}>
+            <p style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.07em', margin: 0 }}>Recent Notices</p>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
+              <p style={{ fontSize: 28, fontWeight: 700, color: '#2563eb', margin: 0 }}>{loading ? '...' : unreadCount}</p>
+              <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Unread</span>
+            </div>
+            <div style={{ height: 3, background: '#2563eb', borderRadius: 2, width: 44, marginTop: 12 }}></div>
+          </div>
+        </div>
 
         {/* Assignments table */}
         <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, overflow: 'visible' }}>
@@ -302,14 +374,17 @@ export default function StaffDashboard() {
                   onClick={handleClearFilters}
                   style={{
                     padding: '6px 12px',
-                    background: '#f3f4f6',
-                    color: '#64748b',
-                    border: '1px solid #d1d5db',
+                    background: '#eff6ff',
+                    color: '#2563eb',
+                    border: '1px solid #bfdbfe',
                     borderRadius: 6,
                     fontSize: 11,
                     fontWeight: 600,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#dbeafe' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#eff6ff' }}
                 >
                   Clear Filters
                 </button>
@@ -323,8 +398,12 @@ export default function StaffDashboard() {
                     borderRadius: 6,
                     fontSize: 11,
                     fontWeight: 600,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                    boxShadow: '0 2px 4px rgba(37, 99, 235, 0.15)'
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#1d4ed8' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#2563eb' }}
                 >
                   Apply
                 </button>
@@ -356,32 +435,46 @@ export default function StaffDashboard() {
                   </tr>
                 ) : (
                   filtered.map((a, i) => (
-                    <tr key={a.notice_id || i} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
-                      <td style={{ padding: '10px 10px', color: '#1e293b', verticalAlign: 'middle' }}>
+                    <tr key={a.notice_id || i} style={{ borderBottom: '0.5px solid #f1f5f9', background: !a.is_read ? '#e0f2fe' : 'transparent', transition: 'all 0.3s ease' }}>
+                      <td style={{ padding: '10px 10px', color: '#1e293b', verticalAlign: 'middle', borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent', transition: 'border-left-color 0.3s ease' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                          <span style={{ fontWeight: 500 }}>{a?.user || a?.user_name || "N/A"}</span>
+                          {!a.is_read && (
+                            <span 
+                              style={{
+                                display: 'inline-block',
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                backgroundColor: '#2563eb',
+                                boxShadow: '0 0 8px #3b82f6',
+                                flexShrink: 0
+                              }} 
+                              title="New/Unread"
+                            />
+                          )}
+                          <span style={{ fontWeight: !a.is_read ? 700 : 500 }}>{a?.user || a?.user_name || "N/A"}</span>
                         </div>
                       </td>
                       <td
-                        style={{ padding: '10px 10px', fontWeight: 600, color: '#1e293b', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                        onClick={() => navigate(`/staff/notice-orders/${a.notice_id}`)}
+                        style={{ padding: '10px 10px', fontWeight: !a.is_read ? 700 : 600, color: !a.is_read ? '#1e293b' : '#334155', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        onClick={() => handleViewNotice(a)}
                         title="Click to view proceeding"
                       >
                         {a?.proceeding_name || "N/A"}
                       </td>
-                      <td style={{ padding: '10px 10px', fontFamily: 'monospace', fontSize: 10, color: '#1d4ed8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 10px', fontFamily: 'monospace', fontSize: 10, color: '#1d4ed8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: !a.is_read ? '600' : 'normal' }}>
                         {a?.reference_id || "N/A"}
                       </td>
-                      <td style={{ padding: '10px 10px', color: '#64748b' }}>
+                      <td style={{ padding: '10px 10px', color: '#64748b', fontWeight: !a.is_read ? '600' : 'normal' }}>
                         {a?.issued_on && a.issued_on !== '-' ? formatDate(a.issued_on) : "-"}
                       </td>
-                      <td style={{ padding: '10px 10px', color: '#dc2626', fontWeight: 500 }}>
+                      <td style={{ padding: '10px 10px', color: '#dc2626', fontWeight: !a.is_read ? 700 : 500 }}>
                         {a?.due_date && a.due_date !== '-' ? formatDate(a.due_date) : "-"}
                       </td>
                       <td style={{ padding: '10px 10px' }}>
                         <button
-                          onClick={() => navigate(`/staff/notice-orders/${a.notice_id}`)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 9px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 7, fontSize: 10, fontWeight: 500, cursor: 'pointer' }}
+                          onClick={() => handleViewNotice(a)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 9px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 7, fontSize: 10, fontWeight: '600', cursor: 'pointer', boxShadow: !a.is_read ? '0 2px 4px rgba(30, 58, 138, 0.25)' : 'none', transition: 'all 0.2s ease' }}
                         >
                           VIEW NOTICE
                         </button>
