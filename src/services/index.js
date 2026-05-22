@@ -192,7 +192,7 @@ export const userService = {
 
 export const professionalService = {
   getProfessionals: () => 
-    apiService.get('/api/professionals')
+    apiService.get('/api/clients')
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
         console.warn("getProfessionals API failed", err);
@@ -200,7 +200,7 @@ export const professionalService = {
       }),
 
   getProfessionalUsers: (id, params) => 
-    apiService.get(`/api/professionals/${id}/users`, { params })
+    apiService.get(`/api/clients/${id}/users`, { params })
       .then(res => ({ data: res })),
 }
 
