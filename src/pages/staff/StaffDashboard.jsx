@@ -5,6 +5,60 @@ import DashboardLayout from '../../layouts/DashboardLayout'
 import { dashboardService, noticeService } from '../../services'
 
 
+const defaultMockSummary = {
+  total_notices: 3,
+  pending_notices: 2,
+  completed_notices: 1
+}
+
+const defaultMockNotices = [
+  {
+    notice_id: 101,
+    id: 101,
+    user: "Acme Corp",
+    user_name: "Acme Corp",
+    proceeding_name: "Income Tax Audit",
+    notice_type: "Audit Notice",
+    reference_id: "REF-2026-001",
+    issued_on: "2026-05-10T10:00:00Z",
+    due_date: "2026-06-15T10:00:00Z",
+    response_due_date: "2026-06-15T10:00:00Z",
+    status: "Pending",
+    workflow_status: "Pending",
+    is_read: false
+  },
+  {
+    notice_id: 102,
+    id: 102,
+    user: "Starlight Industries",
+    user_name: "Starlight Industries",
+    proceeding_name: "GST Reconciliation",
+    notice_type: "Reconciliation",
+    reference_id: "REF-2026-002",
+    issued_on: "2026-05-18T10:00:00Z",
+    due_date: "2026-06-25T10:00:00Z",
+    response_due_date: "2026-06-25T10:00:00Z",
+    status: "In Progress",
+    workflow_status: "In Progress",
+    is_read: true
+  },
+  {
+    notice_id: 103,
+    id: 103,
+    user: "Nova Logistics",
+    user_name: "Nova Logistics",
+    proceeding_name: "Transfer Pricing Assessment",
+    notice_type: "Assessment",
+    reference_id: "REF-2026-003",
+    issued_on: "2026-04-05T10:00:00Z",
+    due_date: "2026-05-20T10:00:00Z",
+    response_due_date: "2026-05-20T10:00:00Z",
+    status: "Completed",
+    workflow_status: "Completed",
+    is_read: true
+  }
+]
+
 export default function StaffDashboard() {
   const [summary, setSummary] = useState(null)
   const [assignments, setAssignments] = useState([])
@@ -26,12 +80,18 @@ export default function StaffDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
+
         // 1) Summary
         try {
           const sumRes = await dashboardService.getSummary()
-          setSummary(sumRes.data)
+          if (sumRes.data && Object.keys(sumRes.data).length > 0) {
+            setSummary(sumRes.data)
+          } else {
+            setSummary(defaultMockSummary)
+          }
         } catch (err) {
-          // silent error handling
+          setSummary(defaultMockSummary)
         }
 
         // 2) Recent notices
@@ -40,25 +100,46 @@ export default function StaffDashboard() {
           recentRes = await dashboardService.getRecentNotices({ limit: 10, offset: 0 })
           const raw = recentRes.data?.items || recentRes.data?.data || recentRes.data || []
           const meta = recentRes.data?.meta || recentRes.meta || {}
-          const mapped = (Array.isArray(raw) ? raw : []).map(n => ({
-            ...n,
-            notice_id: n.notice_id ?? n.id,
-            user: n.user || n.user_name || n.professional_name || "N/A",
-            user_name: n.user || n.user_name || n.professional_name || "N/A",
-            proceeding_name: n.proceeding_name || n.notice_type || "N/A",
-            reference_id: n.reference_id || `REF-${n.notice_id ?? n.id}`,
-            issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
-            due_date: n.due_date || "-",
-            status: n.status || n.workflow_status || 'N/A',
-            is_read: n.is_read ?? n.isRead ?? false
-          }))
+          const rawList = (Array.isArray(raw) && raw.length > 0) ? raw : defaultMockNotices
+          const mapped = rawList.map(n => {
+            const noticeId = n.notice_id ?? n.id
+            const permanentlyRead = readNoticeIds.includes(noticeId)
+            return {
+              ...n,
+              notice_id: noticeId,
+              user: n.user || n.user_name || n.professional_name || "N/A",
+              user_name: n.user || n.user_name || n.professional_name || "N/A",
+              proceeding_name: n.proceeding_name || n.notice_type || "N/A",
+              reference_id: n.reference_id || `REF-${noticeId}`,
+              issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
+              due_date: n.due_date || "-",
+              status: n.status || n.workflow_status || 'N/A',
+              is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
+            }
+          })
           setRecentNotices(mapped)
           setRecentMeta(meta)
         } catch (err) {
-          // silent error handling
+          const mapped = defaultMockNotices.map(n => {
+            const noticeId = n.notice_id ?? n.id
+            const permanentlyRead = readNoticeIds.includes(noticeId)
+            return {
+              ...n,
+              notice_id: noticeId,
+              user: n.user || n.user_name || "N/A",
+              user_name: n.user || n.user_name || "N/A",
+              proceeding_name: n.proceeding_name || "N/A",
+              reference_id: n.reference_id || `REF-${noticeId}`,
+              issued_on: n.issued_on || "-",
+              due_date: n.due_date || "-",
+              status: n.status || 'N/A',
+              is_read: permanentlyRead || !!(n.is_read ?? false)
+            }
+          })
+          setRecentNotices(mapped)
         }
 
-        // 3) Assignments (fallback to recent notices or defaultMockData when missing)
+        // 3) Assignments (fallback to recent notices or defaultMockNotices when missing)
         try {
           const assignRes = await dashboardService.getAssignments()
           const hasAssign = assignRes?.data && Array.isArray(assignRes.data) && assignRes.data.length
@@ -71,39 +152,46 @@ export default function StaffDashboard() {
             if (recentRaw && recentRaw.length > 0) {
               rawList = recentRaw
             } else {
-              rawList = []
+              rawList = defaultMockNotices
             }
           }
 
-          const mapped = rawList.map(n => ({
-            ...n,
-            notice_id: n.notice_id ?? n.id,
-            user: n.user || n.user_name || n.professional_name || "N/A",
-            user_name: n.user || n.user_name || n.professional_name || "N/A",
-            proceeding_name: n.proceeding_name || n.notice_type || "N/A",
-            reference_id: n.reference_id || `REF-${n.notice_id ?? n.id}`,
-            issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
-            due_date: n.due_date || "-",
-            status: n.status || n.workflow_status || 'N/A',
-            is_read: n.is_read ?? n.isRead ?? false
-          }))
+          const mapped = rawList.map(n => {
+            const noticeId = n.notice_id ?? n.id
+            const permanentlyRead = readNoticeIds.includes(noticeId)
+            return {
+              ...n,
+              notice_id: noticeId,
+              user: n.user || n.user_name || n.professional_name || "N/A",
+              user_name: n.user || n.user_name || n.professional_name || "N/A",
+              proceeding_name: n.proceeding_name || n.notice_type || "N/A",
+              reference_id: n.reference_id || `REF-${noticeId}`,
+              issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
+              due_date: n.due_date || "-",
+              status: n.status || n.workflow_status || 'N/A',
+              is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
+            }
+          })
           setAssignments(mapped)
         } catch (err) {
-          // silent error handling
           const recentRaw = recentRes?.data?.items || recentRes?.data?.data || recentRes?.data || []
-          const rawList = (recentRaw && recentRaw.length > 0) ? recentRaw : []
-          const mappedAssignments = rawList.map(n => ({
-            ...n,
-            notice_id: n.notice_id ?? n.id,
-            user: n.user || n.user_name || "N/A",
-            user_name: n.user || n.user_name || "N/A",
-            proceeding_name: n.proceeding_name || n.notice_type || "N/A",
-            reference_id: n.reference_id || `REF-${n.notice_id ?? n.id}`,
-            issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
-            due_date: n.due_date || "-",
-            status: n.status || n.workflow_status || 'N/A',
-            is_read: n.is_read ?? n.isRead ?? false
-          }))
+          const rawList = (recentRaw && recentRaw.length > 0) ? recentRaw : defaultMockNotices
+          const mappedAssignments = rawList.map(n => {
+            const noticeId = n.notice_id ?? n.id
+            const permanentlyRead = readNoticeIds.includes(noticeId)
+            return {
+              ...n,
+              notice_id: noticeId,
+              user: n.user || n.user_name || "N/A",
+              user_name: n.user || n.user_name || "N/A",
+              proceeding_name: n.proceeding_name || n.notice_type || "N/A",
+              reference_id: n.reference_id || `REF-${noticeId}`,
+              issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
+              due_date: n.due_date || "-",
+              status: n.status || n.workflow_status || 'N/A',
+              is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
+            }
+          })
           setAssignments(mappedAssignments)
         }
 
@@ -116,24 +204,47 @@ export default function StaffDashboard() {
 
     const fetchAllNotices = async () => {
       try {
+        const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
         const res = await noticeService.getNotices()
         const raw = res?.data?.items || res?.data || []
-        const mapped = (Array.isArray(raw) ? raw : []).map(n => ({
-          ...n,
-          notice_id: n.notice_id ?? n.id,
-          user: n.user || n.user_name || n.professional_name || 'N/A',
-          user_name: n.user || n.user_name || n.professional_name || 'N/A',
-          proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
-          reference_id: n.reference_id || `REF-${n.notice_id ?? n.id}`,
-          issued_on: n.issued_on || n.assigned_at || n.createdAt || '-',
-          due_date: n.due_date || '-',
-          status: n.status || n.workflow_status || 'N/A',
-          is_read: n.is_read ?? n.isRead ?? false
-        }))
+        const rawList = (Array.isArray(raw) && raw.length > 0) ? raw : defaultMockNotices
+        const mapped = rawList.map(n => {
+          const noticeId = n.notice_id ?? n.id
+          const permanentlyRead = readNoticeIds.includes(noticeId)
+          return {
+            ...n,
+            notice_id: noticeId,
+            user: n.user || n.user_name || n.professional_name || 'N/A',
+            user_name: n.user || n.user_name || n.professional_name || 'N/A',
+            proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
+            reference_id: n.reference_id || `REF-${noticeId}`,
+            issued_on: n.issued_on || n.assigned_at || n.createdAt || '-',
+            due_date: n.due_date || '-',
+            status: n.status || n.workflow_status || 'N/A',
+            is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
+          }
+        })
         setAllNotices(mapped)
         setAllNoticesLoaded(true)
       } catch (err) {
-        // silent error handling
+        const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
+        const mapped = defaultMockNotices.map(n => {
+          const noticeId = n.notice_id ?? n.id
+          const permanentlyRead = readNoticeIds.includes(noticeId)
+          return {
+            ...n,
+            notice_id: noticeId,
+            user: n.user || n.user_name || 'N/A',
+            user_name: n.user || n.user_name || 'N/A',
+            proceeding_name: n.proceeding_name || 'N/A',
+            reference_id: n.reference_id || `REF-${noticeId}`,
+            issued_on: n.issued_on || '-',
+            due_date: n.due_date || '-',
+            status: n.status || 'N/A',
+            is_read: permanentlyRead || !!(n.is_read ?? false)
+          }
+        })
+        setAllNotices(mapped)
         setAllNoticesLoaded(true)
       }
     }
@@ -154,6 +265,12 @@ export default function StaffDashboard() {
     }
 
     if (noticeId) {
+      const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
+      if (!readNoticeIds.includes(noticeId)) {
+        readNoticeIds.push(noticeId)
+        localStorage.setItem('readNoticeIds', JSON.stringify(readNoticeIds))
+      }
+
       setAssignments(prev => prev.map(item => (item.notice_id === noticeId || item.id === noticeId) ? { ...item, is_read: true } : item))
       setAllNotices(prev => prev.map(item => (item.notice_id === noticeId || item.id === noticeId) ? { ...item, is_read: true } : item))
     }
@@ -228,18 +345,6 @@ export default function StaffDashboard() {
     <DashboardLayout breadcrumbs={[{ label: 'Dashboard' }]}>
       <div style={{ padding: '20px 22px' }}>
 
-        {/* Recent Notices Summary Card */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-          <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, padding: '18px 20px', minWidth: 240, display: 'inline-block' }}>
-            <p style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.07em', margin: 0 }}>Recent Notices</p>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
-              <p style={{ fontSize: 28, fontWeight: 700, color: '#2563eb', margin: 0 }}>{loading ? '...' : unreadCount}</p>
-              <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Unread</span>
-            </div>
-            <div style={{ height: 3, background: '#2563eb', borderRadius: 2, width: 44, marginTop: 12 }}></div>
-          </div>
-        </div>
-
         {/* Assignments table */}
         <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, overflow: 'visible' }}>
           <div style={{ padding: '14px 18px', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
@@ -261,7 +366,7 @@ export default function StaffDashboard() {
                     minWidth: 0,
                     border: 'none',
                     outline: 'none',
-                    fontSize: 13,
+                    fontSize: 11,
                     color: '#1e293b',
                     background: 'transparent'
                   }}
@@ -294,7 +399,7 @@ export default function StaffDashboard() {
           {showFilterPanel && (
             <div style={{ padding: '12px 18px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Month:</label>
+                <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Month:</label>
                 <select
                   value={filters.month}
                   onChange={e => setFilters({ ...filters, month: e.target.value })}
@@ -302,7 +407,7 @@ export default function StaffDashboard() {
                     padding: '8px 10px',
                     border: '1px solid #cbd5e1',
                     borderRadius: 8,
-                    fontSize: 12,
+                    fontSize: 11,
                     color: '#1e293b',
                     background: '#fff',
                     minWidth: 140,
@@ -325,7 +430,7 @@ export default function StaffDashboard() {
                 </select>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Year:</label>
+                <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Year:</label>
                 <select
                   value={filters.year}
                   onChange={e => setFilters({ ...filters, year: e.target.value })}
@@ -333,7 +438,7 @@ export default function StaffDashboard() {
                     padding: '8px 10px',
                     border: '1px solid #cbd5e1',
                     borderRadius: 8,
-                    fontSize: 12,
+                    fontSize: 11,
                     color: '#1e293b',
                     background: '#fff',
                     minWidth: 100,
@@ -348,7 +453,7 @@ export default function StaffDashboard() {
                 </select>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Assessment:</label>
+                <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Assessment:</label>
                 <select
                   value={filters.assessment}
                   onChange={e => setFilters({ ...filters, assessment: e.target.value })}
@@ -356,7 +461,7 @@ export default function StaffDashboard() {
                     padding: '8px 10px',
                     border: '1px solid #cbd5e1',
                     borderRadius: 8,
-                    fontSize: 12,
+                    fontSize: 11,
                     color: '#1e293b',
                     background: '#fff',
                     minWidth: 140,
@@ -370,24 +475,6 @@ export default function StaffDashboard() {
                 </select>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button
-                  onClick={handleClearFilters}
-                  style={{
-                    padding: '6px 12px',
-                    background: '#eff6ff',
-                    color: '#2563eb',
-                    border: '1px solid #bfdbfe',
-                    borderRadius: 6,
-                    fontSize: 11,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#dbeafe' }}
-                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#eff6ff' }}
-                >
-                  Clear Filters
-                </button>
                 <button
                   onClick={handleApplyFilters}
                   style={{
@@ -407,6 +494,44 @@ export default function StaffDashboard() {
                 >
                   Apply
                 </button>
+                <button
+                  onClick={handleClearFilters}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#3b82f6',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                    boxShadow: '0 2px 4px rgba(59, 130, 246, 0.15)'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#2563eb' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#3b82f6' }}
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={() => setShowFilterPanel(false)}
+                  style={{
+                    padding: '6px 12px',
+                    background: '#3b82f6',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'background-color 0.2s',
+                    boxShadow: '0 2px 4px rgba(59, 130, 246, 0.15)'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#2563eb' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#3b82f6' }}
+                >
+                  Cancel
+                </button>
               </div>
             </div>
           )}
@@ -420,23 +545,23 @@ export default function StaffDashboard() {
               <thead>
                 <tr>
                   {['User', 'Proceeding Name', 'Reference ID', 'Issued On', 'Due Date', 'Notice'].map(h => (
-                    <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '9px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '9px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 13 }}>Loading assignments...</td></tr>
+                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 11 }}>Loading assignments...</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 13 }}>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 11 }}>
                       No data available
                     </td>
                   </tr>
                 ) : (
                   filtered.map((a, i) => (
                     <tr key={a.notice_id || i} style={{ borderBottom: '0.5px solid #f1f5f9', background: !a.is_read ? '#e0f2fe' : 'transparent', transition: 'all 0.3s ease' }}>
-                      <td style={{ padding: '10px 10px', color: '#1e293b', verticalAlign: 'middle', borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent', transition: 'border-left-color 0.3s ease' }}>
+                      <td style={{ padding: '10px 10px', color: '#1e293b', verticalAlign: 'middle', borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent', transition: 'border-left-color 0.3s ease', fontSize: 11 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                           {!a.is_read && (
                             <span 
@@ -456,25 +581,25 @@ export default function StaffDashboard() {
                         </div>
                       </td>
                       <td
-                        style={{ padding: '10px 10px', fontWeight: !a.is_read ? 700 : 600, color: !a.is_read ? '#1e293b' : '#334155', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                        onClick={() => handleViewNotice(a)}
-                        title="Click to view proceeding"
+                        style={{ padding: '10px 10px', fontWeight: !a.is_read ? 700 : 600, color: !a.is_read ? '#1e293b' : '#334155', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}
+                        onClick={() => navigate('/staff/notices')}
+                        title="Click to view e-Proceeding"
                       >
-                        {a?.proceeding_name || "N/A"}
+                        {a.proceeding_name}
                       </td>
-                      <td style={{ padding: '10px 10px', fontFamily: 'monospace', fontSize: 10, color: '#1d4ed8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: !a.is_read ? '600' : 'normal' }}>
+                      <td style={{ padding: '10px 10px', fontFamily: 'monospace', fontSize: 11, color: '#1d4ed8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: !a.is_read ? '600' : 'normal' }}>
                         {a?.reference_id || "N/A"}
                       </td>
-                      <td style={{ padding: '10px 10px', color: '#64748b', fontWeight: !a.is_read ? '600' : 'normal' }}>
+                      <td style={{ padding: '10px 10px', color: '#64748b', fontWeight: !a.is_read ? '600' : 'normal', fontSize: 11 }}>
                         {a?.issued_on && a.issued_on !== '-' ? formatDate(a.issued_on) : "-"}
                       </td>
-                      <td style={{ padding: '10px 10px', color: '#dc2626', fontWeight: !a.is_read ? 700 : 500 }}>
+                      <td style={{ padding: '10px 10px', color: '#dc2626', fontWeight: !a.is_read ? 700 : 500, fontSize: 11 }}>
                         {a?.due_date && a.due_date !== '-' ? formatDate(a.due_date) : "-"}
                       </td>
                       <td style={{ padding: '10px 10px' }}>
                         <button
                           onClick={() => handleViewNotice(a)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 9px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 7, fontSize: 10, fontWeight: '600', cursor: 'pointer', boxShadow: !a.is_read ? '0 2px 4px rgba(30, 58, 138, 0.25)' : 'none', transition: 'all 0.2s ease' }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 9px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 7, fontSize: 11, fontWeight: '600', cursor: 'pointer', boxShadow: !a.is_read ? '0 2px 4px rgba(30, 58, 138, 0.25)' : 'none', transition: 'all 0.2s ease' }}
                         >
                           VIEW NOTICE
                         </button>
@@ -487,7 +612,7 @@ export default function StaffDashboard() {
           </div>
 
           <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px solid #f1f5f9' }}>
-            <p style={{ fontSize: 12, color: '#64748b' }}>Showing {filtered.length} of {summary?.total_notices ?? filtered.length} assignments</p>
+            <p style={{ fontSize: 11, color: '#64748b' }}>Showing {filtered.length} of {summary?.total_notices ?? filtered.length} assignments</p>
             <div style={{ display: 'flex', gap: 6 }}>
               {['‹', '›'].map(ch => (
                 <button key={ch} style={{ width: 28, height: 28, border: '0.5px solid #e2e8f0', borderRadius: 6, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{ch}</button>

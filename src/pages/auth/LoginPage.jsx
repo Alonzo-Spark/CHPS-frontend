@@ -5,7 +5,7 @@ import { authService } from '../../services'
 import { useAuth } from '../../context/AuthContext'
 
 export default function LoginPage() {
-  const [form, setForm] = useState({ username: '', password: '' })
+  const [form, setForm] = useState({ username: 'prof123', password: 'prof123' })
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -23,6 +23,29 @@ export default function LoginPage() {
     }
 
     setLoading(true)
+
+    // Check for dummy credentials first
+    if ((form.username === 'prof123' && form.password === 'prof123') || (form.username === 'staff123' && form.password === 'staff123')) {
+      const isProf = form.username === 'prof123'
+      const dummyRes = {
+        data: {
+          access_token: isProf ? 'dummy-prof-token' : 'dummy-staff-token',
+          token_type: 'bearer',
+          role: isProf ? 'professional' : 'staff',
+          username: isProf ? 'prof123' : 'staff123'
+        }
+      }
+      localStorage.setItem("token", dummyRes.data.access_token)
+      login(dummyRes.data)
+      const normalizedRole = dummyRes.data.role.toLowerCase()
+      if (normalizedRole === 'professional') {
+        navigate('/professional-dashboard', { replace: true })
+      } else if (normalizedRole === 'staff') {
+        navigate('/staff/dashboard', { replace: true })
+      }
+      setLoading(false)
+      return
+    }
 
     try {
       const res = await authService.login({
@@ -168,6 +191,70 @@ export default function LoginPage() {
               Sign up
             </Link>
           </p>
+        </div>
+
+        {/* Quick Fill / Test Credentials */}
+        <div style={{
+          background: '#f8fafc',
+          border: '1px solid #cbd5e1',
+          borderRadius: 12,
+          padding: '16px 20px',
+          width: '100%',
+          maxWidth: 380,
+          marginBottom: 16,
+          boxShadow: '0 2px 4px rgba(0,0,0,0.02)'
+        }}>
+          <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+            <span>🔑</span> Quick Fill Test Credentials
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <button
+              onClick={() => setForm({ username: 'prof123', password: 'prof123' })}
+              type="button"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 14px',
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: 8,
+                fontSize: 12,
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s',
+                outline: 'none'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#2563eb'; e.currentTarget.style.backgroundColor = '#f0f9ff'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.backgroundColor = '#fff'; }}
+            >
+              <span style={{ fontWeight: 600, color: '#2563eb' }}>Professional View</span>
+              <span style={{ color: '#64748b', fontFamily: 'monospace' }}>prof123 / prof123</span>
+            </button>
+            <button
+              onClick={() => setForm({ username: 'staff123', password: 'staff123' })}
+              type="button"
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 14px',
+                background: '#fff',
+                border: '1px solid #e2e8f0',
+                borderRadius: 8,
+                fontSize: 12,
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'all 0.2s',
+                outline: 'none'
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#16a34a'; e.currentTarget.style.backgroundColor = '#f0fdf4'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.backgroundColor = '#fff'; }}
+            >
+              <span style={{ fontWeight: 600, color: '#16a34a' }}>Staff View</span>
+              <span style={{ color: '#64748b', fontFamily: 'monospace' }}>staff123 / staff123</span>
+            </button>
+          </div>
         </div>
 
         {/* Info card */}

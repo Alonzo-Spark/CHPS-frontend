@@ -268,7 +268,7 @@ export default function Clients() {
                       <td style={{ padding: '11px 10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span 
-                            onClick={() => navigate(`/staff/clients/${c.id}/proceedings`)}
+                            onClick={() => navigate(`/staff/notices`)}
                             style={{ fontWeight: 600, fontSize: 12, cursor: 'pointer', color: '#1e3a8a' }}
                             onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
                             onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}

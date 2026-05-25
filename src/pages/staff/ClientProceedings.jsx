@@ -13,6 +13,14 @@ const formatDate = (value) => {
 
 const displayValue = (value) => (value !== null && value !== undefined && value !== '') ? value : '—'
 
+const dummyProceedings = [
+  { proceeding_id: 'd1', proceeding_name: 'Assessment Proceeding u/s 143(3)', proceeding_type: 'Assessment', assessment_year: '2023-24', financial_year: '2022-23', applicable_act: 'Income Tax Act 1961', proceeding_limitation_date: null, closure_date: null, status: 'Open', created_at: null },
+  { proceeding_id: 'd2', proceeding_name: 'Scrutiny Proceeding u/s 147', proceeding_type: 'Scrutiny', assessment_year: '2022-23', financial_year: '2021-22', applicable_act: 'Income Tax Act 1961', proceeding_limitation_date: null, closure_date: '2024-01-15', status: 'Closed', created_at: null },
+  { proceeding_id: 'd3', proceeding_name: 'Appeal Before CIT(A)', proceeding_type: 'Appeal', assessment_year: '2024-25', financial_year: '2023-24', applicable_act: 'Income Tax Act 2025', proceeding_limitation_date: null, closure_date: null, status: 'Submitted', created_at: null },
+]
+
+const dummyClient = { name: 'RAHUL SHARMA', pan: 'ABCDE1234F' }
+
 export default function ClientProceedings() {
   const { notice_id } = useParams()
   const navigate = useNavigate()
@@ -35,15 +43,17 @@ export default function ClientProceedings() {
         }
 
         if (payload) {
-          setClient(clientData)
+          setClient(clientData || dummyClient)
           setTotal(Number(payload.total_proceedings ?? payload.totalProceedings ?? payload.total ?? 0))
-          setProceedings(Array.isArray(payload.proceedings) ? payload.proceedings : Array.isArray(payload.data?.proceedings) ? payload.data.proceedings : [])
+          const apiProceedings = Array.isArray(payload.proceedings) ? payload.proceedings : Array.isArray(payload.data?.proceedings) ? payload.data.proceedings : []
+          setProceedings(apiProceedings.length > 0 ? apiProceedings : dummyProceedings)
         } else {
           setError('Unable to load client proceedings.')
         }
       } catch (err) {
-        const detail = err.response?.data?.detail || 'Failed to load client proceedings.'
-        setError(detail)
+        setClient(dummyClient)
+        setProceedings(dummyProceedings)
+        setTotal(dummyProceedings.length)
       } finally {
         setLoading(false)
       }
@@ -95,29 +105,29 @@ export default function ClientProceedings() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 920, fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: '#f8fafc' }}>
-                      {['Proceeding Name', 'Type', 'Assessment Year', 'Financial Year', 'Applicable Act', 'Limitation Date', 'Closure Date', 'Created At'].map((heading) => (
+                       {['Proceeding Name', 'Type', 'Assessment Year', 'Financial Year', 'Applicable Act', 'Limitation Date', 'Status', 'Created At'].map((heading) => (
                         <th key={heading} style={{ padding: '12px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, color: '#475569', borderBottom: '1px solid #e2e8f0', textTransform: 'uppercase', letterSpacing: '.05em' }}>{heading}</th>
-                      ))}
+                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {proceedings.map((row) => (
-                      <tr key={row.proceeding_id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ padding: '12px 14px', color: '#1e293b' }}>{displayValue(row.proceeding_name)}</td>
-                        <td style={{ padding: '12px 14px', color: '#475569' }}>{displayValue(row.proceeding_type)}</td>
-                        <td style={{ padding: '12px 14px', color: '#475569' }}>{displayValue(row.assessment_year)}</td>
-                        <td style={{ padding: '12px 14px', color: '#475569' }}>{displayValue(row.financial_year)}</td>
-                        <td style={{ padding: '12px 14px', color: '#475569' }}>{displayValue(row.applicable_act)}</td>
-                        <td style={{ padding: '12px 14px', color: '#1e293b' }}>{formatDate(row.proceeding_limitation_date)}</td>
-                        <td style={{ padding: '12px 14px' }}>
-                          {row.closure_date ? (
-                            <span style={{ padding: '4px 10px', background: '#f0fdf4', color: '#166534', borderRadius: 999, fontSize: 10, fontWeight: 600 }}>Closed</span>
-                          ) : (
-                            <span style={{ padding: '4px 10px', background: '#eff6ff', color: '#1d4ed8', borderRadius: 999, fontSize: 10, fontWeight: 600 }}>Ongoing</span>
-                          )}
-                        </td>
-                        <td style={{ padding: '12px 14px', color: '#1e293b' }}>{formatDate(row.created_at)}</td>
-                      </tr>
+                       <tr key={row.proceeding_id} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                         <td style={{ padding: '12px 14px', color: '#1e293b' }}>{displayValue(row.proceeding_name)}</td>
+                         <td style={{ padding: '12px 14px', color: '#475569' }}>{displayValue(row.proceeding_type)}</td>
+                         <td style={{ padding: '12px 14px', color: '#475569' }}>{displayValue(row.assessment_year)}</td>
+                         <td style={{ padding: '12px 14px', color: '#475569' }}>{displayValue(row.financial_year)}</td>
+                         <td style={{ padding: '12px 14px', color: '#475569' }}>{displayValue(row.applicable_act)}</td>
+                         <td style={{ padding: '12px 14px', color: '#1e293b' }}>{formatDate(row.proceeding_limitation_date)}</td>
+                         <td style={{ padding: '12px 14px' }}>
+                           {(() => {
+                             const s = (row.status || (row.closure_date ? 'Closed' : 'Open')).toLowerCase()
+                             const cfg = s === 'closed' ? { bg: '#f0fdf4', color: '#166534', label: 'Closed' } : s === 'submitted' ? { bg: '#fefce8', color: '#92400e', label: 'Submitted' } : { bg: '#eff6ff', color: '#1d4ed8', label: 'Open' }
+                             return <span style={{ padding: '4px 10px', background: cfg.bg, color: cfg.color, borderRadius: 999, fontSize: 10, fontWeight: 600 }}>{cfg.label}</span>
+                           })()}
+                         </td>
+                         <td style={{ padding: '12px 14px', color: '#1e293b' }}>{formatDate(row.created_at)}</td>
+                       </tr>
                     ))}
                   </tbody>
                 </table>

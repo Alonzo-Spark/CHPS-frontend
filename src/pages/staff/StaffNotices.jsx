@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Search, Filter, FileText, Mail, Scale, Eye, Check } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Search, Filter, FileText, Mail, Scale, Eye, Check, ArrowLeft } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import { noticeService } from '../../services'
 
@@ -32,12 +32,76 @@ export default function StaffNotices() {
   const [proceedings, setProceedings] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('action')
+  
+  // Filter States
+  const [showFilterPanel, setShowFilterPanel] = useState(false)
+  const [filters, setFilters] = useState({
+    status: '',
+    act: '',
+    limitationFrom: '',
+    limitationTo: '',
+    issuedFrom: '',
+    issuedTo: ''
+  })
+  const [appliedFilters, setAppliedFilters] = useState({
+    status: '',
+    act: '',
+    limitationFrom: '',
+    limitationTo: '',
+    issuedFrom: '',
+    issuedTo: ''
+  })
+
   const navigate = useNavigate()
+  const role = localStorage.getItem('role')?.toLowerCase()
 
   useEffect(() => {
+    const dummyNotices = [
+      {
+        id: "d1",
+        proceeding_name: "Assessment Proceeding u/s 147",
+        assessment_year: "2021-22",
+        status: "Pending",
+        limitation_date: "31-Mar-2027",
+        closure_date: "-",
+        financial_year: "2020-21",
+        applicable_act: "Income Tax Act 1961",
+        pan: "AHMPV4480E",
+        assessee_name: "BABJI VANACHARLA",
+        issued_on: "18-Feb-2025"
+      },
+      {
+        id: "d2",
+        proceeding_name: "Penalty Proceeding u/s 271",
+        assessment_year: "2019-20",
+        status: "Completed",
+        limitation_date: "31-Mar-2025",
+        closure_date: "07-Mar-2025",
+        financial_year: "2018-19",
+        closure_order: "275880193",
+        applicable_act: "Income Tax Act 1961",
+        pan: "BGKPS1234F",
+        assessee_name: "RAHUL SHARMA",
+        issued_on: "10-Jan-2025"
+      },
+      {
+        id: "d3",
+        proceeding_name: "Reassessment u/s 148",
+        assessment_year: "2024-25",
+        status: "Submitted",
+        limitation_date: "31-Dec-2025",
+        closure_date: "-",
+        financial_year: "2023-24",
+        applicable_act: "Income Tax Act 2025",
+        pan: "CJRPT9988G",
+        assessee_name: "TECH CORP LTD",
+        issued_on: "05-May-2025"
+      }
+    ];
+
     noticeService.getNotices()
       .then(res => {
-        const notices = res.data || []
+        const notices = (res.data && res.data.length > 0) ? res.data : dummyNotices
         const grouped = {}
         
         notices.forEach(n => {
@@ -60,27 +124,52 @@ export default function StaffNotices() {
             }
           }
           grouped[name].notices_count += 1
+          
+          let timelineStatus = n.status || "Pending"
+          let type = "open"
+          if (timelineStatus.toLowerCase() === "completed" || timelineStatus.toLowerCase() === "closed") type = "done"
+          if (timelineStatus.toLowerCase() === "submitted") type = "pending"
+
           grouped[name].timeline.push({
             date: n.issued_on || "—",
-            label: n.status || "Pending",
-            type: (n.status || "").toLowerCase() === "completed" ? "done" : "open"
+            label: timelineStatus,
+            type: type
           })
         })
         
         setProceedings(Object.values(grouped))
       })
+
       .catch(err => {
         console.error("Failed to load notices for proceedings", err)
-        setProceedings([])
+        // Fallback to dummy data
+        const grouped = {}
+        dummyNotices.forEach(n => {
+          const name = n.proceeding_name || "Assessment Proceeding u/s 147"
+          if (!grouped[name]) {
+            grouped[name] = {
+              id: n.id, proceeding_name: name, assessment_year: n.assessment_year, status: n.status, limitation_date: n.limitation_date, closure_date: n.closure_date, financial_year: n.financial_year, closure_order: n.closure_order, applicable_act: n.applicable_act, pan: n.pan, assessee_name: n.assessee_name, notices_count: 0, timeline: []
+            }
+          }
+          grouped[name].notices_count += 1
+          
+          let timelineStatus = n.status || "Pending"
+          let type = "open"
+          if (timelineStatus.toLowerCase() === "completed" || timelineStatus.toLowerCase() === "closed") type = "done"
+          if (timelineStatus.toLowerCase() === "submitted") type = "pending"
+
+          grouped[name].timeline.push({ date: n.issued_on || "—", label: timelineStatus, type: type })
+        })
+        setProceedings(Object.values(grouped))
       })
       .finally(() => setLoading(false))
   }, [])
 
   const iconFor = (name = '') => {
-    if (name.toLowerCase().includes('appeal')) return <Scale size={15} color="#7c3aed" />
-    if (name.toLowerCase().includes('letter')) return <Mail size={15} color="#d97706" />
-    return <FileText size={15} color="#2563eb" />
-  }
+  if (name.toLowerCase().includes('appeal')) return (<Scale size={15} color="#7c3aed" />)
+  if (name.toLowerCase().includes('letter')) return (<Mail size={15} color="#d97706" />)
+  return (<FileText size={15} color="#2563eb" />)
+}
 
   const statusFor = (p) => {
     if (p.status) return p.status
@@ -94,21 +183,124 @@ export default function StaffNotices() {
   return (
     <DashboardLayout breadcrumbs={[{ label: 'Dashboard', path: '/staff/dashboard' }, { label: 'Notices' }]}>
       <div style={{ padding: '16px 20px' }}>
-        <div style={{ marginBottom: 14 }}>
-          <h2 style={{ fontSize: 19, fontWeight: 500, color: '#1e293b' }}>Notices</h2>
-          <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>View and manage notice proceedings and responses</p>
+        <div style={{ marginBottom: 20 }}>
+          {/* Back button */}
+          <button
+            onClick={() => {
+              if (window.history.length > 2) {
+                navigate(-1)
+              } else {
+                const r = localStorage.getItem('role')
+                navigate(r === 'professional' ? '/professional/dashboard' : '/staff/dashboard')
+              }
+            }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 12, marginBottom: 10, padding: 0 }}
+          >
+            <ArrowLeft size={14} />
+            <span>Back</span>
+          </button>
+          <h2 style={{ fontSize: 24, fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>e-Proceeding</h2>
         </div>
 
         {/* Search + Filter */}
         {activeTab !== 'info' && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 14, gap: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid #cbd5e1', borderRadius: 8, padding: '7px 12px', background: '#fff' }}>
-              <Search size={13} color="#94a3b8" />
-              <input placeholder="Search by Notice ID / PAN / Name…" style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', width: 220 }} />
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 14, gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #cbd5e1', borderRadius: 6, padding: '8px 12px', background: '#fff' }}>
+              <Search size={14} color="#94a3b8" />
+              <input placeholder="search" style={{ border: 'none', outline: 'none', fontSize: 13, color: '#1e293b', background: 'transparent', width: 200 }} />
             </div>
-            <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 12px', background: '#fff', color: '#64748b', border: '0.5px solid #e2e8f0', borderRadius: 8, fontSize: 12, cursor: 'pointer' }}>
-              <Filter size={13} /> Filter
+            <button 
+              onClick={() => setShowFilterPanel(!showFilterPanel)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#fff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}
+            >
+              <Filter size={14} /> Filter
             </button>
+          </div>
+        )}
+
+        {/* Filter Panel */}
+        {showFilterPanel && activeTab !== 'info' && (
+          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+              {/* Proceeding Status */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Proceeding Status</label>
+                <select 
+                  value={filters.status}
+                  onChange={(e) => setFilters({...filters, status: e.target.value})}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, color: '#1e293b' }}
+                >
+                  <option value="">All Statuses</option>
+                  <option value="open">Open/Pending</option>
+                  <option value="closed">Closed</option>
+                  <option value="submitted">Submitted</option>
+                </select>
+              </div>
+              
+              {/* Applicable Act */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Applicable Act</label>
+                <select 
+                  value={filters.act}
+                  onChange={(e) => setFilters({...filters, act: e.target.value})}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, color: '#1e293b' }}
+                >
+                  <option value="">All Acts</option>
+                  <option value="1961">Income Tax Act 1961</option>
+                  <option value="2025">Income Tax Act 2025</option>
+                </select>
+              </div>
+
+              {/* Proc Limitation Date */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Limitation Date (From - To)</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="date" value={filters.limitationFrom} onChange={(e) => setFilters({...filters, limitationFrom: e.target.value})} style={{ width: '50%', padding: '7px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
+                  <input type="date" value={filters.limitationTo} onChange={(e) => setFilters({...filters, limitationTo: e.target.value})} style={{ width: '50%', padding: '7px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
+                </div>
+              </div>
+
+              {/* Notice Issued Date */}
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Notice Issued Date (From - To)</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input type="date" value={filters.issuedFrom} onChange={(e) => setFilters({...filters, issuedFrom: e.target.value})} style={{ width: '50%', padding: '7px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
+                  <input type="date" value={filters.issuedTo} onChange={(e) => setFilters({...filters, issuedTo: e.target.value})} style={{ width: '50%', padding: '7px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
+                </div>
+              </div>
+            </div>
+
+            {/* Filter Actions */}
+            <div style={{ display: 'flex', gap: 12, marginTop: 20, justifyContent: 'flex-end' }}>
+              <button 
+                onClick={() => setAppliedFilters(filters)}
+                style={{ padding: '8px 24px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background-color 0.2s' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+              >
+                Apply
+              </button>
+              <button
+  onClick={() => {
+    const r = { status: '', act: '', limitationFrom: '', limitationTo: '', issuedFrom: '', issuedTo: '' }
+    setFilters(r)
+    setAppliedFilters(r)
+  }}
+  style={{ padding: '8px 24px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background-color 0.2s' }}
+  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+>
+  Clear
+</button>
+              <button
+  onClick={() => setShowFilterPanel(false)}
+  style={{ padding: '8px 24px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'background-color 0.2s' }}
+  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+>
+  Cancel
+</button>
+            </div>
           </div>
         )}
 
@@ -138,7 +330,9 @@ export default function StaffNotices() {
                   <div style={{ background: '#f1f5f9', borderBottom: '0.5px solid #e2e8f0', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 13, color: '#64748b' }}>Proceeding Name :</span>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>{p.proceeding_name}</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>
+                        {p.proceeding_name}
+                      </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 13, color: '#64748b' }}>Assessment Year :</span>
@@ -156,13 +350,15 @@ export default function StaffNotices() {
                       </div>
                       <div>
                         <p style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>Name of Assessee</p>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', lineHeight: 1.3 }}>{p.assessee_name}</p>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', lineHeight: 1.3 }}>
+                          {p.assessee_name}
+                        </p>
                       </div>
                     </div>
 
                     {/* Col 2: Timeline */}
                     <div style={{ padding: '16px 20px', borderRight: '0.5px solid #e2e8f0' }}>
-                      <div style={{ position: 'relative', paddingLeft: 22, height: '100%', minHeight: 90 }}>
+                      <div style={{ position: 'relative', paddingLeft: 22, maxHeight: 300, overflowY: 'auto', scrollBehavior: 'smooth' }}>
                         {/* Vertical line connecting dots */}
                         {p.timeline && p.timeline.length > 1 && (
                           <div style={{ 
@@ -208,8 +404,7 @@ export default function StaffNotices() {
                       </p>
                     </div>
 
-                    {/* Col 4: Action Buttons */}
-                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8, justifyContent: 'center' }}>
+                    <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center' }}>
                       <button 
                         onClick={() => navigate(`/staff/notice-orders/${p.id}`)}
                         style={{ 
@@ -218,11 +413,12 @@ export default function StaffNotices() {
                           color: '#fff', 
                           border: 'none', 
                           borderRadius: 6, 
-                          fontSize: 11, 
+                          fontSize: 12, 
                           fontWeight: 600, 
                           cursor: 'pointer',
                           width: '100%',
-                          transition: 'background-color 0.2s'
+                          transition: 'background-color 0.2s',
+                          textAlign: 'center'
                         }}
                         onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#172554' }}
                         onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#1e3a8a' }}
@@ -241,7 +437,9 @@ export default function StaffNotices() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {iconFor(p.proceeding_name)}
                     <span style={{ fontSize: 12, color: '#64748b' }}>Proceeding Name :</span>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{p.proceeding_name}</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>
+                      {p.proceeding_name}
+                    </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 12, color: '#64748b' }}>Assessment Year :</span>
@@ -251,34 +449,39 @@ export default function StaffNotices() {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr' }}>
-                  {/* Col 1 - Timeline */}
-                  <div style={{ padding: '16px 20px', borderRight: '0.5px solid #e2e8f0' }}>
-                    <p style={{ fontSize: 10, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 14 }}>Activity Timeline</p>
-                    
-                    <div style={{ position: 'relative', paddingLeft: 22 }}>
-                      {/* Vertical line connecting dots */}
-                      {p.timeline && p.timeline.length > 1 && (
-                        <div style={{ 
-                          position: 'absolute', 
-                          left: 6, 
-                          top: 8, 
-                          bottom: 8, 
-                          width: '1.5px', 
-                          backgroundColor: '#cbd5e1', 
-                          zIndex: 0 
-                        }} />
-                      )}
-                      {(p.timeline || [{ date: '—', label: 'Open', type: 'open' }]).map((t, ti) => (
-                        <div key={ti} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: ti === p.timeline.length - 1 ? 0 : 16, position: 'relative', zIndex: 1 }}>
-                          <div style={{ marginLeft: -22 }}>
-                            <TlDot type={t.type || 'open'} />
+                  {/* Col 1 - PAN, Assessee & Timeline */}
+                  <div style={{ padding: '16px 20px', borderRight: '0.5px solid #e2e8f0', display: 'flex', gap: 20 }}>
+                    {/* PAN & Assessee beside timeline */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 120 }}>
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>PAN</p>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', fontFamily: 'monospace' }}>{p.pan || '—'}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>Name of Assessee</p>
+                        <p style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', lineHeight: 1.3 }}>{p.assessee_name || '—'}</p>
+                      </div>
+                    </div>
+
+                    {/* Activity Timeline */}
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 10, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 14 }}>Activity Timeline</p>
+                      <div style={{ position: 'relative', paddingLeft: 22, maxHeight: 150, overflowY: 'auto', scrollBehavior: 'smooth' }}>
+                        {p.timeline && p.timeline.length > 1 && (
+                          <div style={{ position: 'absolute', left: 6, top: 8, bottom: 8, width: '1.5px', backgroundColor: '#cbd5e1', zIndex: 0 }} />
+                        )}
+                        {(p.timeline || [{ date: '—', label: 'Open', type: 'open' }]).map((t, ti) => (
+                          <div key={ti} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: ti === p.timeline.length - 1 ? 0 : 16, position: 'relative', zIndex: 1 }}>
+                            <div style={{ marginLeft: -22 }}>
+                              <TlDot type={t.type || 'open'} />
+                            </div>
+                            <div>
+                              <p style={{ fontSize: 13, fontWeight: 500, color: '#334155', lineHeight: '1.2' }}>{t.date}</p>
+                              <p style={{ fontSize: 12, color: t.type === 'done' ? '#16a34a' : t.type === 'open' ? '#2563eb' : '#ea580c', fontWeight: 500, marginTop: 2 }}>{t.label}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p style={{ fontSize: 13, fontWeight: 500, color: '#334155', lineHeight: '1.2' }}>{t.date}</p>
-                            <p style={{ fontSize: 12, color: t.type === 'done' ? '#16a34a' : t.type === 'open' ? '#2563eb' : '#ea580c', fontWeight: 500, marginTop: 2 }}>{t.label}</p>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -301,7 +504,7 @@ export default function StaffNotices() {
                   </div>
 
                   {/* Col 3 - Action */}
-                  <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center', alignItems: 'center' }}>
                     <button
                       onClick={() => navigate(`/staff/notice-orders/${p.id}`)}
                       style={{ 
@@ -319,14 +522,14 @@ export default function StaffNotices() {
                         fontWeight: 600, 
                         cursor: 'pointer',
                         width: '100%',
-                        maxWidth: 180,
+                        maxWidth: 220,
                         textAlign: 'center',
                         lineHeight: '1.4'
                       }}
                     >
-                      <span>View Notices/Orders</span>
-                      <span>({p.notices_count || 0})</span>
+                      <span>View Notices/Orders ({p.notices_count || 0})</span>
                     </button>
+
                   </div>
                 </div>
               </div>

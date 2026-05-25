@@ -5,7 +5,7 @@ import DashboardLayout from '../../layouts/DashboardLayout'
 import { clientService, professionalService } from '../../services'
 
 export default function CreateClient() {
-  const [form, setForm] = useState({ name: '', pan: '', password: '', email: '', professional_id: '', referred_by: '' })
+  const [form, setForm] = useState({ name: '', pan: '', password: '', email: '', professional_id: '', referred_by: '', referred_by_email: '', referred_by_phone: '' })
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
@@ -134,13 +134,35 @@ export default function CreateClient() {
               {fieldErrors.professional_id && <p style={{ marginTop: 6, color: '#dc2626', fontSize: 12 }}>{fieldErrors.professional_id}</p>}
             </div>
 
-            <div style={{ marginBottom: 24 }}>
+            <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>Referred By</label>
               <input
                 type="text"
-                placeholder="Enter referrer name (optional)"
+                placeholder="Enter referrer name"
                 value={form.referred_by}
                 onChange={e => setForm({ ...form, referred_by: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>Mail (Referred by)</label>
+              <input
+                type="email"
+                placeholder="Enter referrer email"
+                value={form.referred_by_email}
+                onChange={e => setForm({ ...form, referred_by_email: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={labelStyle}>Phone No (Referred by)</label>
+              <input
+                type="text"
+                placeholder="Enter referrer phone"
+                value={form.referred_by_phone}
+                onChange={e => setForm({ ...form, referred_by_phone: e.target.value })}
                 style={inputStyle}
               />
             </div>

@@ -13,7 +13,13 @@ export default function Sidebar() {
     { label: 'Clients', icon: Users, path: '/staff/clients' },
     { label: 'Tasks', icon: CheckSquare, path: '#' },
     { label: 'Documents', icon: FileText, path: '#' },
-  ]
+  ].filter(item => {
+    if (role === 'professional') {
+      return item.label === 'Dashboard'
+    } else {
+      return item.label === 'Dashboard' || item.label === 'Clients'
+    }
+  })
 
   return (
     <aside style={{ width: 190, background: '#1a2340', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>

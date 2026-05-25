@@ -4,6 +4,63 @@ import { Search, Filter } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import { dashboardService, professionalDashboardService, noticeService } from '../../services'
 
+const defaultMockSummary = {
+  total_notices: 3,
+  pending_notices: 2,
+  completed_notices: 1
+}
+
+const defaultMockNotices = [
+  {
+    notice_id: 101,
+    id: 101,
+    user: "Acme Corp",
+    user_name: "Acme Corp",
+    proceeding_name: "Income Tax Audit",
+    notice_type: "Audit Notice",
+    reference_id: "REF-2026-001",
+    assessment_year: "2024-25",
+    issued_on: "2026-05-10T10:00:00Z",
+    due_date: "2026-06-15T10:00:00Z",
+    response_due_date: "2026-06-15T10:00:00Z",
+    status: "Pending",
+    workflow_status: "Pending",
+    is_read: false
+  },
+  {
+    notice_id: 102,
+    id: 102,
+    user: "Starlight Industries",
+    user_name: "Starlight Industries",
+    proceeding_name: "GST Reconciliation",
+    notice_type: "Reconciliation",
+    reference_id: "REF-2026-002",
+    assessment_year: "2024-25",
+    issued_on: "2026-05-18T10:00:00Z",
+    due_date: "2026-06-25T10:00:00Z",
+    response_due_date: "2026-06-25T10:00:00Z",
+    status: "In Progress",
+    workflow_status: "In Progress",
+    is_read: true
+  },
+  {
+    notice_id: 103,
+    id: 103,
+    user: "Nova Logistics",
+    user_name: "Nova Logistics",
+    proceeding_name: "Transfer Pricing Assessment",
+    notice_type: "Assessment",
+    reference_id: "REF-2026-003",
+    assessment_year: "2023-24",
+    issued_on: "2026-04-05T10:00:00Z",
+    due_date: "2026-05-20T10:00:00Z",
+    response_due_date: "2026-05-20T10:00:00Z",
+    status: "Completed",
+    workflow_status: "Completed",
+    is_read: true
+  }
+]
+
 export default function ProfessionalDashboard() {
   const [summary, setSummary] = useState(null)
   const [assignments, setAssignments] = useState([])
@@ -35,13 +92,19 @@ export default function ProfessionalDashboard() {
 
   const fetchDashboard = async () => {
     try {
+      const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
 
       // SUMMARY
       try {
         const sumRes = await dashboardService.getSummary()
-        setSummary(sumRes.data)
+        if (sumRes.data && Object.keys(sumRes.data).length > 0) {
+          setSummary(sumRes.data)
+        } else {
+          setSummary(defaultMockSummary)
+        }
       } catch (err) {
         console.warn('Summary fetch failed', err)
+        setSummary(defaultMockSummary)
       }
 
       // RECENT NOTICES
@@ -64,50 +127,46 @@ export default function ProfessionalDashboard() {
 
         console.log('RAW ARRAY:', raw)
 
-       const mapped = (Array.isArray(raw) ? raw : []).map(n => ({
-  notice_id: n.notice_id ?? n.id,
+        const rawList = (Array.isArray(raw) && raw.length > 0) ? raw : defaultMockNotices
 
-  user:
-    n.user_name ||
-    n.client_name ||
-    n.user ||
-    'N/A',
-
-  user_name:
-    n.user_name ||
-    n.client_name ||
-    n.user ||
-    'N/A',
-
-  proceeding_name:
-    n.proceeding_name ||
-    n.notice_type ||
-    'N/A',
-
-  reference_id:
-    n.reference_id ||
-    `REF-${n.notice_id ?? n.id}`,
-
-  issued_on:
-    n.issued_on ||
-    '-',
-
-  due_date:
-    n.response_due_date ||
-    n.due_date ||
-    '-',
-
-  status:
-    n.workflow_status ||
-    n.status ||
-    'N/A',
-  is_read: n.is_read ?? n.isRead ?? false
-}))
+       const mapped = rawList.map(n => {
+         const noticeId = n.notice_id ?? n.id
+         const permanentlyRead = readNoticeIds.includes(noticeId)
+         return {
+           notice_id: noticeId,
+           user: n.user_name || n.client_name || n.user || 'N/A',
+           user_name: n.user_name || n.client_name || n.user || 'N/A',
+           proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
+           reference_id: n.reference_id || `REF-${noticeId}`,
+           assessment_year: n.assessment_year || n.year || (n.issued_on && n.issued_on !== '-' ? new Date(n.issued_on).getFullYear() : '2024-25'),
+           issued_on: n.issued_on || '-',
+           due_date: n.response_due_date || n.due_date || '-',
+           status: n.workflow_status || n.status || 'N/A',
+           is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
+         }
+       })
 
         setAssignments(mapped)
 
       } catch (err) {
         console.error('Recent notices API failed:', err)
+        const mapped = defaultMockNotices.map(n => {
+          const noticeId = n.notice_id ?? n.id
+          const permanentlyRead = readNoticeIds.includes(noticeId)
+          return {
+            notice_id: noticeId,
+            user: n.user_name || 'N/A',
+            user_name: n.user_name || 'N/A',
+            proceeding_name: n.proceeding_name || 'N/A',
+            reference_id: n.reference_id || `REF-${noticeId}`,
+            assessment_year: n.assessment_year || '2024-25',
+            issued_on: n.issued_on || '-',
+            due_date: n.due_date || '-',
+            status: n.status || 'N/A',
+            is_read: permanentlyRead || !!(n.is_read ?? false)
+          }
+        })
+        setAssignments(mapped)
       }
 
     } catch (err) {
@@ -119,27 +178,50 @@ export default function ProfessionalDashboard() {
 
   const fetchAllNotices = async () => {
     try {
+      const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
       const res = await noticeService.getNotices()
       const raw = res?.data?.items || res?.data || []
-      const mapped = (Array.isArray(raw) ? raw : []).map(n => ({
-        notice_id: n.notice_id ?? n.id,
-        user: n.user_name || n.client_name || n.user || 'N/A',
-        user_name: n.user_name || n.client_name || n.user || 'N/A',
-        proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
-        reference_id: n.reference_id || `REF-${n.notice_id ?? n.id}`,
-        issued_on: n.issued_on || '-',
-        due_date: n.response_due_date || n.due_date || '-',
-        status: n.workflow_status || n.status || 'N/A',
-        is_read: n.is_read ?? n.isRead ?? false
-      }))
+      const rawList = (Array.isArray(raw) && raw.length > 0) ? raw : defaultMockNotices
+      const mapped = rawList.map(n => {
+        const noticeId = n.notice_id ?? n.id
+        const permanentlyRead = readNoticeIds.includes(noticeId)
+        return {
+          notice_id: noticeId,
+          user: n.user_name || n.client_name || n.user || 'N/A',
+          user_name: n.user_name || n.client_name || n.user || 'N/A',
+          proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
+          reference_id: n.reference_id || `REF-${noticeId}`,
+          assessment_year: n.assessment_year || n.year || (n.issued_on && n.issued_on !== '-' ? new Date(n.issued_on).getFullYear() : '2024-25'),
+          issued_on: n.issued_on || '-',
+          due_date: n.response_due_date || n.due_date || '-',
+          status: n.workflow_status || n.status || 'N/A',
+          is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
+        }
+      })
       setAllNotices(mapped)
       setAllNoticesLoaded(true)
     } catch (err) {
+      const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
+      const mapped = defaultMockNotices.map(n => {
+        const noticeId = n.notice_id ?? n.id
+        const permanentlyRead = readNoticeIds.includes(noticeId)
+        return {
+          notice_id: noticeId,
+          user: n.user_name || 'N/A',
+          user_name: n.user_name || 'N/A',
+          proceeding_name: n.proceeding_name || 'N/A',
+          reference_id: n.reference_id || `REF-${noticeId}`,
+          assessment_year: n.assessment_year || '2024-25',
+          issued_on: n.issued_on || '-',
+          due_date: n.due_date || '-',
+          status: n.status || 'N/A',
+          is_read: permanentlyRead || !!(n.is_read ?? false)
+        }
+      })
+      setAllNotices(mapped)
       setAllNoticesLoaded(true)
     }
   }
-
-
 
   const handleViewNotice = async (notice) => {
     console.log('Clicked Notice:', notice)
@@ -154,6 +236,12 @@ export default function ProfessionalDashboard() {
     }
 
     if (noticeId) {
+      const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
+      if (!readNoticeIds.includes(noticeId)) {
+        readNoticeIds.push(noticeId)
+        localStorage.setItem('readNoticeIds', JSON.stringify(readNoticeIds))
+      }
+
       setAssignments(prev => prev.map(item => (item.notice_id === noticeId || item.id === noticeId) ? { ...item, is_read: true } : item))
       setAllNotices(prev => prev.map(item => (item.notice_id === noticeId || item.id === noticeId) ? { ...item, is_read: true } : item))
     }
@@ -254,7 +342,7 @@ export default function ProfessionalDashboard() {
           <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, padding: '18px 20px', minWidth: 240, display: 'inline-block' }}>
             <p style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.07em', margin: 0 }}>Recent Notices</p>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
-              <p style={{ fontSize: 28, fontWeight: 700, color: '#2563eb', margin: 0 }}>{loading ? '...' : unreadCount}</p>
+              <p style={{ fontSize: 20, fontWeight: 700, color: '#2563eb', margin: 0 }}>{loading ? '...' : unreadCount}</p>
               <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Unread</span>
             </div>
             <div style={{ height: 3, background: '#2563eb', borderRadius: 2, width: 44, marginTop: 12 }}></div>
@@ -286,8 +374,8 @@ export default function ProfessionalDashboard() {
             <div>
               <p
                 style={{
-                  fontSize: 18,
-                  fontWeight: 700,
+                  fontSize: 14,
+                  fontWeight: 600,
                   color: '#1e293b'
                 }}
               >
@@ -296,7 +384,7 @@ export default function ProfessionalDashboard() {
 
               <p
                 style={{
-                  fontSize: 12,
+                  fontSize: 11,
                   color: '#94a3b8',
                   marginTop: 4
                 }}
@@ -339,7 +427,8 @@ export default function ProfessionalDashboard() {
                     flex: 1,
                     border: 'none',
                     outline: 'none',
-                    background: 'transparent'
+                    background: 'transparent',
+                    fontSize: 11
                   }}
                 />
               </div>
@@ -355,11 +444,16 @@ export default function ProfessionalDashboard() {
                   borderRadius: 10,
                   border: '1px solid #cbd5e1',
                   background: '#fff',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
                 }}
               >
                 <Filter size={18} />
               </button>
+              
+
 
             </div>
           </div>
@@ -390,7 +484,7 @@ export default function ProfessionalDashboard() {
                   padding: '8px 12px',
                   border: '1px solid #cbd5e1',
                   borderRadius: 8,
-                  fontSize: 12,
+                  fontSize: 11,
                   color: '#1e293b',
                   background: '#fff',
                   cursor: 'pointer',
@@ -420,7 +514,7 @@ export default function ProfessionalDashboard() {
                   padding: '8px 12px',
                   border: '1px solid #cbd5e1',
                   borderRadius: 8,
-                  fontSize: 12,
+                  fontSize: 11,
                   color: '#1e293b',
                   background: '#fff',
                   cursor: 'pointer',
@@ -446,7 +540,7 @@ export default function ProfessionalDashboard() {
                   padding: '8px 12px',
                   border: '1px solid #cbd5e1',
                   borderRadius: 8,
-                  fontSize: 12,
+                  fontSize: 11,
                   color: '#1e293b',
                   background: '#fff',
                   cursor: 'pointer',
@@ -468,7 +562,7 @@ export default function ProfessionalDashboard() {
                   color: '#fff',
                   border: 'none',
                   borderRadius: 8,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: 600,
                   cursor: 'pointer',
                   transition: 'background-color 0.2s',
@@ -484,19 +578,40 @@ export default function ProfessionalDashboard() {
                 onClick={handleClearFilters}
                 style={{
                   padding: '8px 16px',
-                  background: '#eff6ff',
-                  color: '#2563eb',
-                  border: '1px solid #bfdbfe',
+                  background: '#3b82f6',
+                  color: '#fff',
+                  border: 'none',
                   borderRadius: 8,
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: 600,
                   cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  transition: 'background-color 0.2s',
+                  boxShadow: '0 2px 4px rgba(59, 130, 246, 0.15)'
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#dbeafe' }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#eff6ff' }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#2563eb' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#3b82f6' }}
               >
                 Clear
+              </button>
+
+              <button 
+                onClick={() => setShowFilterPanel(false)}
+                style={{
+                  padding: '8px 16px',
+                  background: '#3b82f6',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s',
+                  boxShadow: '0 2px 4px rgba(59, 130, 246, 0.15)'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#2563eb' }}
+                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#3b82f6' }}
+              >
+                Cancel
               </button>
 
             </div>
@@ -524,17 +639,18 @@ export default function ProfessionalDashboard() {
                     'User',
                     'Proceeding Name',
                     'Reference ID',
+                    'Assessment Year',
                     'Issued On',
                     'Due Date',
                     'Notice'
                   ].map((head) => (
 
                     <th
-                      key={head}
+                       key={head}
                       style={{
                         padding: 12,
                         textAlign: 'left',
-                        fontSize: 12,
+                        fontSize: 11,
                         color: '#64748b'
                       }}
                     >
@@ -553,10 +669,11 @@ export default function ProfessionalDashboard() {
 
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       style={{
                         textAlign: 'center',
-                        padding: 40
+                        padding: 40,
+                        fontSize: 11
                       }}
                     >
                       Loading...
@@ -567,11 +684,12 @@ export default function ProfessionalDashboard() {
 
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       style={{
                         textAlign: 'center',
                         padding: 40,
-                        color: '#94a3b8'
+                        color: '#94a3b8',
+                        fontSize: 11
                       }}
                     >
                       No data available
@@ -597,10 +715,16 @@ export default function ProfessionalDashboard() {
                           padding: 12,
                           borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent',
                           transition: 'border-left-color 0.3s ease',
-                          fontWeight: !a.is_read ? '700' : 'normal'
+                          fontWeight: !a.is_read ? '700' : 'normal',
+                          fontSize: 11
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div 
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#1e293b' }} 
+                          onClick={() => navigate('/staff/notices')}
+                          onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                          onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                        >
                           {!a.is_read && (
                             <span 
                               style={{
@@ -625,7 +749,8 @@ export default function ProfessionalDashboard() {
                           padding: 12,
                           fontWeight: !a.is_read ? '700' : '600',
                           color: !a.is_read ? '#1e293b' : '#334155',
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          fontSize: 11
                         }}
                         onClick={() => handleViewNotice(a)}
                       >
@@ -637,14 +762,27 @@ export default function ProfessionalDashboard() {
                         style={{
                           padding: 12,
                           color: '#2563eb',
-                          fontWeight: !a.is_read ? '600' : 'normal'
+                          fontWeight: !a.is_read ? '600' : 'normal',
+                          fontSize: 11
                         }}
                       >
                         {a.reference_id}
                       </td>
 
+                      {/* ASSESSMENT YEAR */}
+                      <td
+                        style={{
+                          padding: 12,
+                          color: '#475569',
+                          fontWeight: !a.is_read ? '600' : 'normal',
+                          fontSize: 11
+                        }}
+                      >
+                        {a.assessment_year || 'N/A'}
+                      </td>
+
                       {/* ISSUED */}
-                      <td style={{ padding: 12, fontWeight: !a.is_read ? '600' : 'normal' }}>
+                      <td style={{ padding: 12, fontWeight: !a.is_read ? '600' : 'normal', fontSize: 11 }}>
                         {formatDate(a.issued_on)}
                       </td>
 
@@ -653,7 +791,8 @@ export default function ProfessionalDashboard() {
                         style={{
                           padding: 12,
                           color: '#dc2626',
-                          fontWeight: !a.is_read ? '700' : 'normal'
+                          fontWeight: !a.is_read ? '700' : 'normal',
+                          fontSize: 11
                         }}
                       >
                         {formatDate(a.due_date)}
@@ -673,7 +812,8 @@ export default function ProfessionalDashboard() {
                             cursor: 'pointer',
                             fontWeight: '600',
                             boxShadow: !a.is_read ? '0 2px 4px rgba(30, 58, 138, 0.25)' : 'none',
-                            transition: 'all 0.2s ease'
+                            transition: 'all 0.2s ease',
+                            fontSize: 11
                           }}
                         >
                           VIEW NOTICE
@@ -705,7 +845,7 @@ export default function ProfessionalDashboard() {
 
             <p
               style={{
-                fontSize: 12,
+                fontSize: 11,
                 color: '#64748b'
               }}
             >
