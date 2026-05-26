@@ -232,3 +232,29 @@ export const professionalDashboardService = {
         return { data: [] };
       }),
 }
+
+export const noticeControlService = {
+  getNoticeControl: (clientId) =>
+    apiService.get(`/api/notice-control/${clientId}`)
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`getNoticeControl API for client ${clientId} failed`, err)
+        return { data: null, error: err }
+      }),
+
+  blockYears: (clientId, years) =>
+    apiService.post('/api/notice-control/block', { client_id: clientId, years })
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`blockYears API for client ${clientId} failed`, err)
+        return { data: null, error: err }
+      }),
+
+  unblockYears: (clientId, years) =>
+    apiService.post('/api/notice-control/unblock', { client_id: clientId, years })
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`unblockYears API for client ${clientId} failed`, err)
+        return { data: null, error: err }
+      }),
+}

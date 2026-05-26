@@ -2,64 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { dashboardService, professionalDashboardService, noticeService } from '../../services'
+import { dashboardService, professionalDashboardService, noticeService, noticeControlService } from '../../services'
 
-const defaultMockSummary = {
-  total_notices: 3,
-  pending_notices: 2,
-  completed_notices: 1
-}
-
-const defaultMockNotices = [
-  {
-    notice_id: 101,
-    id: 101,
-    user: "Acme Corp",
-    user_name: "Acme Corp",
-    proceeding_name: "Income Tax Audit",
-    notice_type: "Audit Notice",
-    reference_id: "REF-2026-001",
-    assessment_year: "2024-25",
-    issued_on: "2026-05-10T10:00:00Z",
-    due_date: "2026-06-15T10:00:00Z",
-    response_due_date: "2026-06-15T10:00:00Z",
-    status: "Pending",
-    workflow_status: "Pending",
-    is_read: false
-  },
-  {
-    notice_id: 102,
-    id: 102,
-    user: "Starlight Industries",
-    user_name: "Starlight Industries",
-    proceeding_name: "GST Reconciliation",
-    notice_type: "Reconciliation",
-    reference_id: "REF-2026-002",
-    assessment_year: "2024-25",
-    issued_on: "2026-05-18T10:00:00Z",
-    due_date: "2026-06-25T10:00:00Z",
-    response_due_date: "2026-06-25T10:00:00Z",
-    status: "In Progress",
-    workflow_status: "In Progress",
-    is_read: true
-  },
-  {
-    notice_id: 103,
-    id: 103,
-    user: "Nova Logistics",
-    user_name: "Nova Logistics",
-    proceeding_name: "Transfer Pricing Assessment",
-    notice_type: "Assessment",
-    reference_id: "REF-2026-003",
-    assessment_year: "2023-24",
-    issued_on: "2026-04-05T10:00:00Z",
-    due_date: "2026-05-20T10:00:00Z",
-    response_due_date: "2026-05-20T10:00:00Z",
-    status: "Completed",
-    workflow_status: "Completed",
-    is_read: true
-  }
-]
 
 export default function ProfessionalDashboard() {
   const [summary, setSummary] = useState(null)
@@ -82,6 +26,11 @@ export default function ProfessionalDashboard() {
   const [allNotices, setAllNotices] = useState([])
   const [allNoticesLoaded, setAllNoticesLoaded] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [noticeControl, setNoticeControl] = useState({})
+  const [yearDropdownOpen, setYearDropdownOpen] = useState(null)
+  const [selectedYears, setSelectedYears] = useState({})
+
+  const ALL_YEARS = ['2019-20', '2020-21', '2021-22', '2022-23', '2023-24', '2024-25']
 
   const navigate = useNavigate()
 
@@ -100,11 +49,11 @@ export default function ProfessionalDashboard() {
         if (sumRes.data && Object.keys(sumRes.data).length > 0) {
           setSummary(sumRes.data)
         } else {
-          setSummary(defaultMockSummary)
+          setSummary({ total_notices: 0, pending_notices: 0, completed_notices: 0 })
         }
       } catch (err) {
         console.warn('Summary fetch failed', err)
-        setSummary(defaultMockSummary)
+        setSummary({ total_notices: 0, pending_notices: 0, completed_notices: 0 })
       }
 
       // RECENT NOTICES
@@ -127,18 +76,20 @@ export default function ProfessionalDashboard() {
 
         console.log('RAW ARRAY:', raw)
 
-        const rawList = (Array.isArray(raw) && raw.length > 0) ? raw : defaultMockNotices
+        const rawList = Array.isArray(raw) ? raw : []
 
        const mapped = rawList.map(n => {
          const noticeId = n.notice_id ?? n.id
          const permanentlyRead = readNoticeIds.includes(noticeId)
+         const uName = n.user_name || n.client_name || n.user || 'N/A'
          return {
            notice_id: noticeId,
-           user: n.user_name || n.client_name || n.user || 'N/A',
-           user_name: n.user_name || n.client_name || n.user || 'N/A',
+           client_id: n.client_id || n.user_id || n.id || 0,
+           user: uName,
+           user_name: uName,
            proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
            reference_id: n.reference_id || `REF-${noticeId}`,
-           assessment_year: n.assessment_year || n.year || (n.issued_on && n.issued_on !== '-' ? new Date(n.issued_on).getFullYear() : '2024-25'),
+           assessment_year: n.assessment_year || n.year || 'N/A',
            issued_on: n.issued_on || '-',
            due_date: n.response_due_date || n.due_date || '-',
            status: n.workflow_status || n.status || 'N/A',
@@ -150,23 +101,7 @@ export default function ProfessionalDashboard() {
 
       } catch (err) {
         console.error('Recent notices API failed:', err)
-        const mapped = defaultMockNotices.map(n => {
-          const noticeId = n.notice_id ?? n.id
-          const permanentlyRead = readNoticeIds.includes(noticeId)
-          return {
-            notice_id: noticeId,
-            user: n.user_name || 'N/A',
-            user_name: n.user_name || 'N/A',
-            proceeding_name: n.proceeding_name || 'N/A',
-            reference_id: n.reference_id || `REF-${noticeId}`,
-            assessment_year: n.assessment_year || '2024-25',
-            issued_on: n.issued_on || '-',
-            due_date: n.due_date || '-',
-            status: n.status || 'N/A',
-            is_read: permanentlyRead || !!(n.is_read ?? false)
-          }
-        })
-        setAssignments(mapped)
+        setAssignments([])
       }
 
     } catch (err) {
@@ -181,17 +116,19 @@ export default function ProfessionalDashboard() {
       const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
       const res = await noticeService.getNotices()
       const raw = res?.data?.items || res?.data || []
-      const rawList = (Array.isArray(raw) && raw.length > 0) ? raw : defaultMockNotices
+      const rawList = Array.isArray(raw) ? raw : []
       const mapped = rawList.map(n => {
         const noticeId = n.notice_id ?? n.id
         const permanentlyRead = readNoticeIds.includes(noticeId)
+        const uName = n.user_name || n.client_name || n.user || 'N/A'
         return {
           notice_id: noticeId,
-          user: n.user_name || n.client_name || n.user || 'N/A',
-          user_name: n.user_name || n.client_name || n.user || 'N/A',
+          client_id: n.client_id || n.user_id || n.id || 0,
+          user: uName,
+          user_name: uName,
           proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
           reference_id: n.reference_id || `REF-${noticeId}`,
-          assessment_year: n.assessment_year || n.year || (n.issued_on && n.issued_on !== '-' ? new Date(n.issued_on).getFullYear() : '2024-25'),
+          assessment_year: n.assessment_year || n.year || 'N/A',
           issued_on: n.issued_on || '-',
           due_date: n.response_due_date || n.due_date || '-',
           status: n.workflow_status || n.status || 'N/A',
@@ -201,26 +138,62 @@ export default function ProfessionalDashboard() {
       setAllNotices(mapped)
       setAllNoticesLoaded(true)
     } catch (err) {
-      const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
-      const mapped = defaultMockNotices.map(n => {
-        const noticeId = n.notice_id ?? n.id
-        const permanentlyRead = readNoticeIds.includes(noticeId)
-        return {
-          notice_id: noticeId,
-          user: n.user_name || 'N/A',
-          user_name: n.user_name || 'N/A',
-          proceeding_name: n.proceeding_name || 'N/A',
-          reference_id: n.reference_id || `REF-${noticeId}`,
-          assessment_year: n.assessment_year || '2024-25',
-          issued_on: n.issued_on || '-',
-          due_date: n.due_date || '-',
-          status: n.status || 'N/A',
-          is_read: permanentlyRead || !!(n.is_read ?? false)
-        }
-      })
-      setAllNotices(mapped)
+      console.error('fetchAllNotices failed:', err)
+      setAllNotices([])
       setAllNoticesLoaded(true)
     }
+  }
+
+  // Fetch notice control data for each client once assignments/notices are loaded
+  useEffect(() => {
+    const list = filtered || assignments || []
+    if (list.length === 0) return
+    list.forEach(a => {
+      const cid = a.client_id
+      if (!cid) return
+      if (noticeControl[cid]) return // already fetched
+      noticeControlService.getNoticeControl(cid).then(res => {
+        if (res.data && res.data.available_years) {
+          setNoticeControl(prev => ({ ...prev, [cid]: { available_years: res.data.available_years, blocked_years: res.data.blocked_years || [] } }))
+        } else {
+          setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [...ALL_YEARS], blocked_years: [] } }))
+        }
+      }).catch(() => {
+        setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [...ALL_YEARS], blocked_years: [] } }))
+      })
+    })
+  }, [assignments, allNotices])
+
+  const handleBlockYears = async (clientId) => {
+    const sel = selectedYears[clientId] || []
+    if (sel.length === 0) return
+    const res = await noticeControlService.blockYears(clientId, sel)
+    setNoticeControl(prev => {
+      const cur = prev[clientId] || { available_years: [...ALL_YEARS], blocked_years: [] }
+      const newBlocked = [...new Set([...cur.blocked_years, ...sel])]
+      const newAvailable = cur.available_years.filter(y => !sel.includes(y))
+      return { ...prev, [clientId]: { available_years: newAvailable, blocked_years: newBlocked } }
+    })
+    setSelectedYears(prev => ({ ...prev, [clientId]: [] }))
+  }
+
+  const handleUnblockYears = async (clientId) => {
+    const cur = noticeControl[clientId]
+    if (!cur || cur.blocked_years.length === 0) return
+    const res = await noticeControlService.unblockYears(clientId, cur.blocked_years)
+    setNoticeControl(prev => {
+      const c = prev[clientId]
+      const newAvailable = [...new Set([...c.available_years, ...c.blocked_years])].sort()
+      return { ...prev, [clientId]: { available_years: newAvailable, blocked_years: [] } }
+    })
+    setSelectedYears(prev => ({ ...prev, [clientId]: [] }))
+  }
+
+  const toggleYearSelection = (clientId, year) => {
+    setSelectedYears(prev => {
+      const cur = prev[clientId] || []
+      return { ...prev, [clientId]: cur.includes(year) ? cur.filter(y => y !== year) : [...cur, year] }
+    })
   }
 
   const handleViewNotice = async (notice) => {
@@ -623,9 +596,20 @@ export default function ProfessionalDashboard() {
             <table
               style={{
                 width: '100%',
-                borderCollapse: 'collapse'
+                borderCollapse: 'collapse',
+                tableLayout: 'fixed'
               }}
             >
+              <colgroup>
+                <col style={{ width: '13%' }} />
+                <col style={{ width: '17%' }} />
+                <col style={{ width: '11%' }} />
+                <col style={{ width: '11%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '18%' }} />
+                <col style={{ width: '10%' }} />
+              </colgroup>
 
               <thead>
 
@@ -642,6 +626,7 @@ export default function ProfessionalDashboard() {
                     'Assessment Year',
                     'Issued On',
                     'Due Date',
+                    'Notice Control',
                     'Notice'
                   ].map((head) => (
 
@@ -669,7 +654,7 @@ export default function ProfessionalDashboard() {
 
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       style={{
                         textAlign: 'center',
                         padding: 40,
@@ -684,7 +669,7 @@ export default function ProfessionalDashboard() {
 
                   <tr>
                     <td
-                      colSpan={7}
+                      colSpan={8}
                       style={{
                         textAlign: 'center',
                         padding: 40,
@@ -796,6 +781,58 @@ export default function ProfessionalDashboard() {
                         }}
                       >
                         {formatDate(a.due_date)}
+                      </td>
+
+                      {/* NOTICE CONTROL */}
+                      <td style={{ padding: '8px 6px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          <div style={{ position: 'relative' }}>
+                            <button
+                              onClick={() => setYearDropdownOpen(yearDropdownOpen === (a.client_id || index) ? null : (a.client_id || index))}
+                              style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontSize: 10, cursor: 'pointer', color: '#1e293b', minWidth: 70, textAlign: 'left', whiteSpace: 'nowrap' }}
+                            >
+                              {(selectedYears[a.client_id] || []).length > 0 ? `${(selectedYears[a.client_id]).length} selected` : 'Years ▾'}
+                            </button>
+                            {yearDropdownOpen === (a.client_id || index) && (
+                              <>
+                                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setYearDropdownOpen(null)} />
+                                <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 130, marginTop: 4, maxHeight: 180, overflowY: 'auto' }}>
+                                  {((noticeControl[a.client_id] || {}).available_years || ALL_YEARS).length === 0 ? (
+                                    <div style={{ padding: '8px 10px', fontSize: 10, color: '#94a3b8' }}>All years blocked</div>
+                                  ) : (
+                                    ((noticeControl[a.client_id] || {}).available_years || ALL_YEARS).map(year => (
+                                      <label key={year} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', fontSize: 11, cursor: 'pointer', borderBottom: '0.5px solid #f1f5f9' }}
+                                        onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                      >
+                                        <input type="checkbox" checked={(selectedYears[a.client_id] || []).includes(year)} onChange={() => toggleYearSelection(a.client_id, year)} style={{ accentColor: '#1e3a8a', cursor: 'pointer' }} />
+                                        {year}
+                                      </label>
+                                    ))
+                                  )}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => handleBlockYears(a.client_id)}
+                            style={{ padding: '4px 10px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}
+                          >
+                            Block
+                          </button>
+                          <button
+                            onClick={() => handleUnblockYears(a.client_id)}
+                            disabled={!((noticeControl[a.client_id] || {}).blocked_years || []).length}
+                            style={{ padding: '4px 10px', background: ((noticeControl[a.client_id] || {}).blocked_years || []).length ? '#16a34a' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: ((noticeControl[a.client_id] || {}).blocked_years || []).length ? 'pointer' : 'default' }}
+                          >
+                            Unblock
+                          </button>
+                          {((noticeControl[a.client_id] || {}).blocked_years || []).length > 0 && (
+                            <div style={{ fontSize: 9, color: '#dc2626', marginTop: 2, width: '100%' }}>
+                              Blocked: {(noticeControl[a.client_id].blocked_years).join(', ')}
+                            </div>
+                          )}
+                        </div>
                       </td>
 
                       {/* BUTTON */}

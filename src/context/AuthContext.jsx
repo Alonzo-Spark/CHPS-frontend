@@ -23,17 +23,7 @@ export function AuthProvider({ children }) {
     const storedUser = localStorage.getItem('user')
 
     if (storedToken && storedToken !== 'undefined' && storedToken !== 'null') {
-      if (storedToken.startsWith('dummy-')) {
-        setLoading(false)
-        if (storedUser) {
-          const parsedUser = JSON.parse(storedUser)
-          setUser({
-            ...parsedUser,
-            role: parsedUser?.role?.toLowerCase() || 'staff'
-          })
-        }
-        return
-      }
+      // All tokens verified via backend API
       authService.verifyToken()
         .then(() => {
           if (storedUser) {
