@@ -22,6 +22,22 @@ const statusBadge = (status = '') => {
 
 const avatarColors = ['#1e40af', '#166534', '#7c3aed', '#9a3412', '#166534']
 
+// Assessment years for Notice Control - these are the fiscal year options
+const ALL_YEARS = ['2019-20', '2020-21', '2021-22', '2022-23', '2023-24', '2024-25']
+
+// Compute status dynamically from dates when no explicit status from API
+const getStatus = (item) => {
+  if (item?.status) return item.status
+  const today = new Date()
+  const due = item?.due_date ? new Date(item.due_date) : null
+  const issue = item?.issued_on || item?.created_at ? new Date(item.issued_on || item.created_at) : null
+  if (item?.isCompleted || item?.is_completed) return 'Completed'
+  if (issue && today < issue) return 'Pending'
+  if (issue && due && today >= issue && today < due) return 'In Progress'
+  if (due && today >= due) return 'Overdue'
+  return 'Pending'
+}
+
 export default function Clients() {
   const [clients, setClients] = useState([])
   const [professionals, setProfessionals] = useState([])
@@ -41,16 +57,21 @@ export default function Clients() {
   useEffect(() => {
     userService.getUsers({ skip: 0, limit: 50 })
       .then(res => {
-        const data = res.data?.items || res.data || []
-        setClients(Array.isArray(data) ? data : [])
+        const raw = res?.data?.items || res?.data || []
+        const data = Array.isArray(raw) ? raw : []
+        console.log('CLIENT DATA:', data)
+        setClients(data)
       })
-      .catch(() => setClients([]))
+      .catch(err => {
+        console.warn('getUsers failed:', err)
+        setClients([])
+      })
       .finally(() => setLoading(false))
 
     professionalService.getProfessionals()
       .then(res => {
-        const data = res.data?.items || res.data || []
-        setProfessionals(Array.isArray(data) ? data : [])
+        const raw = res?.data?.items || res?.data || []
+        setProfessionals(Array.isArray(raw) ? raw : [])
       })
       .catch(() => setProfessionals([]))
   }, [])
@@ -108,34 +129,33 @@ export default function Clients() {
     ...clients.map(c => c.assigned_professional?.professional_name || c.assigned_professional || '').filter(Boolean)
   ]))
 
-  const filtered = clients.filter(c => {
+  const filtered = (Array.isArray(clients) ? clients : []).filter(c => {
     const searchMatch = search === '' ||
-      c.name?.toLowerCase().includes(search.toLowerCase()) ||
-      c.pan?.toLowerCase().includes(search.toLowerCase()) ||
-      c.email?.toLowerCase().includes(search.toLowerCase()) ||
-      (c.assigned_professional?.professional_name || c.assigned_professional || '').toLowerCase().includes(search.toLowerCase());
+      (c?.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c?.pan || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c?.email || '').toLowerCase().includes(search.toLowerCase()) ||
+      (c?.assigned_professional?.professional_name || c?.assigned_professional || '').toLowerCase().includes(search.toLowerCase())
 
-    const cStatus = (c.status || 'pending').toLowerCase();
-    let targetStatus = appliedStatus.toLowerCase();
-    
-    const statusMatch = !appliedStatus || 
-      cStatus === targetStatus || 
-      (targetStatus === 'in progress' && cStatus === 'under review');
+    const cStatus = (c?.status || 'pending').toLowerCase()
+    const targetStatus = appliedStatus.toLowerCase()
+    const statusMatch = !appliedStatus ||
+      cStatus === targetStatus ||
+      (targetStatus === 'in progress' && cStatus === 'under review')
 
-    const cProf = (c.assigned_professional?.professional_name || c.assigned_professional || '').toLowerCase();
-    const profMatch = !appliedProfessional || cProf === appliedProfessional.toLowerCase();
+    const cProf = (c?.assigned_professional?.professional_name || c?.assigned_professional || '').toLowerCase()
+    const profMatch = !appliedProfessional || cProf === appliedProfessional.toLowerCase()
 
-    return searchMatch && statusMatch && profMatch;
+    return searchMatch && statusMatch && profMatch
   })
 
   const getInitials = (name = '') => name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   const bgFor = (i) => ['#dbeafe', '#f0fdf4', '#fdf4ff', '#fff7ed', '#f0fdf4'][i % 5]
 
   const stats = [
-    { label: 'Total Users', value: clients.length, color: '#1e293b', bar: '#2563eb' },
-    { label: 'Under Review', value: clients.filter(c => c.status === 'under review').length, color: '#d97706', bar: '#d97706' },
-    { label: 'Pending', value: clients.filter(c => !c.status || c.status === 'pending').length, color: '#dc2626', bar: '#dc2626' },
-    { label: 'Completed', value: clients.filter(c => c.status === 'completed').length, color: '#16a34a', bar: '#16a34a' },
+    { label: 'Total Users', value: (clients || []).length, color: '#1e293b', bar: '#2563eb' },
+    { label: 'Under Review', value: (clients || []).filter(c => (c?.status || '').toLowerCase() === 'under review').length, color: '#d97706', bar: '#d97706' },
+    { label: 'Pending', value: (clients || []).filter(c => !c?.status || (c?.status || '').toLowerCase() === 'pending').length, color: '#dc2626', bar: '#dc2626' },
+    { label: 'Completed', value: (clients || []).filter(c => (c?.status || '').toLowerCase() === 'completed').length, color: '#16a34a', bar: '#16a34a' },
   ]
 
   return (
@@ -344,7 +364,7 @@ export default function Clients() {
                       <td style={{ padding: '11px 10px', color: '#1e3a8a', fontWeight: 500 }}>
                         {c.assigned_professional?.professional_name || c.assigned_professional}
                       </td>
-                      <td style={{ padding: '11px 10px' }}>{statusBadge(c.status)}</td>
+                      <td style={{ padding: '11px 10px' }}>{statusBadge(getStatus(c))}</td>
                       <td style={{ padding: '11px 10px', position: 'relative' }}>
                         <button
                           style={{ background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}

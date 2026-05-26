@@ -4,15 +4,19 @@ import { Search, Filter, FileText, Mail, Scale, Eye, Check, ArrowLeft } from 'lu
 import DashboardLayout from '../../layouts/DashboardLayout'
 import { noticeService } from '../../services'
 
-const statusBadge = (status) => {
+const statusBadge = (status = '') => {
+  const s = (status || '').toLowerCase().trim()
   const styles = {
-    'In Progress': { background: '#eff6ff', color: '#1d4ed8', border: '0.5px solid #bfdbfe' },
-    'Pending': { background: '#fffbeb', color: '#92400e', border: '0.5px solid #fcd34d' },
-    'Completed': { background: '#f0fdf4', color: '#166534', border: '0.5px solid #bbf7d0' },
+    'in progress': { background: '#eff6ff', color: '#1d4ed8', border: '0.5px solid #bfdbfe' },
+    'pending': { background: '#fffbeb', color: '#92400e', border: '0.5px solid #fcd34d' },
+    'completed': { background: '#f0fdf4', color: '#166534', border: '0.5px solid #bbf7d0' },
+    'submitted': { background: '#fefce8', color: '#92400e', border: '0.5px solid #fef08a' },
+    'closed': { background: '#f0fdf4', color: '#166534', border: '0.5px solid #bbf7d0' },
   }
-  const s = styles[status] || styles['In Progress']
+  const style = styles[s] || { background: '#f1f5f9', color: '#475569', border: '0.5px solid #cbd5e1' }
+  const label = status ? status.charAt(0).toUpperCase() + status.slice(1) : 'N/A'
   return (
-    <span style={{ ...s, padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 500 }}>{status}</span>
+    <span style={{ ...style, padding: '3px 9px', borderRadius: 20, fontSize: 11, fontWeight: 500 }}>{label}</span>
   )
 }
 
@@ -56,111 +60,51 @@ export default function StaffNotices() {
   const role = localStorage.getItem('role')?.toLowerCase()
 
   useEffect(() => {
-    const dummyNotices = [
-      {
-        id: "d1",
-        proceeding_name: "Assessment Proceeding u/s 147",
-        assessment_year: "2021-22",
-        status: "Pending",
-        limitation_date: "31-Mar-2027",
-        closure_date: "-",
-        financial_year: "2020-21",
-        applicable_act: "Income Tax Act 1961",
-        pan: "AHMPV4480E",
-        assessee_name: "BABJI VANACHARLA",
-        issued_on: "18-Feb-2025"
-      },
-      {
-        id: "d2",
-        proceeding_name: "Penalty Proceeding u/s 271",
-        assessment_year: "2019-20",
-        status: "Completed",
-        limitation_date: "31-Mar-2025",
-        closure_date: "07-Mar-2025",
-        financial_year: "2018-19",
-        closure_order: "275880193",
-        applicable_act: "Income Tax Act 1961",
-        pan: "BGKPS1234F",
-        assessee_name: "RAHUL SHARMA",
-        issued_on: "10-Jan-2025"
-      },
-      {
-        id: "d3",
-        proceeding_name: "Reassessment u/s 148",
-        assessment_year: "2024-25",
-        status: "Submitted",
-        limitation_date: "31-Dec-2025",
-        closure_date: "-",
-        financial_year: "2023-24",
-        applicable_act: "Income Tax Act 2025",
-        pan: "CJRPT9988G",
-        assessee_name: "TECH CORP LTD",
-        issued_on: "05-May-2025"
-      }
-    ];
-
     noticeService.getNotices()
       .then(res => {
-        const notices = (res.data && res.data.length > 0) ? res.data : dummyNotices
+        const notices = Array.isArray(res.data) ? res.data
+          : Array.isArray(res.data?.items) ? res.data.items
+          : []
         const grouped = {}
-        
+
         notices.forEach(n => {
-          const name = n.proceeding_name || n.notice_type || "Assessment Proceeding u/s 147"
+          const name = n.proceeding_name || n.notice_type || 'Notice'
           if (!grouped[name]) {
             grouped[name] = {
               id: n.id || n.notice_id || String(Math.random()),
               proceeding_name: name,
-              assessment_year: n.assessment_year || "2021-22",
-              status: n.status || "In Progress",
-              limitation_date: n.limitation_date || "31-Mar-2027",
-              closure_date: n.closure_date || "—",
-              financial_year: n.financial_year || "2020-21",
-              closure_order: n.closure_order || "—",
-              applicable_act: n.applicable_act || "Income Tax Act 1961",
-              pan: n.pan || n.pan_number || "N/A",
-              assessee_name: n.user_name || n.assessee_name || "N/A",
+              assessment_year: n.assessment_year || 'N/A',
+              status: n.status || 'In Progress',
+              limitation_date: n.limitation_date || '—',
+              closure_date: n.closure_date || '—',
+              financial_year: n.financial_year || 'N/A',
+              closure_order: n.closure_order || '—',
+              applicable_act: n.applicable_act || 'Income Tax Act 1961',
+              pan: n.pan || n.pan_number || 'N/A',
+              assessee_name: n.user_name || n.assessee_name || 'N/A',
               notices_count: 0,
               timeline: []
             }
           }
           grouped[name].notices_count += 1
-          
-          let timelineStatus = n.status || "Pending"
-          let type = "open"
-          if (timelineStatus.toLowerCase() === "completed" || timelineStatus.toLowerCase() === "closed") type = "done"
-          if (timelineStatus.toLowerCase() === "submitted") type = "pending"
+
+          const timelineStatus = n.status || 'Pending'
+          let type = 'open'
+          if (timelineStatus.toLowerCase() === 'completed' || timelineStatus.toLowerCase() === 'closed') type = 'done'
+          if (timelineStatus.toLowerCase() === 'submitted') type = 'pending'
 
           grouped[name].timeline.push({
-            date: n.issued_on || "—",
+            date: n.issued_on || '—',
             label: timelineStatus,
-            type: type
+            type
           })
         })
-        
+
         setProceedings(Object.values(grouped))
       })
-
       .catch(err => {
-        console.error("Failed to load notices for proceedings", err)
-        // Fallback to dummy data
-        const grouped = {}
-        dummyNotices.forEach(n => {
-          const name = n.proceeding_name || "Assessment Proceeding u/s 147"
-          if (!grouped[name]) {
-            grouped[name] = {
-              id: n.id, proceeding_name: name, assessment_year: n.assessment_year, status: n.status, limitation_date: n.limitation_date, closure_date: n.closure_date, financial_year: n.financial_year, closure_order: n.closure_order, applicable_act: n.applicable_act, pan: n.pan, assessee_name: n.assessee_name, notices_count: 0, timeline: []
-            }
-          }
-          grouped[name].notices_count += 1
-          
-          let timelineStatus = n.status || "Pending"
-          let type = "open"
-          if (timelineStatus.toLowerCase() === "completed" || timelineStatus.toLowerCase() === "closed") type = "done"
-          if (timelineStatus.toLowerCase() === "submitted") type = "pending"
-
-          grouped[name].timeline.push({ date: n.issued_on || "—", label: timelineStatus, type: type })
-        })
-        setProceedings(Object.values(grouped))
+        console.error('Failed to load notices for proceedings', err)
+        setProceedings([])
       })
       .finally(() => setLoading(false))
   }, [])

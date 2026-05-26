@@ -13,13 +13,6 @@ const formatDate = (value) => {
 
 const displayValue = (value) => (value !== null && value !== undefined && value !== '') ? value : '—'
 
-const dummyProceedings = [
-  { proceeding_id: 'd1', proceeding_name: 'Assessment Proceeding u/s 143(3)', proceeding_type: 'Assessment', assessment_year: '2023-24', financial_year: '2022-23', applicable_act: 'Income Tax Act 1961', proceeding_limitation_date: null, closure_date: null, status: 'Open', created_at: null },
-  { proceeding_id: 'd2', proceeding_name: 'Scrutiny Proceeding u/s 147', proceeding_type: 'Scrutiny', assessment_year: '2022-23', financial_year: '2021-22', applicable_act: 'Income Tax Act 1961', proceeding_limitation_date: null, closure_date: '2024-01-15', status: 'Closed', created_at: null },
-  { proceeding_id: 'd3', proceeding_name: 'Appeal Before CIT(A)', proceeding_type: 'Appeal', assessment_year: '2024-25', financial_year: '2023-24', applicable_act: 'Income Tax Act 2025', proceeding_limitation_date: null, closure_date: null, status: 'Submitted', created_at: null },
-]
-
-const dummyClient = { name: 'RAHUL SHARMA', pan: 'ABCDE1234F' }
 
 export default function ClientProceedings() {
   const { notice_id } = useParams()
@@ -43,17 +36,19 @@ export default function ClientProceedings() {
         }
 
         if (payload) {
-          setClient(clientData || dummyClient)
+          setClient(clientData || null)
           setTotal(Number(payload.total_proceedings ?? payload.totalProceedings ?? payload.total ?? 0))
           const apiProceedings = Array.isArray(payload.proceedings) ? payload.proceedings : Array.isArray(payload.data?.proceedings) ? payload.data.proceedings : []
-          setProceedings(apiProceedings.length > 0 ? apiProceedings : dummyProceedings)
+          setProceedings(apiProceedings)
         } else {
           setError('Unable to load client proceedings.')
         }
       } catch (err) {
-        setClient(dummyClient)
-        setProceedings(dummyProceedings)
-        setTotal(dummyProceedings.length)
+        console.error('ClientProceedings fetch error:', err)
+        setError('Failed to load proceedings. Please check your connection.')
+        setClient(null)
+        setProceedings([])
+        setTotal(0)
       } finally {
         setLoading(false)
       }

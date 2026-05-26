@@ -5,59 +5,18 @@ import DashboardLayout from '../../layouts/DashboardLayout'
 import { dashboardService, noticeService } from '../../services'
 
 
-const defaultMockSummary = {
-  total_notices: 3,
-  pending_notices: 2,
-  completed_notices: 1
+// Compute status dynamically from item dates when no explicit status from API
+const getStatus = (item) => {
+  if (item?.is_completed || (item?.status || '').toLowerCase() === 'completed') return 'Completed'
+  const today = new Date()
+  const due = item?.response_due_date || item?.due_date ? new Date(item.response_due_date || item.due_date) : null
+  const issue = item?.issued_on ? new Date(item.issued_on) : null
+  if (item?.isCompleted) return 'Completed'
+  if (issue && today < issue) return 'Pending'
+  if (issue && due && today >= issue && today < due) return 'In Progress'
+  if (due && today >= due) return 'Overdue'
+  return item?.status || item?.workflow_status || 'Pending'
 }
-
-const defaultMockNotices = [
-  {
-    notice_id: 101,
-    id: 101,
-    user: "Acme Corp",
-    user_name: "Acme Corp",
-    proceeding_name: "Income Tax Audit",
-    notice_type: "Audit Notice",
-    reference_id: "REF-2026-001",
-    issued_on: "2026-05-10T10:00:00Z",
-    due_date: "2026-06-15T10:00:00Z",
-    response_due_date: "2026-06-15T10:00:00Z",
-    status: "Pending",
-    workflow_status: "Pending",
-    is_read: false
-  },
-  {
-    notice_id: 102,
-    id: 102,
-    user: "Starlight Industries",
-    user_name: "Starlight Industries",
-    proceeding_name: "GST Reconciliation",
-    notice_type: "Reconciliation",
-    reference_id: "REF-2026-002",
-    issued_on: "2026-05-18T10:00:00Z",
-    due_date: "2026-06-25T10:00:00Z",
-    response_due_date: "2026-06-25T10:00:00Z",
-    status: "In Progress",
-    workflow_status: "In Progress",
-    is_read: true
-  },
-  {
-    notice_id: 103,
-    id: 103,
-    user: "Nova Logistics",
-    user_name: "Nova Logistics",
-    proceeding_name: "Transfer Pricing Assessment",
-    notice_type: "Assessment",
-    reference_id: "REF-2026-003",
-    issued_on: "2026-04-05T10:00:00Z",
-    due_date: "2026-05-20T10:00:00Z",
-    response_due_date: "2026-05-20T10:00:00Z",
-    status: "Completed",
-    workflow_status: "Completed",
-    is_read: true
-  }
-]
 
 export default function StaffDashboard() {
   const [summary, setSummary] = useState(null)
@@ -88,10 +47,11 @@ export default function StaffDashboard() {
           if (sumRes.data && Object.keys(sumRes.data).length > 0) {
             setSummary(sumRes.data)
           } else {
-            setSummary(defaultMockSummary)
+            setSummary({ total_notices: 0, pending_notices: 0, completed_notices: 0 })
           }
         } catch (err) {
-          setSummary(defaultMockSummary)
+          console.warn('Summary fetch failed:', err)
+          setSummary({ total_notices: 0, pending_notices: 0, completed_notices: 0 })
         }
 
         // 2) Recent notices
@@ -100,7 +60,7 @@ export default function StaffDashboard() {
           recentRes = await dashboardService.getRecentNotices({ limit: 10, offset: 0 })
           const raw = recentRes.data?.items || recentRes.data?.data || recentRes.data || []
           const meta = recentRes.data?.meta || recentRes.meta || {}
-          const rawList = (Array.isArray(raw) && raw.length > 0) ? raw : defaultMockNotices
+          const rawList = Array.isArray(raw) ? raw : []
           const mapped = rawList.map(n => {
             const noticeId = n.notice_id ?? n.id
             const permanentlyRead = readNoticeIds.includes(noticeId)
@@ -120,23 +80,8 @@ export default function StaffDashboard() {
           setRecentNotices(mapped)
           setRecentMeta(meta)
         } catch (err) {
-          const mapped = defaultMockNotices.map(n => {
-            const noticeId = n.notice_id ?? n.id
-            const permanentlyRead = readNoticeIds.includes(noticeId)
-            return {
-              ...n,
-              notice_id: noticeId,
-              user: n.user || n.user_name || "N/A",
-              user_name: n.user || n.user_name || "N/A",
-              proceeding_name: n.proceeding_name || "N/A",
-              reference_id: n.reference_id || `REF-${noticeId}`,
-              issued_on: n.issued_on || "-",
-              due_date: n.due_date || "-",
-              status: n.status || 'N/A',
-              is_read: permanentlyRead || !!(n.is_read ?? false)
-            }
-          })
-          setRecentNotices(mapped)
+          console.warn('Recent notices fetch failed:', err)
+          setRecentNotices([])
         }
 
         // 3) Assignments (fallback to recent notices or defaultMockNotices when missing)
@@ -149,11 +94,7 @@ export default function StaffDashboard() {
             rawList = assignRes.data
           } else {
             const recentRaw = recentRes?.data?.items || recentRes?.data?.data || recentRes?.data || []
-            if (recentRaw && recentRaw.length > 0) {
-              rawList = recentRaw
-            } else {
-              rawList = defaultMockNotices
-            }
+            rawList = Array.isArray(recentRaw) ? recentRaw : []
           }
 
           const mapped = rawList.map(n => {
@@ -174,25 +115,8 @@ export default function StaffDashboard() {
           })
           setAssignments(mapped)
         } catch (err) {
-          const recentRaw = recentRes?.data?.items || recentRes?.data?.data || recentRes?.data || []
-          const rawList = (recentRaw && recentRaw.length > 0) ? recentRaw : defaultMockNotices
-          const mappedAssignments = rawList.map(n => {
-            const noticeId = n.notice_id ?? n.id
-            const permanentlyRead = readNoticeIds.includes(noticeId)
-            return {
-              ...n,
-              notice_id: noticeId,
-              user: n.user || n.user_name || "N/A",
-              user_name: n.user || n.user_name || "N/A",
-              proceeding_name: n.proceeding_name || n.notice_type || "N/A",
-              reference_id: n.reference_id || `REF-${noticeId}`,
-              issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
-              due_date: n.due_date || "-",
-              status: n.status || n.workflow_status || 'N/A',
-              is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
-            }
-          })
-          setAssignments(mappedAssignments)
+          console.warn('Assignments fetch failed:', err)
+          setAssignments([])
         }
 
       } catch (err) {
@@ -207,7 +131,7 @@ export default function StaffDashboard() {
         const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
         const res = await noticeService.getNotices()
         const raw = res?.data?.items || res?.data || []
-        const rawList = (Array.isArray(raw) && raw.length > 0) ? raw : defaultMockNotices
+        const rawList = Array.isArray(raw) ? raw : []
         const mapped = rawList.map(n => {
           const noticeId = n.notice_id ?? n.id
           const permanentlyRead = readNoticeIds.includes(noticeId)
@@ -227,24 +151,8 @@ export default function StaffDashboard() {
         setAllNotices(mapped)
         setAllNoticesLoaded(true)
       } catch (err) {
-        const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
-        const mapped = defaultMockNotices.map(n => {
-          const noticeId = n.notice_id ?? n.id
-          const permanentlyRead = readNoticeIds.includes(noticeId)
-          return {
-            ...n,
-            notice_id: noticeId,
-            user: n.user || n.user_name || 'N/A',
-            user_name: n.user || n.user_name || 'N/A',
-            proceeding_name: n.proceeding_name || 'N/A',
-            reference_id: n.reference_id || `REF-${noticeId}`,
-            issued_on: n.issued_on || '-',
-            due_date: n.due_date || '-',
-            status: n.status || 'N/A',
-            is_read: permanentlyRead || !!(n.is_read ?? false)
-          }
-        })
-        setAllNotices(mapped)
+        console.warn('fetchAllNotices failed:', err)
+        setAllNotices([])
         setAllNoticesLoaded(true)
       }
     }

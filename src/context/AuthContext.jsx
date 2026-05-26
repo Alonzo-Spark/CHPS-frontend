@@ -46,8 +46,8 @@ export function AuthProvider({ children }) {
           setLoading(false)
         })
     } else {
+      // No token — just stop loading; ProtectedRoute handles redirect
       setLoading(false)
-      logout()
     }
   }, [])
 
