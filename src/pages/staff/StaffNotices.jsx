@@ -72,8 +72,29 @@ export default function StaffNotices() {
 
       apiCall
         .then(res => {
-          const raw = res.data?.proceedings || res.data?.items || res.data?.data || (Array.isArray(res.data) ? res.data : [])
+          // Extract proceedings array from various possible response formats
+          let raw = []
+          
+          if (res?.data?.proceedings) {
+            raw = res.data.proceedings
+          } else if (res?.data?.items) {
+            raw = res.data.items
+          } else if (res?.data?.data) {
+            raw = res.data.data
+          } else if (Array.isArray(res?.data)) {
+            raw = res.data
+          } else if (Array.isArray(res)) {
+            raw = res
+          } else if (res?.proceedings) {
+            raw = res.proceedings
+          } else if (res?.items) {
+            raw = res.items
+          }
+          
           const rawList = Array.isArray(raw) ? raw : []
+          
+          console.log('StaffNotices API Response:', res)
+          console.log('Extracted proceedings array:', rawList)
           
           const mapped = rawList.map(p => {
             const name = p.proceeding_name || p.proceeding_type || p.notice_type || 'Notice'

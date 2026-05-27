@@ -226,11 +226,19 @@ export const professionalService = {
 
   getProceedingsForAction: () => 
     apiService.get('/api/professional/proceedings/for-action')
-      .then(res => ({ data: res })),
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.error('getProceedingsForAction API failed:', err)
+        return { data: { data: [] } }
+      }),
 
   getProceedingsForInformation: () => 
     apiService.get('/api/professional/proceedings/for-information')
-      .then(res => ({ data: res })),
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.error('getProceedingsForInformation API failed:', err)
+        return { data: { data: [] } }
+      }),
 }
 
 export const professionalWorkflowService = {

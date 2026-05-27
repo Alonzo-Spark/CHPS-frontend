@@ -22,9 +22,8 @@ const getStatus = (item) => {
   const hasDueDate = !!(item?.due_date || item?.response_due_date)
   if (hasIssueDate && hasDueDate) return 'Completed'
   if (hasIssueDate && !hasDueDate) return 'Pending'
-  if (item?.assigned_professional) return 'Completed'
-  if (item?.status) return item.status
-  return 'Pending'
+  if (item?.is_completed || (item?.status || '').toLowerCase() === 'completed') return 'Completed'
+  return item?.status || item?.workflow_status || 'Pending'
 }
 
 export default function AdminDashboard() {
@@ -88,8 +87,8 @@ export default function AdminDashboard() {
           <div style={{ flex: 1, width: '100%' }}>
             {/* Header Row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', width: '100%', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              {['Assessee', 'PAN', 'Assigned Professional', 'Status', 'Notice'].map(h => (
-                <div key={h} style={{ padding: '14px 28px', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', textAlign: 'left' }}>{h}</div>
+              {['Assessee', 'PAN', 'Assigned Professional', 'Status', 'Proceedings'].map(h => (
+                <div key={h} style={{ padding: '14px 28px', color: '#64748b', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', textAlign: 'left' }}>{h}</div>
               ))}
             </div>
 
@@ -102,12 +101,7 @@ export default function AdminDashboard() {
               filtered.map((c, i) => (
                 <div key={c.id || i} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', width: '100%', borderBottom: '0.5px solid #f1f5f9', alignItems: 'center' }}>
                   <div style={{ padding: '14px 28px', fontWeight: 600 }}>
-                    <span 
-                      onClick={() => navigate(`/staff/notices?assessee=${encodeURIComponent(c.name)}`, { state: { assesseeName: c.name } })}
-                      style={{ cursor: 'pointer', color: '#2563eb', textDecoration: 'underline', fontSize: 14 }}
-                    >
-                      {c.name}
-                    </span>
+                    <span style={{ fontSize: 14, color: '#1e293b' }}>{c.name}</span>
                   </div>
                   <div style={{ padding: '14px 28px', color: '#64748b', fontSize: 14 }}>{c.pan}</div>
                   <div style={{ padding: '14px 28px', color: '#1e3a8a', fontWeight: 500, fontSize: 14 }}>
@@ -116,7 +110,7 @@ export default function AdminDashboard() {
                   <div style={{ padding: '14px 28px' }}>{statusBadge(getStatus(c))}</div>
                   <div style={{ padding: '14px 28px', display: 'flex', alignItems: 'center' }}>
                     <button
-                      onClick={() => navigate(`/staff/notice-orders/${c.id || 1}`)}
+                      onClick={() => navigate(`/staff/notices?assessee=${encodeURIComponent(c.name)}`, { state: { assesseeName: c.name } })}
                       style={{
                         background: '#2563eb',
                         color: '#fff',
@@ -131,7 +125,7 @@ export default function AdminDashboard() {
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1d4ed8'}
                       onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563eb'}
                     >
-                      View Notice
+                      View Proceedings
                     </button>
                   </div>
                 </div>

@@ -70,6 +70,7 @@ export default function StaffDashboard() {
               reference_id: n.reference_id || `REF-${noticeId}`,
               issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
               due_date: n.due_date || "-",
+              assigned_professional: n.assigned_professional || n.professional_name || "—",
               status: n.status || n.workflow_status || 'N/A',
               is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
             }
@@ -106,6 +107,7 @@ export default function StaffDashboard() {
               reference_id: n.reference_id || `REF-${noticeId}`,
               issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
               due_date: n.due_date || "-",
+              assigned_professional: n.assigned_professional || n.professional_name || "—",
               status: n.status || n.workflow_status || 'N/A',
               is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
             }
@@ -141,6 +143,7 @@ export default function StaffDashboard() {
             reference_id: n.reference_id || `REF-${noticeId}`,
             issued_on: n.issued_on || n.assigned_at || n.createdAt || '-',
             due_date: n.due_date || '-',
+            assigned_professional: n.assigned_professional || n.professional_name || '—',
             status: n.status || n.workflow_status || 'N/A',
             is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
           }
@@ -156,6 +159,36 @@ export default function StaffDashboard() {
 
     fetchData()
     fetchAllNotices()
+
+    // Listen for assignment changes from other pages (e.g., Clients.jsx)
+    const onAssigned = (e) => {
+      try {
+        const detail = e?.detail || {}
+        const { userId, professionalName } = detail
+        if (!userId) return
+
+        const updateAssigned = (list) => list.map(item => {
+          const matchesUser = (
+            item.client?.id === userId ||
+            item.client_id === userId ||
+            item.user_id === userId ||
+            item.user === userId ||
+            String(item.client?.id) === String(userId)
+          )
+          if (matchesUser) return { ...item, assigned_professional: professionalName }
+          return item
+        })
+
+        setAssignments(prev => Array.isArray(prev) ? updateAssigned(prev) : prev)
+        setAllNotices(prev => Array.isArray(prev) ? updateAssigned(prev) : prev)
+        setRecentNotices(prev => Array.isArray(prev) ? updateAssigned(prev) : prev)
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    window.addEventListener('professionalAssigned', onAssigned)
+    return () => window.removeEventListener('professionalAssigned', onAssigned)
   }, [])
 
 
@@ -254,8 +287,8 @@ export default function StaffDashboard() {
         <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, overflow: 'visible' }}>
           <div style={{ padding: '14px 18px', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>My Assignments</p>
-              <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Managing notification workflow and compliance deadlines</p>
+              <p style={{ fontSize: 15, fontWeight: 600, color: '#1e293b' }}>My Assignments</p>
+              <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>Managing notification workflow and compliance deadlines</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 auto', minWidth: 280 }}>
               {/* Search Bar */}
@@ -443,16 +476,17 @@ export default function StaffDashboard() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
               <colgroup>
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '20%' }} />
-                <col style={{ width: '20%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '18%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '22%' }} />
               </colgroup>
               <thead>
                 <tr>
-                  {['User', 'Proceeding Name', 'Issued On', 'Due Date', 'Notice'].map(h => (
-                    <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                  {['User', 'Proceeding Name', 'Assigned Professional', 'Issued On', 'Due Date', 'Notice'].map(h => (
+                    <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -468,7 +502,7 @@ export default function StaffDashboard() {
                 ) : (
                   filtered.map((a, i) => (
                     <tr key={a.notice_id || i} style={{ borderBottom: '0.5px solid #f1f5f9', background: !a.is_read ? '#e0f2fe' : 'transparent', transition: 'all 0.3s ease' }}>
-                      <td style={{ padding: '11px 10px', color: '#1e293b', verticalAlign: 'middle', borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent', transition: 'border-left-color 0.3s ease', fontSize: 13 }}>
+                      <td style={{ padding: '11px 10px', color: '#1e293b', verticalAlign: 'middle', borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent', transition: 'border-left-color 0.3s ease', fontSize: 14 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                           {!a.is_read && (
                             <span 
@@ -488,16 +522,19 @@ export default function StaffDashboard() {
                         </div>
                       </td>
                       <td
-                        style={{ padding: '11px 10px', fontWeight: !a.is_read ? 700 : 600, color: !a.is_read ? '#1e293b' : '#334155', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}
+                        style={{ padding: '11px 10px', fontWeight: !a.is_read ? 700 : 600, color: !a.is_read ? '#1e293b' : '#334155', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}
                         onClick={() => navigate('/staff/notices')}
                         title="Click to view e-Proceeding"
                       >
                         {a.proceeding_name}
                       </td>
-                      <td style={{ padding: '10px 10px', color: '#64748b', fontWeight: !a.is_read ? '600' : 'normal', fontSize: 11 }}>
+                      <td style={{ padding: '11px 10px', color: '#2563eb', fontWeight: !a.is_read ? '600' : '500', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {a.assigned_professional || '—'}
+                      </td>
+                      <td style={{ padding: '10px 10px', color: '#64748b', fontWeight: !a.is_read ? '600' : 'normal', fontSize: 12 }}>
                         {a?.issued_on && a.issued_on !== '-' ? formatDate(a.issued_on) : "-"}
                       </td>
-                      <td style={{ padding: '10px 10px', color: '#dc2626', fontWeight: !a.is_read ? 700 : 500, fontSize: 11 }}>
+                      <td style={{ padding: '10px 10px', color: '#dc2626', fontWeight: !a.is_read ? 700 : 500, fontSize: 12 }}>
                         {a?.due_date && a.due_date !== '-' ? formatDate(a.due_date) : "-"}
                       </td>
                       <td style={{ padding: '10px 10px' }}>

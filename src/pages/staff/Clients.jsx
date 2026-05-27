@@ -25,15 +25,14 @@ const avatarColors = ['#1e40af', '#166534', '#7c3aed', '#9a3412', '#166534']
 // Assessment years for Notice Control - these are the fiscal year options
 const ALL_YEARS = ['2019-20', '2020-21', '2021-22', '2022-23', '2023-24', '2024-25']
 
-// Status: issue+due=Completed, issue only=Pending, assigned prof=Completed
+// Status: issue+due=Completed, issue only=Pending
 const getStatus = (item) => {
   const hasIssueDate = !!(item?.issued_on || item?.issue_date)
   const hasDueDate = !!(item?.due_date || item?.response_due_date)
   if (hasIssueDate && hasDueDate) return 'Completed'
   if (hasIssueDate && !hasDueDate) return 'Pending'
-  if (item?.assigned_professional) return 'Completed'
-  if (item?.status) return item.status
-  return 'Pending'
+  if (item?.is_completed || (item?.status || '').toLowerCase() === 'completed') return 'Completed'
+  return item?.status || item?.workflow_status || 'Pending'
 }
 
 export default function Clients() {
@@ -393,15 +392,37 @@ export default function Clients() {
                                 uniqueProfessionals.map(profName => (
                                   <div
                                     key={profName}
-                                    onClick={() => {
-                                      setClients(prev => prev.map(cl => {
-                                        if ((cl.id || clients.indexOf(cl)) === (c.id || i)) {
-                                          return { ...cl, assigned_professional: profName, status: 'completed' }
+                                    onClick={async () => {
+                                        // Find professional id from loaded professionals
+                                        const profObj = professionals.find(p => (p.name || p.professional_name || '').toLowerCase() === (profName || '').toLowerCase())
+                                        try {
+                                          if (profObj && profObj.id) {
+                                            await userService.assignProfessional(c.id, profObj.id)
+                                          } else {
+                                            // Fallback: attempt to call API with professional name if id not found
+                                            await userService.assignProfessional(c.id, profName)
+                                          }
+                                        } catch (err) {
+                                          console.warn('assignProfessional API failed:', err)
                                         }
-                                        return cl
-                                      }))
-                                      setAssignDropdownOpen(null)
-                                    }}
+
+                                        // Update local clients state for immediate UI feedback
+                                        setClients(prev => prev.map(cl => {
+                                          if ((cl.id || clients.indexOf(cl)) === (c.id || i)) {
+                                            return { ...cl, assigned_professional: profName, status: 'completed' }
+                                          }
+                                          return cl
+                                        }))
+
+                                        // Notify other dashboards to refresh or update UI
+                                        try {
+                                          window.dispatchEvent(new CustomEvent('professionalAssigned', { detail: { userId: c.id, professionalName: profName } }))
+                                        } catch (e) {
+                                          // ignore if dispatch not supported
+                                        }
+
+                                        setAssignDropdownOpen(null)
+                                      }}
                                     style={{
                                       padding: '9px 14px',
                                       fontSize: 12,

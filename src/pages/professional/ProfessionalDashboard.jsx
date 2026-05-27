@@ -359,7 +359,7 @@ export default function ProfessionalDashboard() {
             <div>
               <p
                 style={{
-                  fontSize: 14,
+                  fontSize: 15,
                   fontWeight: 600,
                   color: '#1e293b'
                 }}
@@ -369,7 +369,7 @@ export default function ProfessionalDashboard() {
 
               <p
                 style={{
-                  fontSize: 11,
+                  fontSize: 12,
                   color: '#94a3b8',
                   marginTop: 4
                 }}
