@@ -25,17 +25,6 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      if (form.username === 'admin123' && form.password === 'admin123') {
-        const adminData = {
-          access_token: 'dummy-admin-token',
-          role: 'admin',
-          username: 'Admin User'
-        }
-        login(adminData)
-        navigate('/admin/dashboard', { replace: true })
-        return
-      }
-
       const res = await authService.login({
         username: form.username,
         password: form.password

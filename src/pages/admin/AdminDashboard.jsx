@@ -48,68 +48,11 @@ export default function AdminDashboard() {
           } : null,
           status: item.assigned_status || 'Pending'
         }))
-        
-        // Add temporary hardcoded Assessee entries ONLY in Admin Dashboard
-        const hardcodedEntries = [
-          {
-            id: 'hardcoded-1',
-            name: 'Acme Corporation',
-            email: 'info@acme.com',
-            pan: 'AAACA1234A',
-            assigned_professional: { professional_name: 'Jane Doe' },
-            status: 'Completed'
-          },
-          {
-            id: 'hardcoded-2',
-            name: 'Wayne Enterprises',
-            email: 'bruce@wayne.com',
-            pan: 'WAYNE5678B',
-            assigned_professional: { professional_name: 'John Smith' },
-            status: 'Pending'
-          },
-          {
-            id: 'hardcoded-3',
-            name: 'Stark Industries',
-            email: 'tony@stark.com',
-            pan: 'STARK9012C',
-            assigned_professional: { professional_name: 'Robert Downey' },
-            status: 'Completed'
-          }
-        ]
-
-        setClients([...mapped, ...hardcodedEntries])
+        setClients(mapped)
       })
       .catch(err => {
         console.warn('searchAssignments failed:', err)
-        
-        // Fallback to hardcoded entries on error to guarantee they display correctly
-        const hardcodedEntries = [
-          {
-            id: 'hardcoded-1',
-            name: 'Acme Corporation',
-            email: 'info@acme.com',
-            pan: 'AAACA1234A',
-            assigned_professional: { professional_name: 'Jane Doe' },
-            status: 'Completed'
-          },
-          {
-            id: 'hardcoded-2',
-            name: 'Wayne Enterprises',
-            email: 'bruce@wayne.com',
-            pan: 'WAYNE5678B',
-            assigned_professional: { professional_name: 'John Smith' },
-            status: 'Pending'
-          },
-          {
-            id: 'hardcoded-3',
-            name: 'Stark Industries',
-            email: 'tony@stark.com',
-            pan: 'STARK9012C',
-            assigned_professional: { professional_name: 'Robert Downey' },
-            status: 'Completed'
-          }
-        ]
-        setClients(hardcodedEntries)
+        setClients([])
       })
       .finally(() => setLoading(false))
   }, [])
