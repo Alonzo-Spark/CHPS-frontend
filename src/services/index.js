@@ -239,6 +239,15 @@ export const professionalService = {
         console.error('getProceedingsForInformation API failed:', err)
         return { data: { data: [] } }
       }),
+
+  // Fetch notices for a professional proceeding by proceeding ID
+  getProceedingNoticesById: (proceedingId) =>
+    apiService.get(`/api/professional/proceedings/${proceedingId}/notices`)
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.error(`getProceedingNoticesById API failed for ${proceedingId}:`, err)
+        return { data: null, error: err }
+      }),
 }
 
 export const professionalWorkflowService = {

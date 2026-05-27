@@ -40,6 +40,7 @@ export default function StaffNotices() {
   
   // Filter States
   const [showFilterPanel, setShowFilterPanel] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
   const [filters, setFilters] = useState({
     status: '',
     act: '',
@@ -167,6 +168,9 @@ export default function StaffNotices() {
   }
 
   const currentList = activeTab === 'action' ? actionList : infoList
+  const filteredList = searchTerm && String(searchTerm).trim() !== ''
+    ? currentList.filter(p => ((p.assessee_name || p.proceeding_name || '')).toLowerCase().includes(searchTerm.toLowerCase()))
+    : currentList
 
   return (
     <DashboardLayout breadcrumbs={[{ label: 'Dashboard', path: '/staff/dashboard' }, { label: 'Notices' }]}>
@@ -191,20 +195,18 @@ export default function StaffNotices() {
         </div>
 
         {/* Search + Filter */}
-        {activeTab !== 'info' && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 14, gap: 12 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #cbd5e1', borderRadius: 6, padding: '8px 12px', background: '#fff' }}>
-              <Search size={14} color="#94a3b8" />
-              <input placeholder="search" style={{ border: 'none', outline: 'none', fontSize: 14, color: '#1e293b', background: 'transparent', width: 200 }} />
-            </div>
-            <button 
-              onClick={() => setShowFilterPanel(!showFilterPanel)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#fff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 14, cursor: 'pointer' }}
-            >
-              <Filter size={14} /> Filter
-            </button>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 14, gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #cbd5e1', borderRadius: 6, padding: '8px 12px', background: '#fff' }}>
+            <Search size={14} color="#94a3b8" />
+            <input placeholder={activeTab === 'info' ? 'Search assessee...' : 'search'} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: 14, color: '#1e293b', background: 'transparent', width: 200 }} />
           </div>
-        )}
+          <button 
+            onClick={() => setShowFilterPanel(!showFilterPanel)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#fff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 14, cursor: 'pointer' }}
+          >
+            <Filter size={14} /> Filter
+          </button>
+        </div>
 
         {/* Filter Panel */}
         {showFilterPanel && activeTab !== 'info' && (
@@ -307,10 +309,10 @@ export default function StaffNotices() {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 48, color: '#94a3b8' }}>Loading proceedings...</div>
-        ) : currentList.length === 0 ? (
+        ) : filteredList.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 48, color: '#94a3b8' }}>No proceedings found.</div>
         ) : (
-          currentList.map((p, idx) => {
+          filteredList.map((p, idx) => {
             if (activeTab === 'info') {
               return (
                 <div key={p.id} style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
@@ -394,7 +396,10 @@ export default function StaffNotices() {
 
                     <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center' }}>
                       <button 
-                        onClick={() => navigate(`/staff/notice-orders/${p.id}`)}
+                        onClick={() => {
+                          const target = (role === 'professional' || role === 'admin') ? p.id : p.proceeding_name
+                          navigate(`/staff/notice-orders/${encodeURIComponent(target)}`)
+                        }}
                         style={{ 
                           padding: '9px 16px', 
                           background: '#1e3a8a', 
@@ -493,8 +498,11 @@ export default function StaffNotices() {
 
                   {/* Col 3 - Action */}
                   <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center', alignItems: 'center' }}>
-                    <button
-                      onClick={() => navigate(`/staff/notice-orders/${p.id}`)}
+                      <button 
+                        onClick={() => {
+                          const target = (role === 'professional' || role === 'admin') ? p.id : p.proceeding_name
+                          navigate(`/staff/notice-orders/${encodeURIComponent(target)}`)
+                        }}
                       style={{ 
                         display: 'flex', 
                         flexDirection: 'column',
