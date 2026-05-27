@@ -110,7 +110,7 @@ export default function AdminDashboard() {
                   <div style={{ padding: '14px 28px' }}>{statusBadge(getStatus(c))}</div>
                   <div style={{ padding: '14px 28px', display: 'flex', alignItems: 'center' }}>
                     <button
-                      onClick={() => navigate(`/staff/notices?assessee=${encodeURIComponent(c.name)}`, { state: { assesseeName: c.name } })}
+                      onClick={() => navigate(`/proceedings?assessee=${encodeURIComponent(c.name)}`, { state: { assesseeName: c.name } })}
                       style={{
                         background: '#2563eb',
                         color: '#fff',

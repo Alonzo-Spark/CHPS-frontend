@@ -64,131 +64,75 @@ export default function StaffNotices() {
 
   useEffect(() => {
     setLoading(true)
-    
-    if (role === 'professional' || role === 'admin') {
-      const apiCall = activeTab === 'action' 
-        ? professionalService.getProceedingsForAction()
-        : professionalService.getProceedingsForInformation()
+    const apiCall = activeTab === 'action'
+      ? professionalService.getProceedingsForAction()
+      : professionalService.getProceedingsForInformation()
 
-      apiCall
-        .then(res => {
-          // Extract proceedings array from various possible response formats
-          let raw = []
+    apiCall
+      .then(res => {
+        // Extract proceedings array from various possible response formats
+        let raw = []
+
+        if (res?.data?.data) {
+          raw = res.data.data
+        } else if (res?.data?.proceedings) {
+          raw = res.data.proceedings
+        } else if (res?.data?.items) {
+          raw = res.data.items
+        } else if (Array.isArray(res?.data)) {
+          raw = res.data
+        } else if (Array.isArray(res)) {
+          raw = res
+        } else if (res?.items) {
+          raw = res.items
+        } else if (res?.proceedings) {
+          raw = res.proceedings
+        }
+
+        const rawList = Array.isArray(raw) ? raw : []
+
+        const mapped = rawList.map(p => {
+          const name = p.proceeding_name || p.proceeding_type || p.notice_type || 'Notice'
           
-          if (res?.data?.proceedings) {
-            raw = res.data.proceedings
-          } else if (res?.data?.items) {
-            raw = res.data.items
-          } else if (res?.data?.data) {
-            raw = res.data.data
-          } else if (Array.isArray(res?.data)) {
-            raw = res.data
-          } else if (Array.isArray(res)) {
-            raw = res
-          } else if (res?.proceedings) {
-            raw = res.proceedings
-          } else if (res?.items) {
-            raw = res.items
+          let timeline = []
+          if (Array.isArray(p.timeline)) {
+            timeline = p.timeline.map(t => ({
+              date: t.date || t.issued_on || '—',
+              label: t.label || t.status || 'Pending',
+              type: t.type || ((t.status || '').toLowerCase() === 'completed' || (t.status || '').toLowerCase() === 'closed' ? 'done' : 'open')
+            }))
+          } else {
+            timeline = [{
+              date: p.issued_on || p.created_at || '—',
+              label: p.status || 'Pending',
+              type: (p.status || '').toLowerCase() === 'completed' || (p.status || '').toLowerCase() === 'closed' ? 'done' : 'open'
+            }]
           }
-          
-          const rawList = Array.isArray(raw) ? raw : []
-          
-          console.log('StaffNotices API Response:', res)
-          console.log('Extracted proceedings array:', rawList)
-          
-          const mapped = rawList.map(p => {
-            const name = p.proceeding_name || p.proceeding_type || p.notice_type || 'Notice'
-            
-            // Map timeline safely
-            let timeline = []
-            if (Array.isArray(p.timeline)) {
-              timeline = p.timeline.map(t => ({
-                date: t.date || t.issued_on || '—',
-                label: t.label || t.status || 'Pending',
-                type: t.type || ((t.status || '').toLowerCase() === 'completed' || (t.status || '').toLowerCase() === 'closed' ? 'done' : 'open')
-              }))
-            } else {
-              timeline = [{
-                date: p.issued_on || p.created_at || '—',
-                label: p.status || 'Pending',
-                type: (p.status || '').toLowerCase() === 'completed' || (p.status || '').toLowerCase() === 'closed' ? 'done' : 'open'
-              }]
-            }
 
-            return {
-              id: p.id || p.proceeding_id || p.notice_id || String(Math.random()),
-              proceeding_name: name,
-              assessment_year: p.assessment_year || 'N/A',
-              status: p.status || 'Pending',
-              limitation_date: p.limitation_date || '—',
-              closure_date: p.closure_date || '—',
-              financial_year: p.financial_year || 'N/A',
-              closure_order: p.closure_order || '—',
-              applicable_act: p.applicable_act || 'Income Tax Act 1961',
-              pan: p.pan || p.pan_number || 'N/A',
-              assessee_name: p.assessee_name || p.user_name || 'N/A',
-              notices_count: p.notices_count || 1,
-              timeline: timeline
-            }
-          })
-          setProceedings(mapped)
+          return {
+            id: p.id || p.proceeding_id || p.notice_id || String(Math.random()),
+            proceeding_name: name,
+            assessment_year: p.assessment_year || 'N/A',
+            status: p.status || 'Pending',
+            limitation_date: p.limitation_date || '—',
+            closure_date: p.closure_date || '—',
+            financial_year: p.financial_year || 'N/A',
+            closure_order: p.closure_order || '—',
+            applicable_act: p.applicable_act || 'Income Tax Act 1961',
+            pan: p.pan || p.pan_number || 'N/A',
+            assessee_name: p.assessee_name || p.user_name || 'N/A',
+            notices_count: p.notices_count || 1,
+            timeline: timeline
+          }
         })
-        .catch(err => {
-          console.error(`Failed to load professional proceedings for tab ${activeTab}:`, err)
-          setProceedings([])
-        })
-        .finally(() => setLoading(false))
-    } else {
-      // Staff role: fetch all and group them
-      noticeService.getNotices()
-        .then(res => {
-          const notices = Array.isArray(res.data) ? res.data
-            : Array.isArray(res.data?.items) ? res.data.items
-            : []
-          const grouped = {}
-
-          notices.forEach(n => {
-            const name = n.proceeding_name || n.notice_type || 'Notice'
-            if (!grouped[name]) {
-              grouped[name] = {
-                id: n.id || n.notice_id || String(Math.random()),
-                proceeding_name: name,
-                assessment_year: n.assessment_year || 'N/A',
-                status: n.status || 'Pending',
-                limitation_date: n.limitation_date || '—',
-                closure_date: n.closure_date || '—',
-                financial_year: n.financial_year || 'N/A',
-                closure_order: n.closure_order || '—',
-                applicable_act: n.applicable_act || 'Income Tax Act 1961',
-                pan: n.pan || n.pan_number || 'N/A',
-                assessee_name: n.user_name || n.assessee_name || 'N/A',
-                notices_count: 0,
-                timeline: []
-              }
-            }
-            grouped[name].notices_count += 1
-
-            const timelineStatus = n.status || 'Pending'
-            let type = 'open'
-            if (timelineStatus.toLowerCase() === 'completed' || timelineStatus.toLowerCase() === 'closed') type = 'done'
-            if (timelineStatus.toLowerCase() === 'submitted') type = 'pending'
-
-            grouped[name].timeline.push({
-              date: n.issued_on || '—',
-              label: timelineStatus,
-              type
-            })
-          })
-
-          setProceedings(Object.values(grouped))
-        })
-        .catch(err => {
-          console.error('Failed to load notices for proceedings:', err)
-          setProceedings([])
-        })
-        .finally(() => setLoading(false))
-    }
-  }, [activeTab, role])
+        setProceedings(mapped)
+      })
+      .catch(err => {
+        console.error(`Failed to load proceedings for tab ${activeTab}:`, err)
+        setProceedings([])
+      })
+      .finally(() => setLoading(false))
+  }, [activeTab])
 
   const iconFor = (name = '') => {
     if (name.toLowerCase().includes('appeal')) return (<Scale size={15} color="#7c3aed" />)

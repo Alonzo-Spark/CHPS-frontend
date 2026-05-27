@@ -40,6 +40,7 @@ export default function App() {
 
       <Route path="/staff/dashboard" element={<ProtectedRoute allowedRoles={['staff']}><StaffDashboard /></ProtectedRoute>} />
       <Route path="/staff/notices" element={<ProtectedRoute allowedRoles={['staff', 'professional', 'admin']}><StaffNotices /></ProtectedRoute>} />
+      <Route path="/proceedings" element={<ProtectedRoute allowedRoles={['staff', 'professional', 'admin']}><StaffNotices /></ProtectedRoute>} />
       <Route path="/staff/notice-orders/:id" element={<ProtectedRoute allowedRoles={['staff', 'professional', 'admin']}><NoticeOrders /></ProtectedRoute>} />
       <Route path="/staff/proceeding/:id" element={<ProtectedRoute allowedRoles={['staff']}><Proceeding /></ProtectedRoute>} />
       <Route path="/staff/clients" element={<ProtectedRoute allowedRoles={['staff']}><Clients /></ProtectedRoute>} />
