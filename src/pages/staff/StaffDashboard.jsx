@@ -66,8 +66,7 @@ export default function StaffDashboard() {
               notice_id: noticeId,
               user: n.user || n.user_name || n.professional_name || "N/A",
               user_name: n.user || n.user_name || n.professional_name || "N/A",
-              proceeding_name: n.proceeding_name || n.notice_type || "N/A",
-              reference_id: n.reference_id || `REF-${noticeId}`,
+              proceeding_name: n.proceeding_name || n.notice_type || "N/A",              assessment_year: n.assessment_year || n.financial_year || 'N/A',              reference_id: n.reference_id || `REF-${noticeId}`,
               issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
               due_date: n.due_date || "-",
               assigned_professional: n.assigned_professional || n.professional_name || "—",
@@ -140,6 +139,7 @@ export default function StaffDashboard() {
             user: n.user || n.user_name || n.professional_name || 'N/A',
             user_name: n.user || n.user_name || n.professional_name || 'N/A',
             proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
+            assessment_year: n.assessment_year || n.financial_year || 'N/A',
             reference_id: n.reference_id || `REF-${noticeId}`,
             issued_on: n.issued_on || n.assigned_at || n.createdAt || '-',
             due_date: n.due_date || '-',
@@ -476,26 +476,27 @@ export default function StaffDashboard() {
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
               <colgroup>
-                <col style={{ width: '15%' }} />
+                <col style={{ width: '14%' }} />
                 <col style={{ width: '18%' }} />
+                <col style={{ width: '12%' }} />
                 <col style={{ width: '15%' }} />
+                <col style={{ width: '13%' }} />
+                <col style={{ width: '13%' }} />
                 <col style={{ width: '15%' }} />
-                <col style={{ width: '15%' }} />
-                <col style={{ width: '22%' }} />
               </colgroup>
               <thead>
                 <tr>
-                  {['User', 'Proceeding Name', 'Assigned Professional', 'Issued On', 'Due Date', 'Notice'].map(h => (
+                  {['User', 'Proceeding Name', 'Assessment Year', 'Assigned Professional', 'Issued On', 'Due Date', 'Notice'].map(h => (
                     <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 11 }}>Loading assignments...</td></tr>
+                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 11 }}>Loading assignments...</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 11 }}>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 11 }}>
                       No data available
                     </td>
                   </tr>
@@ -527,6 +528,9 @@ export default function StaffDashboard() {
                         title="Click to view e-Proceeding"
                       >
                         {a.proceeding_name}
+                      </td>
+                      <td style={{ padding: '11px 10px', color: '#64748b', fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {a.assessment_year || 'N/A'}
                       </td>
                       <td style={{ padding: '11px 10px', color: '#2563eb', fontWeight: !a.is_read ? '600' : '500', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {a.assigned_professional || '—'}

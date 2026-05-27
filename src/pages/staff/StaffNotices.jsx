@@ -33,7 +33,8 @@ const TlDot = ({ type }) => {
 
 
 export default function StaffNotices() {
-  const [proceedings, setProceedings] = useState([])
+  const [actionProceedings, setActionProceedings] = useState([])
+  const [infoProceedings, setInfoProceedings] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('action')
   
@@ -61,78 +62,83 @@ export default function StaffNotices() {
 
   const location = useLocation()
   const filterAssessee = location.state?.assesseeName || new URLSearchParams(location.search).get('assessee')
+  const proceedings = activeTab === 'action' ? actionProceedings : infoProceedings
+
+  const normalizeProceeding = (p) => {
+    const name = p.proceeding_name || p.proceeding_type || p.notice_type || 'Notice'
+    let timeline = []
+
+    if (Array.isArray(p.timeline)) {
+      timeline = p.timeline.map(t => ({
+        date: t.date || t.issued_on || '—',
+        label: t.label || t.status || 'Pending',
+        type: t.type || ((t.status || '').toLowerCase() === 'completed' || (t.status || '').toLowerCase() === 'closed' ? 'done' : 'open')
+      }))
+    } else {
+      timeline = [{
+        date: p.issued_on || p.created_at || '—',
+        label: p.status || 'Pending',
+        type: (p.status || '').toLowerCase() === 'completed' || (p.status || '').toLowerCase() === 'closed' ? 'done' : 'open'
+      }]
+    }
+
+    return {
+      id: p.id || p.proceeding_id || p.notice_id || String(Math.random()),
+      proceeding_name: name,
+      assessment_year: p.assessment_year || p.financial_year || 'N/A',
+      status: p.status || 'Pending',
+      limitation_date: p.limitation_date || '—',
+      closure_date: p.closure_date || '—',
+      financial_year: p.financial_year || 'N/A',
+      closure_order: p.closure_order || '—',
+      applicable_act: p.applicable_act || 'Income Tax Act 1961',
+      pan: p.pan || p.pan_number || 'N/A',
+      assessee_name: p.assessee_name || p.user_name || 'N/A',
+      notices_count: p.notices_count || 1,
+      timeline: timeline
+    }
+  }
+
+  const extractProceedings = (res) => {
+    let raw = []
+    if (res?.data?.data) raw = res.data.data
+    else if (res?.data?.proceedings) raw = res.data.proceedings
+    else if (res?.data?.items) raw = res.data.items
+    else if (Array.isArray(res?.data)) raw = res.data
+    else if (Array.isArray(res)) raw = res
+    else if (res?.items) raw = res.items
+    else if (res?.proceedings) raw = res.proceedings
+    return Array.isArray(raw) ? raw : []
+  }
 
   useEffect(() => {
     setLoading(true)
-    const apiCall = activeTab === 'action'
-      ? professionalService.getProceedingsForAction()
-      : professionalService.getProceedingsForInformation()
 
-    apiCall
-      .then(res => {
-        // Extract proceedings array from various possible response formats
-        let raw = []
+    const fetchActionData = async () => {
+      try {
+        const res = await professionalService.getProceedingsForAction()
+        const raw = extractProceedings(res)
+        setActionProceedings(raw.map(normalizeProceeding))
+      } catch (err) {
+        console.error('Action API error:', err)
+        setActionProceedings([])
+      }
+    }
 
-        if (res?.data?.data) {
-          raw = res.data.data
-        } else if (res?.data?.proceedings) {
-          raw = res.data.proceedings
-        } else if (res?.data?.items) {
-          raw = res.data.items
-        } else if (Array.isArray(res?.data)) {
-          raw = res.data
-        } else if (Array.isArray(res)) {
-          raw = res
-        } else if (res?.items) {
-          raw = res.items
-        } else if (res?.proceedings) {
-          raw = res.proceedings
-        }
+    const fetchInformationData = async () => {
+      try {
+        const res = await professionalService.getProceedingsForInformation()
+        const raw = extractProceedings(res)
+        setInfoProceedings(raw.map(normalizeProceeding))
+      } catch (err) {
+        console.error('Information API error:', err)
+        setInfoProceedings([])
+      }
+    }
 
-        const rawList = Array.isArray(raw) ? raw : []
-
-        const mapped = rawList.map(p => {
-          const name = p.proceeding_name || p.proceeding_type || p.notice_type || 'Notice'
-          
-          let timeline = []
-          if (Array.isArray(p.timeline)) {
-            timeline = p.timeline.map(t => ({
-              date: t.date || t.issued_on || '—',
-              label: t.label || t.status || 'Pending',
-              type: t.type || ((t.status || '').toLowerCase() === 'completed' || (t.status || '').toLowerCase() === 'closed' ? 'done' : 'open')
-            }))
-          } else {
-            timeline = [{
-              date: p.issued_on || p.created_at || '—',
-              label: p.status || 'Pending',
-              type: (p.status || '').toLowerCase() === 'completed' || (p.status || '').toLowerCase() === 'closed' ? 'done' : 'open'
-            }]
-          }
-
-          return {
-            id: p.id || p.proceeding_id || p.notice_id || String(Math.random()),
-            proceeding_name: name,
-            assessment_year: p.assessment_year || 'N/A',
-            status: p.status || 'Pending',
-            limitation_date: p.limitation_date || '—',
-            closure_date: p.closure_date || '—',
-            financial_year: p.financial_year || 'N/A',
-            closure_order: p.closure_order || '—',
-            applicable_act: p.applicable_act || 'Income Tax Act 1961',
-            pan: p.pan || p.pan_number || 'N/A',
-            assessee_name: p.assessee_name || p.user_name || 'N/A',
-            notices_count: p.notices_count || 1,
-            timeline: timeline
-          }
-        })
-        setProceedings(mapped)
-      })
-      .catch(err => {
-        console.error(`Failed to load proceedings for tab ${activeTab}:`, err)
-        setProceedings([])
-      })
+    Promise.all([fetchActionData(), fetchInformationData()])
       .finally(() => setLoading(false))
-  }, [activeTab])
+  }, [])
 
   const iconFor = (name = '') => {
     if (name.toLowerCase().includes('appeal')) return (<Scale size={15} color="#7c3aed" />)
@@ -146,13 +152,14 @@ export default function StaffNotices() {
   }
 
   const isProfessionalOrAdmin = role === 'professional' || role === 'admin'
-  let actionList = isProfessionalOrAdmin && activeTab === 'action' 
-    ? proceedings 
-    : proceedings.filter(p => p.status?.toLowerCase() !== 'completed' && p.status?.toLowerCase() !== 'closed')
-  
-  let infoList = isProfessionalOrAdmin && activeTab === 'info' 
-    ? proceedings 
-    : proceedings.filter(p => p.status?.toLowerCase() === 'completed' || p.status?.toLowerCase() === 'closed')
+
+  let actionList = isProfessionalOrAdmin 
+    ? actionProceedings 
+    : actionProceedings.filter(p => p.status?.toLowerCase() !== 'completed' && p.status?.toLowerCase() !== 'closed')
+
+  let infoList = isProfessionalOrAdmin 
+    ? infoProceedings 
+    : infoProceedings.filter(p => p.status?.toLowerCase() === 'completed' || p.status?.toLowerCase() === 'closed')
 
   if (filterAssessee) {
     actionList = actionList.filter(p => (p.assessee_name || '').toLowerCase().includes(filterAssessee.toLowerCase()))
