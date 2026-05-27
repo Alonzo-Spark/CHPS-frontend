@@ -25,16 +25,14 @@ const avatarColors = ['#1e40af', '#166534', '#7c3aed', '#9a3412', '#166534']
 // Assessment years for Notice Control - these are the fiscal year options
 const ALL_YEARS = ['2019-20', '2020-21', '2021-22', '2022-23', '2023-24', '2024-25']
 
-// Compute status dynamically from dates when no explicit status from API
+// Status: issue+due=Completed, issue only=Pending, assigned prof=Completed
 const getStatus = (item) => {
+  const hasIssueDate = !!(item?.issued_on || item?.issue_date)
+  const hasDueDate = !!(item?.due_date || item?.response_due_date)
+  if (hasIssueDate && hasDueDate) return 'Completed'
+  if (hasIssueDate && !hasDueDate) return 'Pending'
+  if (item?.assigned_professional) return 'Completed'
   if (item?.status) return item.status
-  const today = new Date()
-  const due = item?.due_date ? new Date(item.due_date) : null
-  const issue = item?.issued_on || item?.created_at ? new Date(item.issued_on || item.created_at) : null
-  if (item?.isCompleted || item?.is_completed) return 'Completed'
-  if (issue && today < issue) return 'Pending'
-  if (issue && due && today >= issue && today < due) return 'In Progress'
-  if (due && today >= due) return 'Overdue'
   return 'Pending'
 }
 
@@ -136,11 +134,9 @@ export default function Clients() {
       (c?.email || '').toLowerCase().includes(search.toLowerCase()) ||
       (c?.assigned_professional?.professional_name || c?.assigned_professional || '').toLowerCase().includes(search.toLowerCase())
 
-    const cStatus = (c?.status || 'pending').toLowerCase()
+    const cStatus = getStatus(c).toLowerCase()
     const targetStatus = appliedStatus.toLowerCase()
-    const statusMatch = !appliedStatus ||
-      cStatus === targetStatus ||
-      (targetStatus === 'in progress' && cStatus === 'under review')
+    const statusMatch = !appliedStatus || cStatus === targetStatus
 
     const cProf = (c?.assigned_professional?.professional_name || c?.assigned_professional || '').toLowerCase()
     const profMatch = !appliedProfessional || cProf === appliedProfessional.toLowerCase()
@@ -153,9 +149,9 @@ export default function Clients() {
 
   const stats = [
     { label: 'Total Users', value: (clients || []).length, color: '#1e293b', bar: '#2563eb' },
-    { label: 'Under Review', value: (clients || []).filter(c => (c?.status || '').toLowerCase() === 'under review').length, color: '#d97706', bar: '#d97706' },
-    { label: 'Pending', value: (clients || []).filter(c => !c?.status || (c?.status || '').toLowerCase() === 'pending').length, color: '#dc2626', bar: '#dc2626' },
-    { label: 'Completed', value: (clients || []).filter(c => (c?.status || '').toLowerCase() === 'completed').length, color: '#16a34a', bar: '#16a34a' },
+    { label: 'Under Review', value: (clients || []).filter(c => getStatus(c).toLowerCase() === 'under review').length, color: '#d97706', bar: '#d97706' },
+    { label: 'Pending', value: (clients || []).filter(c => getStatus(c).toLowerCase() === 'pending').length, color: '#dc2626', bar: '#dc2626' },
+    { label: 'Completed', value: (clients || []).filter(c => getStatus(c).toLowerCase() === 'completed').length, color: '#16a34a', bar: '#16a34a' },
   ]
 
   return (
@@ -228,7 +224,6 @@ export default function Clients() {
                 >
                   <option value="">All Status</option>
                   <option value="pending">Pending</option>
-                  <option value="in progress">In Progress</option>
                   <option value="completed">Completed</option>
                 </select>
               </div>
@@ -317,15 +312,15 @@ export default function Clients() {
             </div>
           )}
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, tableLayout: 'fixed' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: '14%' }} /><col style={{ width: '16%' }} /><col style={{ width: '11%' }} />
-              <col style={{ width: '14%' }} /><col style={{ width: '9%' }} /><col style={{ width: '9%' }} /><col style={{ width: '27%' }} />
+              <col style={{ width: '14%' }} /><col style={{ width: '15%' }} /><col style={{ width: '11%' }} />
+              <col style={{ width: '16%' }} /><col style={{ width: '10%' }} /><col style={{ width: '10%' }} /><col style={{ width: '24%' }} />
             </colgroup>
             <thead>
               <tr>
                 {['User', 'Email', 'PAN', 'Assigned Professional', 'Status', 'Action', 'Notice Control'].map(h => (
-                  <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '9px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                  <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -347,11 +342,11 @@ export default function Clients() {
                 ) : (
                   filtered.map((c, i) => (
                     <tr key={c.id || i} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
-                      <td style={{ padding: '11px 10px' }}>
+                      <td style={{ padding: '12px 10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span 
+                          <span
                             onClick={() => navigate(`/staff/notices`)}
-                            style={{ fontWeight: 600, fontSize: 12, cursor: 'pointer', color: '#1e3a8a' }}
+                            style={{ fontWeight: 600, fontSize: 13, cursor: 'pointer', color: '#1e3a8a' }}
                             onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
                             onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
                           >
@@ -359,12 +354,12 @@ export default function Clients() {
                           </span>
                         </div>
                       </td>
-                      <td style={{ padding: '11px 10px' }}>{c.email}</td>
-                      <td style={{ padding: '11px 10px', color: '#64748b', fontSize: 11 }}>{c.pan}</td>
-                      <td style={{ padding: '11px 10px', color: '#1e3a8a', fontWeight: 500 }}>
+                      <td style={{ padding: '12px 10px', fontSize: 13 }}>{c.email}</td>
+                      <td style={{ padding: '12px 10px', color: '#64748b', fontSize: 12 }}>{c.pan}</td>
+                      <td style={{ padding: '12px 10px', color: '#1e3a8a', fontWeight: 500, fontSize: 13 }}>
                         {c.assigned_professional?.professional_name || c.assigned_professional}
                       </td>
-                      <td style={{ padding: '11px 10px' }}>{statusBadge(getStatus(c))}</td>
+                      <td style={{ padding: '12px 10px' }}>{statusBadge(getStatus(c))}</td>
                       <td style={{ padding: '11px 10px', position: 'relative' }}>
                         <button
                           style={{ background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
@@ -401,7 +396,7 @@ export default function Clients() {
                                     onClick={() => {
                                       setClients(prev => prev.map(cl => {
                                         if ((cl.id || clients.indexOf(cl)) === (c.id || i)) {
-                                          return { ...cl, assigned_professional: profName }
+                                          return { ...cl, assigned_professional: profName, status: 'completed' }
                                         }
                                         return cl
                                       }))

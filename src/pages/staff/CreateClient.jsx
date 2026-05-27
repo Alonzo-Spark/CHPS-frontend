@@ -48,6 +48,7 @@ export default function CreateClient() {
         password: form.password,
         email: form.email.trim().toLowerCase(),
         professional_id: Number(form.professional_id),
+        referred_by_phone: form.referred_by_phone.trim(),
         ...(form.referred_by.trim() && { referred_by: form.referred_by.trim() })
       }
 

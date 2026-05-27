@@ -3,6 +3,7 @@ import ProtectedRoute from './routes/ProtectedRoute'
 import LoginPage from './pages/auth/LoginPage'
 import RegisterPage from './pages/auth/RegisterPage'
 import PasswordSetupPage from './pages/auth/PasswordSetupPage'
+import AdminActionPage from './pages/auth/AdminActionPage'
 import StaffDashboard from './pages/staff/StaffDashboard'
 import StaffNotices from './pages/staff/StaffNotices'
 import NoticeOrders from './pages/staff/NoticeOrders'
@@ -31,10 +32,15 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/password-setup" element={<PasswordSetupPage />} />
+      <Route path="/complete-registration" element={<PasswordSetupPage />} />
+      <Route path="/approve-registration" element={<AdminActionPage action="approve" />} />
+      <Route path="/approve-registration/:token" element={<AdminActionPage action="approve" />} />
+      <Route path="/reject-registration" element={<AdminActionPage action="reject" />} />
+      <Route path="/reject-registration/:token" element={<AdminActionPage action="reject" />} />
 
       <Route path="/staff/dashboard" element={<ProtectedRoute allowedRoles={['staff']}><StaffDashboard /></ProtectedRoute>} />
-      <Route path="/staff/notices" element={<ProtectedRoute allowedRoles={['staff', 'professional']}><StaffNotices /></ProtectedRoute>} />
-      <Route path="/staff/notice-orders/:id" element={<ProtectedRoute allowedRoles={['staff', 'professional']}><NoticeOrders /></ProtectedRoute>} />
+      <Route path="/staff/notices" element={<ProtectedRoute allowedRoles={['staff', 'professional', 'admin']}><StaffNotices /></ProtectedRoute>} />
+      <Route path="/staff/notice-orders/:id" element={<ProtectedRoute allowedRoles={['staff', 'professional', 'admin']}><NoticeOrders /></ProtectedRoute>} />
       <Route path="/staff/proceeding/:id" element={<ProtectedRoute allowedRoles={['staff']}><Proceeding /></ProtectedRoute>} />
       <Route path="/staff/clients" element={<ProtectedRoute allowedRoles={['staff']}><Clients /></ProtectedRoute>} />
       <Route path="/staff/clients/:notice_id/proceedings" element={<ProtectedRoute allowedRoles={['staff']}><ClientProceedings /></ProtectedRoute>} />

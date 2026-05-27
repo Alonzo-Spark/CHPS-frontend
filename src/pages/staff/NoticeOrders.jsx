@@ -7,13 +7,11 @@ import { useAuth } from '../../context/AuthContext'
 
 
 const getStatus = (item) => {
+  const hasIssueDate = !!(item?.issued_on || item?.issue_date)
+  const hasDueDate = !!(item?.due_date || item?.response_due_date)
+  if (hasIssueDate && hasDueDate) return 'completed'
+  if (hasIssueDate && !hasDueDate) return 'pending'
   if (item?.is_completed || (item?.status || '').toLowerCase() === 'completed') return 'completed'
-  const today = new Date()
-  const due = item?.response_due_date || item?.due_date ? new Date(item.response_due_date || item.due_date) : null
-  const issue = item?.issued_on ? new Date(item.issued_on) : null
-  if (issue && today < issue) return 'pending'
-  if (issue && due && today >= issue && today < due) return 'in progress'
-  if (due && today >= due) return 'pending'
   return item?.status || 'pending'
 }
 
@@ -58,7 +56,7 @@ export default function NoticeOrders() {
   const [assignedCaseTitle, setAssignedCaseTitle] = useState("")
   const [deadline, setDeadline] = useState("")
   const [department, setDepartment] = useState("")
-  const [statusText, setStatusText] = useState("In Progress")
+  const [statusText, setStatusText] = useState("Pending")
 
   const [assignedNotes, setAssignedNotes] = useState("")
   const [reviewingNotes, setReviewingNotes] = useState("")
@@ -166,7 +164,7 @@ export default function NoticeOrders() {
           const n = wf.notice
           setAssignedCaseTitle(n.proceeding_name || n.description || '')
           setDeadline(n.response_due_date || n.issued_on || '')
-          setStatusText(n.status || 'In Progress')
+          setStatusText(getStatus(n))
           setProceeding({
   proceedingName:
     wf.proceeding_details?.proceeding_name ||
@@ -233,7 +231,7 @@ setNotices(prev => {
           setOrigApproved(w.approved_notes || '')
           setOrigClosed(w.closed_notes || '')
           
-          setStatusText(w.workflow_status || wf.notice?.status || 'In Progress')
+          setStatusText(w.workflow_status || wf.notice?.status || 'Pending')
         }
 
         // Bind activity
@@ -537,32 +535,32 @@ setNotices(prev => {
             <div key={n.id || n.notice_id || idx} style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
               <div style={{ background: '#f8fafc', borderBottom: '0.5px solid #e2e8f0', padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <FileText size={15} color="#2563eb" />
-                <p style={{ fontSize: 12, fontWeight: 500, color: '#1e293b', flex: 1 }}>
+                <p style={{ fontSize: 14, fontWeight: 500, color: '#1e293b', flex: 1 }}>
                   Reference ID: <span style={{ fontFamily: 'monospace', color: '#1d4ed8' }}>{n.reference_id || "—"}</span>
                 </p>
                 {statusBadge(getStatus(n))}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 110px' }}>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0' }}>
-                  <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Section</p>
-                  <p style={{ fontSize: 22, fontWeight: 500, color: '#1e293b', lineHeight: 1.1 }}>{n.section || extractSection(n.description) || "—"}</p>
-                  <p style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Notice u/s</p>
+                  <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Section</p>
+                  <p style={{ fontSize: 24, fontWeight: 500, color: '#1e293b', lineHeight: 1.1 }}>{n.section || extractSection(n.description) || "—"}</p>
+                  <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Notice u/s</p>
 
                   <div style={{ marginTop: 16 }}>
-                    <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Description</p>
-                    <p style={{ fontSize: 12, color: '#1e293b', lineHeight: 1.6, marginTop: 2 }}>{n.description || "—"}</p>
+                    <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Description</p>
+                    <p style={{ fontSize: 13, color: '#1e293b', lineHeight: 1.6, marginTop: 2 }}>{n.description || "—"}</p>
                   </div>
                 </div>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0' }}>
-                  <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Document reference ID</p>
-                  <p style={{ fontSize: 11, color: '#1d4ed8', fontFamily: 'monospace', marginTop: 2, lineHeight: 1.5 }}>{n.document_reference_id || n.reference_id || "—"}</p>
+                  <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Document reference ID</p>
+                  <p style={{ fontSize: 12, color: '#1d4ed8', fontFamily: 'monospace', marginTop: 2, lineHeight: 1.5 }}>{n.document_reference_id || n.reference_id || "—"}</p>
                   <div style={{ marginTop: 16 }}>
-                    <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Issued on</p>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{n.issued_on || "—"}</p>
+                    <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Issued on</p>
+                    <p style={{ fontSize: 14, fontWeight: 500, color: '#1e293b' }}>{n.issued_on || "—"}</p>
                   </div>
                   <div style={{ marginTop: 10 }}>
-                    <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Response due</p>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: '#dc2626' }}>{n.response_due_date || n.due_date || "—"}</p>
+                    <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Response due</p>
+                    <p style={{ fontSize: 14, fontWeight: 500, color: '#dc2626' }}>{n.response_due_date || n.due_date || "—"}</p>
                   </div>
                 </div>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Search, Filter, FileText, Mail, Scale, Eye, Check, ArrowLeft } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { noticeService } from '../../services'
+import { noticeService, professionalService } from '../../services'
 
 const statusBadge = (status = '') => {
   const s = (status || '').toLowerCase().trim()
@@ -59,69 +59,141 @@ export default function StaffNotices() {
   const navigate = useNavigate()
   const role = localStorage.getItem('role')?.toLowerCase()
 
+  const location = useLocation()
+  const filterAssessee = location.state?.assesseeName || new URLSearchParams(location.search).get('assessee')
+
   useEffect(() => {
-    noticeService.getNotices()
-      .then(res => {
-        const notices = Array.isArray(res.data) ? res.data
-          : Array.isArray(res.data?.items) ? res.data.items
-          : []
-        const grouped = {}
+    setLoading(true)
+    
+    if (role === 'professional' || role === 'admin') {
+      const apiCall = activeTab === 'action' 
+        ? professionalService.getProceedingsForAction()
+        : professionalService.getProceedingsForInformation()
 
-        notices.forEach(n => {
-          const name = n.proceeding_name || n.notice_type || 'Notice'
-          if (!grouped[name]) {
-            grouped[name] = {
-              id: n.id || n.notice_id || String(Math.random()),
-              proceeding_name: name,
-              assessment_year: n.assessment_year || 'N/A',
-              status: n.status || 'In Progress',
-              limitation_date: n.limitation_date || '—',
-              closure_date: n.closure_date || '—',
-              financial_year: n.financial_year || 'N/A',
-              closure_order: n.closure_order || '—',
-              applicable_act: n.applicable_act || 'Income Tax Act 1961',
-              pan: n.pan || n.pan_number || 'N/A',
-              assessee_name: n.user_name || n.assessee_name || 'N/A',
-              notices_count: 0,
-              timeline: []
+      apiCall
+        .then(res => {
+          const raw = res.data?.proceedings || res.data?.items || res.data?.data || (Array.isArray(res.data) ? res.data : [])
+          const rawList = Array.isArray(raw) ? raw : []
+          
+          const mapped = rawList.map(p => {
+            const name = p.proceeding_name || p.proceeding_type || p.notice_type || 'Notice'
+            
+            // Map timeline safely
+            let timeline = []
+            if (Array.isArray(p.timeline)) {
+              timeline = p.timeline.map(t => ({
+                date: t.date || t.issued_on || '—',
+                label: t.label || t.status || 'Pending',
+                type: t.type || ((t.status || '').toLowerCase() === 'completed' || (t.status || '').toLowerCase() === 'closed' ? 'done' : 'open')
+              }))
+            } else {
+              timeline = [{
+                date: p.issued_on || p.created_at || '—',
+                label: p.status || 'Pending',
+                type: (p.status || '').toLowerCase() === 'completed' || (p.status || '').toLowerCase() === 'closed' ? 'done' : 'open'
+              }]
             }
-          }
-          grouped[name].notices_count += 1
 
-          const timelineStatus = n.status || 'Pending'
-          let type = 'open'
-          if (timelineStatus.toLowerCase() === 'completed' || timelineStatus.toLowerCase() === 'closed') type = 'done'
-          if (timelineStatus.toLowerCase() === 'submitted') type = 'pending'
-
-          grouped[name].timeline.push({
-            date: n.issued_on || '—',
-            label: timelineStatus,
-            type
+            return {
+              id: p.id || p.proceeding_id || p.notice_id || String(Math.random()),
+              proceeding_name: name,
+              assessment_year: p.assessment_year || 'N/A',
+              status: p.status || 'Pending',
+              limitation_date: p.limitation_date || '—',
+              closure_date: p.closure_date || '—',
+              financial_year: p.financial_year || 'N/A',
+              closure_order: p.closure_order || '—',
+              applicable_act: p.applicable_act || 'Income Tax Act 1961',
+              pan: p.pan || p.pan_number || 'N/A',
+              assessee_name: p.assessee_name || p.user_name || 'N/A',
+              notices_count: p.notices_count || 1,
+              timeline: timeline
+            }
           })
+          setProceedings(mapped)
         })
+        .catch(err => {
+          console.error(`Failed to load professional proceedings for tab ${activeTab}:`, err)
+          setProceedings([])
+        })
+        .finally(() => setLoading(false))
+    } else {
+      // Staff role: fetch all and group them
+      noticeService.getNotices()
+        .then(res => {
+          const notices = Array.isArray(res.data) ? res.data
+            : Array.isArray(res.data?.items) ? res.data.items
+            : []
+          const grouped = {}
 
-        setProceedings(Object.values(grouped))
-      })
-      .catch(err => {
-        console.error('Failed to load notices for proceedings', err)
-        setProceedings([])
-      })
-      .finally(() => setLoading(false))
-  }, [])
+          notices.forEach(n => {
+            const name = n.proceeding_name || n.notice_type || 'Notice'
+            if (!grouped[name]) {
+              grouped[name] = {
+                id: n.id || n.notice_id || String(Math.random()),
+                proceeding_name: name,
+                assessment_year: n.assessment_year || 'N/A',
+                status: n.status || 'Pending',
+                limitation_date: n.limitation_date || '—',
+                closure_date: n.closure_date || '—',
+                financial_year: n.financial_year || 'N/A',
+                closure_order: n.closure_order || '—',
+                applicable_act: n.applicable_act || 'Income Tax Act 1961',
+                pan: n.pan || n.pan_number || 'N/A',
+                assessee_name: n.user_name || n.assessee_name || 'N/A',
+                notices_count: 0,
+                timeline: []
+              }
+            }
+            grouped[name].notices_count += 1
+
+            const timelineStatus = n.status || 'Pending'
+            let type = 'open'
+            if (timelineStatus.toLowerCase() === 'completed' || timelineStatus.toLowerCase() === 'closed') type = 'done'
+            if (timelineStatus.toLowerCase() === 'submitted') type = 'pending'
+
+            grouped[name].timeline.push({
+              date: n.issued_on || '—',
+              label: timelineStatus,
+              type
+            })
+          })
+
+          setProceedings(Object.values(grouped))
+        })
+        .catch(err => {
+          console.error('Failed to load notices for proceedings:', err)
+          setProceedings([])
+        })
+        .finally(() => setLoading(false))
+    }
+  }, [activeTab, role])
 
   const iconFor = (name = '') => {
-  if (name.toLowerCase().includes('appeal')) return (<Scale size={15} color="#7c3aed" />)
-  if (name.toLowerCase().includes('letter')) return (<Mail size={15} color="#d97706" />)
-  return (<FileText size={15} color="#2563eb" />)
-}
+    if (name.toLowerCase().includes('appeal')) return (<Scale size={15} color="#7c3aed" />)
+    if (name.toLowerCase().includes('letter')) return (<Mail size={15} color="#d97706" />)
+    return (<FileText size={15} color="#2563eb" />)
+  }
 
   const statusFor = (p) => {
     if (p.status) return p.status
-    return 'In Progress'
+    return 'Pending'
   }
 
-  const actionList = proceedings.filter(p => p.status?.toLowerCase() !== 'completed' && p.status?.toLowerCase() !== 'closed')
-  const infoList = proceedings.filter(p => p.status?.toLowerCase() === 'completed' || p.status?.toLowerCase() === 'closed')
+  const isProfessionalOrAdmin = role === 'professional' || role === 'admin'
+  let actionList = isProfessionalOrAdmin && activeTab === 'action' 
+    ? proceedings 
+    : proceedings.filter(p => p.status?.toLowerCase() !== 'completed' && p.status?.toLowerCase() !== 'closed')
+  
+  let infoList = isProfessionalOrAdmin && activeTab === 'info' 
+    ? proceedings 
+    : proceedings.filter(p => p.status?.toLowerCase() === 'completed' || p.status?.toLowerCase() === 'closed')
+
+  if (filterAssessee) {
+    actionList = actionList.filter(p => (p.assessee_name || '').toLowerCase().includes(filterAssessee.toLowerCase()))
+    infoList = infoList.filter(p => (p.assessee_name || '').toLowerCase().includes(filterAssessee.toLowerCase()))
+  }
+
   const currentList = activeTab === 'action' ? actionList : infoList
 
   return (
@@ -135,15 +207,15 @@ export default function StaffNotices() {
                 navigate(-1)
               } else {
                 const r = localStorage.getItem('role')
-                navigate(r === 'professional' ? '/professional/dashboard' : '/staff/dashboard')
+                navigate(r === 'professional' ? '/professional-dashboard' : r === 'admin' ? '/admin/dashboard' : '/staff/dashboard')
               }
             }}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 12, marginBottom: 10, padding: 0 }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 13, marginBottom: 10, padding: 0 }}
           >
             <ArrowLeft size={14} />
             <span>Back</span>
           </button>
-          <h2 style={{ fontSize: 24, fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>e-Proceeding</h2>
+          <h2 style={{ fontSize: 25, fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>e-Proceeding</h2>
         </div>
 
         {/* Search + Filter */}
@@ -151,11 +223,11 @@ export default function StaffNotices() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 14, gap: 12 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #cbd5e1', borderRadius: 6, padding: '8px 12px', background: '#fff' }}>
               <Search size={14} color="#94a3b8" />
-              <input placeholder="search" style={{ border: 'none', outline: 'none', fontSize: 13, color: '#1e293b', background: 'transparent', width: 200 }} />
+              <input placeholder="search" style={{ border: 'none', outline: 'none', fontSize: 14, color: '#1e293b', background: 'transparent', width: 200 }} />
             </div>
             <button 
               onClick={() => setShowFilterPanel(!showFilterPanel)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#fff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 13, cursor: 'pointer' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#fff', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 14, cursor: 'pointer' }}
             >
               <Filter size={14} /> Filter
             </button>
@@ -254,7 +326,7 @@ export default function StaffNotices() {
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              style={{ padding: '8px 16px', fontSize: 13, fontWeight: activeTab === key ? 500 : 400, color: activeTab === key ? '#2563eb' : '#64748b', border: 'none', background: 'none', cursor: 'pointer', borderBottom: activeTab === key ? '2px solid #2563eb' : '2px solid transparent', marginBottom: -1.5 }}
+              style={{ padding: '8px 16px', fontSize: 14, fontWeight: activeTab === key ? 500 : 400, color: activeTab === key ? '#2563eb' : '#64748b', border: 'none', background: 'none', cursor: 'pointer', borderBottom: activeTab === key ? '2px solid #2563eb' : '2px solid transparent', marginBottom: -1.5 }}
             >
               {label}
             </button>
@@ -273,14 +345,14 @@ export default function StaffNotices() {
                   {/* Info Header */}
                   <div style={{ background: '#f1f5f9', borderBottom: '0.5px solid #e2e8f0', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 13, color: '#64748b' }}>Proceeding Name :</span>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>
+                      <span style={{ fontSize: 14, color: '#64748b' }}>Proceeding Name :</span>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: '#1e293b' }}>
                         {p.proceeding_name}
                       </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 13, color: '#64748b' }}>Assessment Year :</span>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>{p.assessment_year}</span>
+                      <span style={{ fontSize: 14, color: '#64748b' }}>Assessment Year :</span>
+                      <span style={{ fontSize: 15, fontWeight: 600, color: '#1e293b' }}>{p.assessment_year}</span>
                     </div>
                   </div>
 
@@ -289,12 +361,12 @@ export default function StaffNotices() {
                     {/* Col 1: PAN & Assessee */}
                     <div style={{ padding: '16px 20px', borderRight: '0.5px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>PAN</p>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: '#1e293b' }}>{p.pan}</p>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>PAN</p>
+                        <p style={{ fontSize: 15, fontWeight: 700, color: '#1e293b' }}>{p.pan}</p>
                       </div>
                       <div>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>Name of Assessee</p>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', lineHeight: 1.3 }}>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>Name of Assessee</p>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', lineHeight: 1.3 }}>
                           {p.assessee_name}
                         </p>
                       </div>
@@ -321,8 +393,8 @@ export default function StaffNotices() {
                               <TlDot type={t.type || 'done'} />
                             </div>
                             <div>
-                              <p style={{ fontSize: 13, fontWeight: 600, color: '#334155', lineHeight: '1.2' }}>{t.date}</p>
-                              <p style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{t.label}</p>
+                              <p style={{ fontSize: 14, fontWeight: 600, color: '#334155', lineHeight: '1.2' }}>{t.date}</p>
+                              <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{t.label}</p>
                             </div>
                           </div>
                         ))}
@@ -331,19 +403,19 @@ export default function StaffNotices() {
 
                     {/* Col 3: Details List */}
                     <div style={{ padding: '16px 20px', borderRight: '0.5px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center' }}>
-                      <p style={{ fontSize: 12, color: '#64748b' }}>
+                      <p style={{ fontSize: 13, color: '#64748b' }}>
                         Proceeding Limitation Date : <span style={{ fontWeight: 600, color: '#334155' }}>{p.limitation_date}</span>
                       </p>
-                      <p style={{ fontSize: 12, color: '#64748b' }}>
+                      <p style={{ fontSize: 13, color: '#64748b' }}>
                         Proceeding Closure Date : <span style={{ fontWeight: 600, color: '#334155' }}>{p.closure_date}</span>
                       </p>
-                      <p style={{ fontSize: 12, color: '#64748b' }}>
+                      <p style={{ fontSize: 13, color: '#64748b' }}>
                         Financial Year : <span style={{ fontWeight: 600, color: '#334155' }}>{p.financial_year}</span>
                       </p>
-                      <p style={{ fontSize: 12, color: '#64748b' }}>
+                      <p style={{ fontSize: 13, color: '#64748b' }}>
                         Proceeding Closure Order : <span style={{ fontWeight: 600, color: '#1d4ed8', fontFamily: 'monospace' }}>{p.closure_order}</span>
                       </p>
-                      <p style={{ fontSize: 12, color: '#64748b' }}>
+                      <p style={{ fontSize: 13, color: '#64748b' }}>
                         Applicable Act : <span style={{ fontWeight: 600, color: '#334155' }}>{p.applicable_act}</span>
                       </p>
                     </div>
@@ -357,7 +429,7 @@ export default function StaffNotices() {
                           color: '#fff', 
                           border: 'none', 
                           borderRadius: 6, 
-                          fontSize: 12, 
+                          fontSize: 13, 
                           fontWeight: 600, 
                           cursor: 'pointer',
                           width: '100%',
@@ -380,14 +452,14 @@ export default function StaffNotices() {
                 <div style={{ background: '#f8fafc', borderBottom: '0.5px solid #e2e8f0', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {iconFor(p.proceeding_name)}
-                    <span style={{ fontSize: 12, color: '#64748b' }}>Proceeding Name :</span>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>
+                    <span style={{ fontSize: 13, color: '#64748b' }}>Proceeding Name :</span>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: '#1e293b' }}>
                       {p.proceeding_name}
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 12, color: '#64748b' }}>Assessment Year :</span>
-                    <span style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{p.assessment_year}</span>
+                    <span style={{ fontSize: 13, color: '#64748b' }}>Assessment Year :</span>
+                    <span style={{ fontSize: 14, fontWeight: 500, color: '#1e293b' }}>{p.assessment_year}</span>
                     <span style={{ marginLeft: 6 }}>{statusBadge(statusFor(p))}</span>
                   </div>
                 </div>
@@ -398,18 +470,18 @@ export default function StaffNotices() {
                     {/* PAN & Assessee beside timeline */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 120 }}>
                       <div>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>PAN</p>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', fontFamily: 'monospace' }}>{p.pan || '—'}</p>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>PAN</p>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', fontFamily: 'monospace' }}>{p.pan || '—'}</p>
                       </div>
                       <div>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>Name of Assessee</p>
-                        <p style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', lineHeight: 1.3 }}>{p.assessee_name || '—'}</p>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>Name of Assessee</p>
+                        <p style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', textTransform: 'uppercase', lineHeight: 1.3 }}>{p.assessee_name || '—'}</p>
                       </div>
                     </div>
 
                     {/* Activity Timeline */}
                     <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: 10, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 14 }}>Activity Timeline</p>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 14 }}>Activity Timeline</p>
                       <div style={{ position: 'relative', paddingLeft: 22, maxHeight: 150, overflowY: 'auto', scrollBehavior: 'smooth' }}>
                         {p.timeline && p.timeline.length > 1 && (
                           <div style={{ position: 'absolute', left: 6, top: 8, bottom: 8, width: '1.5px', backgroundColor: '#cbd5e1', zIndex: 0 }} />
@@ -420,8 +492,8 @@ export default function StaffNotices() {
                               <TlDot type={t.type || 'open'} />
                             </div>
                             <div>
-                              <p style={{ fontSize: 13, fontWeight: 500, color: '#334155', lineHeight: '1.2' }}>{t.date}</p>
-                              <p style={{ fontSize: 12, color: t.type === 'done' ? '#16a34a' : t.type === 'open' ? '#2563eb' : '#ea580c', fontWeight: 500, marginTop: 2 }}>{t.label}</p>
+                              <p style={{ fontSize: 14, fontWeight: 500, color: '#334155', lineHeight: '1.2' }}>{t.date}</p>
+                              <p style={{ fontSize: 13, color: t.type === 'done' ? '#16a34a' : t.type === 'open' ? '#2563eb' : '#ea580c', fontWeight: 500, marginTop: 2 }}>{t.label}</p>
                             </div>
                           </div>
                         ))}
@@ -433,17 +505,17 @@ export default function StaffNotices() {
                   <div style={{ padding: '16px 20px', borderRight: '0.5px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {p.limitation_date && p.limitation_date !== '-' && (
                       <div>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>Proceeding Limitation Date</p>
-                        <p style={{ fontSize: 13, fontWeight: 500, color: '#334155' }}>{p.limitation_date}</p>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>Proceeding Limitation Date</p>
+                        <p style={{ fontSize: 14, fontWeight: 500, color: '#334155' }}>{p.limitation_date}</p>
                       </div>
                     )}
                     <div>
-                      <p style={{ fontSize: 10, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>Financial Year</p>
-                      <p style={{ fontSize: 13, fontWeight: 500, color: '#334155' }}>{p.financial_year}</p>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>Financial Year</p>
+                      <p style={{ fontSize: 14, fontWeight: 500, color: '#334155' }}>{p.financial_year}</p>
                     </div>
                     <div>
-                      <p style={{ fontSize: 10, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>Applicable Act</p>
-                      <p style={{ fontSize: 13, fontWeight: 500, color: '#334155' }}>{p.applicable_act || 'Income Tax Act 1961'}</p>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 3 }}>Applicable Act</p>
+                      <p style={{ fontSize: 14, fontWeight: 500, color: '#334155' }}>{p.applicable_act || 'Income Tax Act 1961'}</p>
                     </div>
                   </div>
 
@@ -462,7 +534,7 @@ export default function StaffNotices() {
                         color: '#fff', 
                         border: 'none', 
                         borderRadius: 8, 
-                        fontSize: 12, 
+                        fontSize: 13, 
                         fontWeight: 600, 
                         cursor: 'pointer',
                         width: '100%',
@@ -481,7 +553,7 @@ export default function StaffNotices() {
           })
         )}
 
-        <p style={{ fontSize: 12, color: '#64748b', textAlign: 'center', padding: '4px 0' }}>
+        <p style={{ fontSize: 13, color: '#64748b', textAlign: 'center', padding: '4px 0' }}>
           Showing {proceedings.length} proceedings
         </p>
       </div>

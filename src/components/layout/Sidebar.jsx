@@ -9,12 +9,12 @@ export default function Sidebar() {
   const role = user?.role?.toLowerCase() || 'staff'
 
   const navItems = [
-    { label: 'Dashboard', icon: LayoutDashboard, path: role === 'professional' ? '/professional-dashboard' : '/staff/dashboard' },
+    { label: 'Dashboard', icon: LayoutDashboard, path: role === 'professional' ? '/professional-dashboard' : role === 'admin' ? '/admin/dashboard' : '/staff/dashboard' },
     { label: 'Clients', icon: Users, path: '/staff/clients' },
     { label: 'Tasks', icon: CheckSquare, path: '#' },
     { label: 'Documents', icon: FileText, path: '#' },
   ].filter(item => {
-    if (role === 'professional') {
+    if (role === 'professional' || role === 'admin') {
       return item.label === 'Dashboard'
     } else {
       return item.label === 'Dashboard' || item.label === 'Clients'
@@ -22,7 +22,7 @@ export default function Sidebar() {
   })
 
   return (
-    <aside style={{ width: 190, background: '#1a2340', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
+    <aside style={{ width: 250, background: '#1a2340', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
       <div style={{ padding: '15px 14px', borderBottom: '0.5px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', gap: 9 }}>
         <div style={{ width: 30, height: 30, background: '#2563eb', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#fff', flexShrink: 0 }}>AP</div>
         <div>

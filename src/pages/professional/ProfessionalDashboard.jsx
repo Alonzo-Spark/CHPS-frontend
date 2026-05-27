@@ -5,6 +5,16 @@ import DashboardLayout from '../../layouts/DashboardLayout'
 import { dashboardService, professionalDashboardService, noticeService, noticeControlService } from '../../services'
 
 
+// Status: issue+due=Completed, issue only=Pending
+const getStatus = (item) => {
+  const hasIssueDate = !!(item?.issued_on || item?.issue_date)
+  const hasDueDate = !!(item?.due_date || item?.response_due_date)
+  if (hasIssueDate && hasDueDate) return 'Completed'
+  if (hasIssueDate && !hasDueDate) return 'Pending'
+  if (item?.is_completed || (item?.status || '').toLowerCase() === 'completed') return 'Completed'
+  return item?.status || item?.workflow_status || 'Pending'
+}
+
 export default function ProfessionalDashboard() {
   const [summary, setSummary] = useState(null)
   const [assignments, setAssignments] = useState([])
@@ -88,6 +98,7 @@ export default function ProfessionalDashboard() {
            user: uName,
            user_name: uName,
            proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
+           professional_name: n.professional_name || n.assigned_professional?.professional_name || n.assigned_professional || '—',
            reference_id: n.reference_id || `REF-${noticeId}`,
            assessment_year: n.assessment_year || n.year || 'N/A',
            issued_on: n.issued_on || '-',
@@ -127,6 +138,7 @@ export default function ProfessionalDashboard() {
           user: uName,
           user_name: uName,
           proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
+          professional_name: n.professional_name || n.assigned_professional?.professional_name || n.assigned_professional || '—',
           reference_id: n.reference_id || `REF-${noticeId}`,
           assessment_year: n.assessment_year || n.year || 'N/A',
           issued_on: n.issued_on || '-',
@@ -253,7 +265,7 @@ export default function ProfessionalDashboard() {
     const matchesSearch =
       !term ||
       (a.user || '').toLowerCase().includes(term) ||
-      (a.reference_id || '').toLowerCase().includes(term) ||
+      (a.professional_name || '').toLowerCase().includes(term) ||
       String(a.notice_id || '').includes(term)
 
     const issuedDate =
@@ -523,8 +535,8 @@ export default function ProfessionalDashboard() {
               >
                 <option value="">All Status</option>
                 <option value="pending">Pending</option>
-                <option value="assigned">Assigned</option>
-                <option value="in progress">In Progress</option>
+                <option value="completed">Completed</option>
+
               </select>
 
               <button 
@@ -622,7 +634,7 @@ export default function ProfessionalDashboard() {
                   {[
                     'User',
                     'Proceeding Name',
-                    'Reference ID',
+                    'Professional Name',
                     'Assessment Year',
                     'Issued On',
                     'Due Date',
@@ -635,7 +647,7 @@ export default function ProfessionalDashboard() {
                       style={{
                         padding: 12,
                         textAlign: 'left',
-                        fontSize: 11,
+                        fontSize: 12,
                         color: '#64748b'
                       }}
                     >
@@ -701,7 +713,7 @@ export default function ProfessionalDashboard() {
                           borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent',
                           transition: 'border-left-color 0.3s ease',
                           fontWeight: !a.is_read ? '700' : 'normal',
-                          fontSize: 11
+                          fontSize: 13
                         }}
                       >
                         <div 
@@ -735,23 +747,23 @@ export default function ProfessionalDashboard() {
                           fontWeight: !a.is_read ? '700' : '600',
                           color: !a.is_read ? '#1e293b' : '#334155',
                           cursor: 'pointer',
-                          fontSize: 11
+                          fontSize: 13
                         }}
                         onClick={() => handleViewNotice(a)}
                       >
                         {a.proceeding_name}
                       </td>
 
-                      {/* REFERENCE */}
+                      {/* PROFESSIONAL NAME */}
                       <td
                         style={{
                           padding: 12,
                           color: '#2563eb',
                           fontWeight: !a.is_read ? '600' : 'normal',
-                          fontSize: 11
+                          fontSize: 13
                         }}
                       >
-                        {a.reference_id}
+                        {a.professional_name}
                       </td>
 
                       {/* ASSESSMENT YEAR */}
@@ -760,14 +772,14 @@ export default function ProfessionalDashboard() {
                           padding: 12,
                           color: '#475569',
                           fontWeight: !a.is_read ? '600' : 'normal',
-                          fontSize: 11
+                          fontSize: 13
                         }}
                       >
                         {a.assessment_year || 'N/A'}
                       </td>
 
                       {/* ISSUED */}
-                      <td style={{ padding: 12, fontWeight: !a.is_read ? '600' : 'normal', fontSize: 11 }}>
+                      <td style={{ padding: 12, fontWeight: !a.is_read ? '600' : 'normal', fontSize: 13 }}>
                         {formatDate(a.issued_on)}
                       </td>
 
@@ -777,7 +789,7 @@ export default function ProfessionalDashboard() {
                           padding: 12,
                           color: '#dc2626',
                           fontWeight: !a.is_read ? '700' : 'normal',
-                          fontSize: 11
+                          fontSize: 13
                         }}
                       >
                         {formatDate(a.due_date)}

@@ -5,16 +5,13 @@ import DashboardLayout from '../../layouts/DashboardLayout'
 import { dashboardService, noticeService } from '../../services'
 
 
-// Compute status dynamically from item dates when no explicit status from API
+// Status: issue+due=Completed, issue only=Pending, fallback to API status
 const getStatus = (item) => {
+  const hasIssueDate = !!(item?.issued_on || item?.issue_date)
+  const hasDueDate = !!(item?.due_date || item?.response_due_date)
+  if (hasIssueDate && hasDueDate) return 'Completed'
+  if (hasIssueDate && !hasDueDate) return 'Pending'
   if (item?.is_completed || (item?.status || '').toLowerCase() === 'completed') return 'Completed'
-  const today = new Date()
-  const due = item?.response_due_date || item?.due_date ? new Date(item.response_due_date || item.due_date) : null
-  const issue = item?.issued_on ? new Date(item.issued_on) : null
-  if (item?.isCompleted) return 'Completed'
-  if (issue && today < issue) return 'Pending'
-  if (issue && due && today >= issue && today < due) return 'In Progress'
-  if (due && today >= due) return 'Overdue'
   return item?.status || item?.workflow_status || 'Pending'
 }
 
@@ -266,7 +263,7 @@ export default function StaffDashboard() {
                 <Search size={16} color="#64748b" />
                 <input
                   type="text"
-                  placeholder="Search user, reference ID..."
+                  placeholder="Search user..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   style={{
@@ -379,7 +376,6 @@ export default function StaffDashboard() {
                   <option value="">All Assessments</option>
                   <option value="pending">Pending</option>
                   <option value="completed">Completed</option>
-                  <option value="in_progress">In Progress</option>
                 </select>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -445,31 +441,34 @@ export default function StaffDashboard() {
           )}
 
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11, tableLayout: 'fixed' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
               <colgroup>
-                <col style={{ width: '16.66%' }} /><col style={{ width: '16.66%' }} /><col style={{ width: '16.66%' }} />
-                <col style={{ width: '16.66%' }} /><col style={{ width: '16.66%' }} /><col style={{ width: '16.66%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '20%' }} />
               </colgroup>
               <thead>
                 <tr>
-                  {['User', 'Proceeding Name', 'Reference ID', 'Issued On', 'Due Date', 'Notice'].map(h => (
-                    <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '9px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                  {['User', 'Proceeding Name', 'Issued On', 'Due Date', 'Notice'].map(h => (
+                    <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 11 }}>Loading assignments...</td></tr>
+                  <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 11 }}>Loading assignments...</td></tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 11 }}>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 11 }}>
                       No data available
                     </td>
                   </tr>
                 ) : (
                   filtered.map((a, i) => (
                     <tr key={a.notice_id || i} style={{ borderBottom: '0.5px solid #f1f5f9', background: !a.is_read ? '#e0f2fe' : 'transparent', transition: 'all 0.3s ease' }}>
-                      <td style={{ padding: '10px 10px', color: '#1e293b', verticalAlign: 'middle', borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent', transition: 'border-left-color 0.3s ease', fontSize: 11 }}>
+                      <td style={{ padding: '11px 10px', color: '#1e293b', verticalAlign: 'middle', borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent', transition: 'border-left-color 0.3s ease', fontSize: 13 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                           {!a.is_read && (
                             <span 
@@ -489,14 +488,11 @@ export default function StaffDashboard() {
                         </div>
                       </td>
                       <td
-                        style={{ padding: '10px 10px', fontWeight: !a.is_read ? 700 : 600, color: !a.is_read ? '#1e293b' : '#334155', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11 }}
+                        style={{ padding: '11px 10px', fontWeight: !a.is_read ? 700 : 600, color: !a.is_read ? '#1e293b' : '#334155', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}
                         onClick={() => navigate('/staff/notices')}
                         title="Click to view e-Proceeding"
                       >
                         {a.proceeding_name}
-                      </td>
-                      <td style={{ padding: '10px 10px', fontFamily: 'monospace', fontSize: 11, color: '#1d4ed8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: !a.is_read ? '600' : 'normal' }}>
-                        {a?.reference_id || "N/A"}
                       </td>
                       <td style={{ padding: '10px 10px', color: '#64748b', fontWeight: !a.is_read ? '600' : 'normal', fontSize: 11 }}>
                         {a?.issued_on && a.issued_on !== '-' ? formatDate(a.issued_on) : "-"}

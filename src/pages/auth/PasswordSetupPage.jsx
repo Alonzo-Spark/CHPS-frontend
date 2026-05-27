@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ShieldCheck, Lock, Eye, EyeOff } from 'lucide-react'
 import { authService } from '../../services'
@@ -9,10 +9,30 @@ export default function PasswordSetupPage() {
   const [showCpw, setShowCpw] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [verifying, setVerifying] = useState(true)
+  const [tokenValid, setTokenValid] = useState(false)
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
 
   const token = searchParams.get('token') || ''
+
+  useEffect(() => {
+    if (!token) {
+      setError('Missing verification token.')
+      setVerifying(false)
+      return
+    }
+    authService.verifyEmail(token)
+      .then((res) => {
+        setTokenValid(true)
+      })
+      .catch((err) => {
+        setError(err.response?.data?.detail || err.response?.data?.message || 'Invalid or expired registration token.')
+      })
+      .finally(() => {
+        setVerifying(false)
+      })
+  }, [token])
 
   const checks = {
     length: form.password.length >= 8,
@@ -27,6 +47,7 @@ export default function PasswordSetupPage() {
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    if (!tokenValid) { setError('Invalid token. Cannot set password.'); return }
     if (!allValid) { setError('Please fix password requirements.'); return }
     setLoading(true)
     try {
@@ -64,53 +85,64 @@ export default function PasswordSetupPage() {
           <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#dc2626' }}>{error}</div>
         )}
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#374151', textTransform: 'uppercase', letterSpacing: '.06em', display: 'block', marginBottom: 6 }}>Password</label>
-            <div style={{ position: 'relative' }}>
-              <Lock size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-              <input type={showPw ? 'text' : 'password'} placeholder="••••••••••••" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} style={inputStyle} />
-              <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
-                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
-            </div>
-            <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 5 }}>Minimum 8 characters, including symbols and numbers.</p>
+        {verifying ? (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <p style={{ fontSize: 13, color: '#64748b' }}>Verifying your secure link, please wait...</p>
           </div>
-
-          {/* Live validation */}
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 14px', marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
-            {[
-              { key: 'length', label: 'Min 8 characters' },
-              { key: 'upper', label: 'Uppercase letter' },
-              { key: 'lower', label: 'Lowercase letter' },
-              { key: 'digit', label: 'At least one digit' },
-            ].map(({ key, label }) => (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
-                <span style={{ color: checks[key] ? '#16a34a' : '#94a3b8', fontWeight: 700 }}>{checks[key] ? '✓' : '○'}</span>
-                <span style={{ color: checks[key] ? '#16a34a' : '#64748b' }}>{label}</span>
+        ) : !tokenValid ? (
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <p style={{ fontSize: 14, color: '#dc2626', fontWeight: 600 }}>Verification Failed</p>
+            <p style={{ fontSize: 12, color: '#64748b', marginTop: 8 }}>This link is invalid, expired, or has already been used.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: '#374151', textTransform: 'uppercase', letterSpacing: '.06em', display: 'block', marginBottom: 6 }}>Password</label>
+              <div style={{ position: 'relative' }}>
+                <Lock size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <input type={showPw ? 'text' : 'password'} placeholder="••••••••••••" value={form.password} onChange={e => setForm({ ...form, password: e.target.value })} style={inputStyle} />
+                <button type="button" onClick={() => setShowPw(!showPw)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
+                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
-            ))}
-          </div>
-
-          <div style={{ marginBottom: 24 }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: '#374151', textTransform: 'uppercase', letterSpacing: '.06em', display: 'block', marginBottom: 6 }}>Confirm Password</label>
-            <div style={{ position: 'relative' }}>
-              <ShieldCheck size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: checks.match ? '#16a34a' : '#94a3b8' }} />
-              <input type={showCpw ? 'text' : 'password'} placeholder="••••••••••••" value={form.confirm_password} onChange={e => setForm({ ...form, confirm_password: e.target.value })} style={inputStyle} />
-              <button type="button" onClick={() => setShowCpw(!showCpw)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
-                {showCpw ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+              <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 5 }}>Minimum 8 characters, including symbols and numbers.</p>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            style={{ width: '100%', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '13px', fontSize: 14, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-          >
-            {loading ? 'Setting Password...' : 'Register →'}
-          </button>
-        </form>
+            {/* Live validation */}
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 14px', marginBottom: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px' }}>
+              {[
+                { key: 'length', label: 'Min 8 characters' },
+                { key: 'upper', label: 'Uppercase letter' },
+                { key: 'lower', label: 'Lowercase letter' },
+                { key: 'digit', label: 'At least one digit' },
+              ].map(({ key, label }) => (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11 }}>
+                  <span style={{ color: checks[key] ? '#16a34a' : '#94a3b8', fontWeight: 700 }}>{checks[key] ? '✓' : '○'}</span>
+                  <span style={{ color: checks[key] ? '#16a34a' : '#64748b' }}>{label}</span>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginBottom: 24 }}>
+              <label style={{ fontSize: 11, fontWeight: 600, color: '#374151', textTransform: 'uppercase', letterSpacing: '.06em', display: 'block', marginBottom: 6 }}>Confirm Password</label>
+              <div style={{ position: 'relative' }}>
+                <ShieldCheck size={14} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: checks.match ? '#16a34a' : '#94a3b8' }} />
+                <input type={showCpw ? 'text' : 'password'} placeholder="••••••••••••" value={form.confirm_password} onChange={e => setForm({ ...form, confirm_password: e.target.value })} style={inputStyle} />
+                <button type="button" onClick={() => setShowCpw(!showCpw)} style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
+                  {showCpw ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              style={{ width: '100%', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 8, padding: '13px', fontSize: 14, fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            >
+              {loading ? 'Setting Password...' : 'Register →'}
+            </button>
+          </form>
+        )}
 
         <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '12px 14px', marginTop: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
           <ShieldCheck size={16} color="#64748b" />

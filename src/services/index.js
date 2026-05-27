@@ -25,12 +25,24 @@ export const authService = {
     }
     return apiService.post('/api/auth/verify-token', { token }).then(res => ({ data: res }));
   },
-  register: (data) => apiService.post('/api/auth/register', data).then(res => ({ data: res })),
+  register: (data) => {
+    const roleLower = (data.role || '').toLowerCase();
+    const mappedRole = (roleLower === 'professor' || roleLower === 'professional') ? 'professional' : roleLower || 'staff';
+    const payload = {
+      full_name: data.username || data.full_name || '',
+      email: data.email,
+      phone_number: data.phone_number,
+      role: mappedRole
+    };
+    return apiService.post('/api/auth/register', payload).then(res => ({ data: res }));
+  },
   sendVerification: (data) => apiService.post('/api/auth/send-verification', data).then(res => ({ data: res })),
   verifyEmail: (token) => apiService.get(`/api/auth/verify-email/${token}`).then(res => ({ data: res })),
   setPassword: (data) => apiService.post('/api/auth/set-password', data).then(res => ({ data: res })),
   completeRegistration: (data) => apiService.post('/api/auth/complete-registration', data).then(res => ({ data: res })),
-  registrationStatus: (userId) => apiService.get(`/api/auth/registration-status/${userId}`).then(res => ({ data: res }))
+  registrationStatus: (userId) => apiService.get(`/api/auth/registration-status/${userId}`).then(res => ({ data: res })),
+  approveRegistration: (token) => apiService.get(`/api/auth/approve-registration/${token}`).then(res => ({ data: res })),
+  rejectRegistration: (token) => apiService.get(`/api/auth/reject-registration/${token}`).then(res => ({ data: res }))
 }
 
 export const dashboardService = {
@@ -146,6 +158,7 @@ export const noticeService = {
 export const assignmentService = {
   createAssignment: (data) => apiService.post('/assignments', data).then(res => ({ data: res })),
   reassignNotice: (id, data) => apiService.put(`/assignments/${id}`, data).then(res => ({ data: res })),
+  searchAssignments: (params) => apiService.get('/api/admin/assignments/search', { params }).then(res => ({ data: res })),
 }
 
 export const clientService = {
@@ -157,9 +170,17 @@ export const clientService = {
         return { data: [] };
       }),
 
-  createClient: (data) => 
-    apiService.post('/api/users/create-client', data)
-      .then(res => ({ data: res })),
+  createClient: (data) => {
+    const payload = {
+      name: data.name,
+      pan: data.pan,
+      password: data.password,
+      email: data.email,
+      phone_number: data.phone_number || data.referred_by_phone || '9876543210',
+      professional_id: Number(data.professional_id)
+    };
+    return apiService.post('/api/users/create-client', payload).then(res => ({ data: res }));
+  },
 
   getClientProceedings: async (noticeId) => {
     try {
@@ -201,6 +222,14 @@ export const professionalService = {
 
   getProfessionalUsers: (id, params) => 
     apiService.get(`/api/clients/${id}/users`, { params })
+      .then(res => ({ data: res })),
+
+  getProceedingsForAction: () => 
+    apiService.get('/api/professional/proceedings/for-action')
+      .then(res => ({ data: res })),
+
+  getProceedingsForInformation: () => 
+    apiService.get('/api/professional/proceedings/for-information')
       .then(res => ({ data: res })),
 }
 
