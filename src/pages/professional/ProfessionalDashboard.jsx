@@ -718,7 +718,7 @@ export default function ProfessionalDashboard() {
                       >
                         <div 
                           style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#1e293b' }} 
-                          onClick={() => navigate('/staff/notices')}
+                          onClick={() => navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })}
                           onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
                           onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
                         >

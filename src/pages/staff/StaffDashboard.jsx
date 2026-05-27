@@ -524,7 +524,7 @@ export default function StaffDashboard() {
                       </td>
                       <td
                         style={{ padding: '11px 10px', fontWeight: !a.is_read ? 700 : 600, color: !a.is_read ? '#1e293b' : '#334155', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}
-                        onClick={() => navigate('/staff/notices')}
+                        onClick={() => navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })}
                         title="Click to view e-Proceeding"
                       >
                         {a.proceeding_name}
