@@ -77,36 +77,36 @@ export default function ProfessionalDashboard() {
         console.log('FULL API RESPONSE:', recentRes.data)
 
         const raw = Array.isArray(recentRes.data)
-  ? recentRes.data
-  : recentRes.data?.notice_orders ||
-    recentRes.data?.recent_notices ||
-    recentRes.data?.items ||
-    recentRes.data?.data ||
-    []
+          ? recentRes.data
+          : recentRes.data?.notice_orders ||
+          recentRes.data?.recent_notices ||
+          recentRes.data?.items ||
+          recentRes.data?.data ||
+          []
 
         console.log('RAW ARRAY:', raw)
 
         const rawList = Array.isArray(raw) ? raw : []
 
-       const mapped = rawList.map(n => {
-         const noticeId = n.notice_id ?? n.id
-         const permanentlyRead = readNoticeIds.includes(noticeId)
-         const uName = n.user_name || n.client_name || n.user || 'N/A'
-         return {
-           notice_id: noticeId,
-           client_id: n.client_id || n.user_id || n.id || 0,
-           user: uName,
-           user_name: uName,
-           proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
-           professional_name: n.professional_name || n.assigned_professional?.professional_name || n.assigned_professional || '—',
-           reference_id: n.reference_id || `REF-${noticeId}`,
-           assessment_year: n.assessment_year || n.year || 'N/A',
-           issued_on: n.issued_on || '-',
-           due_date: n.response_due_date || n.due_date || '-',
-           status: n.workflow_status || n.status || 'N/A',
-           is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
-         }
-       })
+        const mapped = rawList.map(n => {
+          const noticeId = n.notice_id ?? n.id
+          const permanentlyRead = readNoticeIds.includes(noticeId)
+          const uName = n.user_name || n.client_name || n.user || 'N/A'
+          return {
+            notice_id: noticeId,
+            client_id: n.client_id || n.user_id || n.id || 0,
+            user: uName,
+            user_name: uName,
+            proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
+            professional_name: n.professional_name || n.assigned_professional?.professional_name || n.assigned_professional || '—',
+            reference_id: n.reference_id || `REF-${noticeId}`,
+            assessment_year: n.assessment_year || n.year || 'N/A',
+            issued_on: n.issued_on || '-',
+            due_date: n.response_due_date || n.due_date || '-',
+            status: n.workflow_status || n.status || 'N/A',
+            is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
+          }
+        })
 
         setAssignments(mapped)
 
@@ -254,11 +254,10 @@ export default function ProfessionalDashboard() {
   useEffect(() => {
     const count = sourceData.filter(n => !n.is_read).length
     setUnreadCount(count)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [assignments, allNotices, appliedFilters])
 
-  const filtered = sourceData.filter((a) => 
-    {
+  const filtered = sourceData.filter((a) => {
 
     const term = search.trim().toLowerCase()
 
@@ -322,17 +321,6 @@ export default function ProfessionalDashboard() {
 
       <div style={{ padding: '20px 22px' }}>
 
-        {/* Recent Notices Summary Card */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-          <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, padding: '18px 20px', minWidth: 240, display: 'inline-block' }}>
-            <p style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.07em', margin: 0 }}>Recent Notices</p>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
-              <p style={{ fontSize: 20, fontWeight: 700, color: '#2563eb', margin: 0 }}>{loading ? '...' : unreadCount}</p>
-              <span style={{ fontSize: 11, color: '#64748b', fontWeight: 600 }}>Unread</span>
-            </div>
-            <div style={{ height: 3, background: '#2563eb', borderRadius: 2, width: 44, marginTop: 12 }}></div>
-          </div>
-        </div>
 
         <div
           style={{
@@ -437,7 +425,7 @@ export default function ProfessionalDashboard() {
               >
                 <Filter size={18} />
               </button>
-              
+
 
 
             </div>
@@ -512,34 +500,8 @@ export default function ProfessionalDashboard() {
                 <option value="2025">2025</option>
               </select>
 
-              {/* STATUS */}
-              <select
-                value={filters.assessment}
-                onChange={(e) =>
-                  setFilters({
-                    ...filters,
-                    assessment: e.target.value
-                  })
-                }
-                style={{
-                  padding: '8px 12px',
-                  border: '1px solid #cbd5e1',
-                  borderRadius: 8,
-                  fontSize: 11,
-                  color: '#1e293b',
-                  background: '#fff',
-                  cursor: 'pointer',
-                  minWidth: 140,
-                  outline: 'none'
-                }}
-              >
-                <option value="">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="completed">Completed</option>
 
-              </select>
-
-              <button 
+              <button
                 onClick={handleApplyFilters}
                 style={{
                   padding: '8px 16px',
@@ -559,7 +521,7 @@ export default function ProfessionalDashboard() {
                 Apply
               </button>
 
-              <button 
+              <button
                 onClick={handleClearFilters}
                 style={{
                   padding: '8px 16px',
@@ -579,7 +541,7 @@ export default function ProfessionalDashboard() {
                 Clear
               </button>
 
-              <button 
+              <button
                 onClick={() => setShowFilterPanel(false)}
                 style={{
                   padding: '8px 16px',
@@ -643,7 +605,7 @@ export default function ProfessionalDashboard() {
                   ].map((head) => (
 
                     <th
-                       key={head}
+                      key={head}
                       style={{
                         padding: 12,
                         textAlign: 'left',
@@ -707,8 +669,8 @@ export default function ProfessionalDashboard() {
                     >
 
                       {/* USER */}
-                      <td 
-                        style={{ 
+                      <td
+                        style={{
                           padding: 12,
                           borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent',
                           transition: 'border-left-color 0.3s ease',
@@ -716,14 +678,14 @@ export default function ProfessionalDashboard() {
                           fontSize: 13
                         }}
                       >
-                        <div 
-                          style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#1e293b' }} 
+                        <div
+                          style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#1e293b' }}
                           onClick={() => navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })}
                           onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
                           onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
                         >
                           {!a.is_read && (
-                            <span 
+                            <span
                               style={{
                                 display: 'inline-block',
                                 width: 8,
@@ -732,7 +694,7 @@ export default function ProfessionalDashboard() {
                                 backgroundColor: '#2563eb',
                                 boxShadow: '0 0 8px #3b82f6',
                                 flexShrink: 0
-                              }} 
+                              }}
                               title="New/Unread"
                             />
                           )}

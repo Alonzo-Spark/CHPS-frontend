@@ -28,6 +28,15 @@ const statusBadge = (status = 'pending') => {
   )
 }
 
+const formatDate = (date) => {
+  if (!date || date === '-') return '-'
+  try {
+    return new Date(date).toLocaleDateString('en-GB')
+  } catch {
+    return '-'
+  }
+}
+
 export default function NoticeOrders() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -56,6 +65,153 @@ export default function NoticeOrders() {
     activity_title: '',
     activity_description: ''
   })
+  const [workflowDetails, setWorkflowDetails] = useState(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [stageData, setStageData] = useState({
+    assigned: '',
+    reviewing: '',
+    approved: '',
+    closed: ''
+  })
+  const [commentText, setCommentText] = useState('')
+  const [activityLogs, setActivityLogs] = useState([])
+
+  useEffect(() => {
+    if (workflowDetails?.workflow) {
+      setStageData({
+        assigned: workflowDetails.workflow.assigned_notes || '',
+        reviewing: workflowDetails.workflow.reviewing_notes || '',
+        approved: workflowDetails.workflow.approved_notes || '',
+        closed: workflowDetails.workflow.closed_notes || ''
+      })
+    }
+    if (workflowDetails?.activity) {
+      setCommentText(workflowDetails.activity.description || '')
+    }
+  }, [workflowDetails])
+
+  const getTypeFromStage = (stage) => {
+    const s = String(stage || '').toLowerCase()
+    if (s.includes('response')) return 'response'
+    if (s.includes('adjournment')) return 'adjournment'
+    if (s.includes('assigned')) return 'assigned'
+    if (s.includes('reviewing')) return 'reviewing'
+    if (s.includes('approved')) return 'approved'
+    if (s.includes('closed')) return 'closed'
+    return 'custom'
+  }
+
+  useEffect(() => {
+    if (workflowDetails) {
+      const dbEntries = []
+
+      if (Array.isArray(workflowDetails.responses)) {
+        workflowDetails.responses.forEach(r => {
+          if (r.response_submitted_on) {
+            dbEntries.push({
+              stage: 'Response submitted',
+              text: r.response_remarks || '',
+              date: r.response_submitted_on
+            })
+          }
+        })
+      }
+
+      if (Array.isArray(workflowDetails.adjournments)) {
+        workflowDetails.adjournments.forEach(a => {
+          if (a.adjournment_request_date) {
+            dbEntries.push({
+              stage: `Adjournment requested (${a.status_action || 'Pending'})`,
+              text: a.reason_for_seeking_adjournment || '',
+              date: a.adjournment_request_date
+            })
+          }
+        })
+      }
+
+      const wf = workflowDetails.workflow || {}
+      if (wf.assigned_updated_at) {
+        dbEntries.push({
+          stage: 'Assigned',
+          text: wf.assigned_notes || '',
+          date: wf.assigned_updated_at
+        })
+      }
+      if (wf.reviewing_updated_at) {
+        dbEntries.push({
+          stage: 'Reviewing',
+          text: wf.reviewing_notes || '',
+          date: wf.reviewing_updated_at
+        })
+      }
+      if (wf.approved_updated_at) {
+        dbEntries.push({
+          stage: 'Approved',
+          text: wf.approved_notes || '',
+          date: wf.approved_updated_at
+        })
+      }
+      if (wf.closed_updated_at) {
+        dbEntries.push({
+          stage: 'Closed',
+          text: wf.closed_notes || '',
+          date: wf.closed_updated_at
+        })
+      }
+
+      if (workflowDetails.activity && workflowDetails.activity.activity_date && workflowDetails.activity.title) {
+        dbEntries.push({
+          stage: workflowDetails.activity.title,
+          text: workflowDetails.activity.description || '',
+          date: workflowDetails.activity.activity_date
+        })
+      }
+
+      const sorted = dbEntries
+        .filter(item => item.date)
+        .map(item => {
+          const stage = item.stage || item.title || 'Custom'
+          const text = item.text || item.description || ''
+          const type = getTypeFromStage(stage)
+          return {
+            stage,
+            title: stage,
+            text,
+            description: text,
+            date: item.date,
+            type
+          }
+        })
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+      
+      setActivityLogs(prev => {
+        const combined = [...prev, ...sorted]
+        const singleEntryStages = ["assigned", "reviewing", "approved", "closed", "workflow comment", "comment"]
+        const stageMap = {}
+        const otherLogs = []
+        const seen = new Set()
+
+        for (const item of combined) {
+          const stageName = (item.stage || item.title || 'Custom').toLowerCase()
+          if (singleEntryStages.includes(stageName)) {
+            const existing = stageMap[stageName]
+            if (!existing || new Date(item.date) > new Date(existing.date)) {
+              stageMap[stageName] = item
+            }
+          } else {
+            const key = `${stageName}|${item.text || item.description}|${item.date}`
+            if (!seen.has(key)) {
+              seen.add(key)
+              otherLogs.push(item)
+            }
+          }
+        }
+
+        const finalLogs = [...Object.values(stageMap), ...otherLogs]
+        return finalLogs.sort((a, b) => new Date(b.date) - new Date(a.date))
+      })
+    }
+  }, [workflowDetails])
 
   // Fetch notices for this proceeding. If role is admin/professional, treat `id` as proceeding_id and call professional API.
   // Otherwise treat `id` as proceeding_name and call public proceedings API.
@@ -85,6 +241,7 @@ export default function NoticeOrders() {
             try {
               const noticeRes = await professionalWorkflowService.getWorkflow(id)
               noticeDetail = noticeRes?.data || noticeRes
+              setWorkflowDetails(noticeDetail)
             } catch (err) {
               console.warn('Failed to fetch notice workflow details', err)
             }
@@ -288,6 +445,96 @@ export default function NoticeOrders() {
     }
   }
 
+  const getTimelineEntries = () => {
+    return activityLogs
+  }
+
+  const handleSaveInlineWorkflow = async (e) => {
+    if (e && e.preventDefault) {
+      e.preventDefault()
+    }
+    try {
+      const noticeId = id
+
+      if (commentText.trim() !== '' && commentText !== (workflowDetails?.activity?.description || '')) {
+        const commentPayload = {
+          activity_title: 'Workflow comment',
+          activity_description: commentText
+        }
+        await professionalWorkflowService.addActivity(noticeId, commentPayload)
+      }
+
+      const workflowPayload = {
+        assigned_notes: stageData.assigned,
+        reviewing_notes: stageData.reviewing,
+        approved_notes: stageData.approved,
+        closed_notes: stageData.closed,
+        workflow_status: workflowDetails?.workflow?.workflow_status || 'Pending'
+      }
+
+      const res = await professionalWorkflowService.updateWorkflow(noticeId, workflowPayload)
+      if (res.data) {
+        const timestamp = new Date().toISOString()
+        
+        setActivityLogs(prevLogs => {
+          const updatedLogs = [...prevLogs];
+          
+          const processStage = (stageName, currentText) => {
+            if (!currentText || currentText.trim() === '') return;
+            
+            const index = updatedLogs.findIndex(log => (log.stage || '').toLowerCase() === stageName.toLowerCase());
+            if (index !== -1) {
+              if (updatedLogs[index].text !== currentText) {
+                updatedLogs[index] = {
+                  ...updatedLogs[index],
+                  text: currentText,
+                  description: currentText,
+                  date: timestamp
+                };
+              }
+            } else {
+              updatedLogs.push({
+                stage: stageName,
+                title: stageName,
+                text: currentText,
+                description: currentText,
+                date: timestamp,
+                type: getTypeFromStage(stageName)
+              });
+            }
+          };
+
+          processStage("Assigned", stageData.assigned);
+          processStage("Reviewing", stageData.reviewing);
+          processStage("Approved", stageData.approved);
+          processStage("Closed", stageData.closed);
+          processStage("Workflow comment", commentText);
+
+          updatedLogs.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+          return updatedLogs;
+        });
+
+        setIsEditing(false)
+
+        try {
+          const noticeRes = await professionalWorkflowService.getWorkflow(id)
+          const updatedDetail = noticeRes?.data || noticeRes
+          setWorkflowDetails(updatedDetail)
+        } catch (fetchErr) {
+          console.warn("Failed to fetch fresh workflow in background", fetchErr)
+        }
+
+        alert('Workflow updated successfully!')
+      } else {
+        alert('Failed to update workflow')
+      }
+    } catch (err) {
+      console.error('Failed to update workflow', err)
+      alert('Error saving workflow details')
+    }
+  }
+
   const filteredNotices = (notices || []).filter(n => {
     const sectionVal = extractSection(n.description || '').toLowerCase()
     const matchesSection = !appliedFilters.section || sectionVal.includes(appliedFilters.section.toLowerCase())
@@ -424,6 +671,24 @@ export default function NoticeOrders() {
                   Reference ID: <span style={{ fontFamily: 'monospace', color: '#1d4ed8' }}>{n.reference_id || "—"}</span>
                 </p>
                 {statusBadge(getStatus(n))}
+                {isProfessional && (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    style={{
+                      padding: '4px 12px',
+                      background: '#fff',
+                      color: '#2563eb',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      marginLeft: 8
+                    }}
+                  >
+                    Edit
+                  </button>
+                )}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 110px' }}>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0' }}>
@@ -470,18 +735,7 @@ export default function NoticeOrders() {
                       Seek Adjournment
                     </span>
                   </div>
-                  {(role === 'professional' || isProfessional) && (
-                    <div style={{ marginTop: 14 }}>
-                      <span
-                        onClick={() => handleManageWorkflow(n)}
-                        style={{ color: '#059669', cursor: 'pointer', fontSize: 12, fontWeight: 600, textDecoration: 'underline', display: 'inline-block' }}
-                        onMouseEnter={(e) => e.currentTarget.style.color = '#047857'}
-                        onMouseLeave={(e) => e.currentTarget.style.color = '#059669'}
-                      >
-                        Manage Workflow
-                      </span>
-                    </div>
-                  )}
+
                 </div>
                 <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
                   <button
@@ -492,6 +746,172 @@ export default function NoticeOrders() {
                   </button>
                 </div>
               </div>
+              {isProfessional && (
+                <div style={{ padding: '16px 20px', borderTop: '0.5px solid #e2e8f0', background: '#f8fafc' }}>
+                  {isEditing && (
+                    <div style={{
+                      background: '#eff6ff',
+                      border: '0.5px solid #bfdbfe',
+                      borderRadius: 8,
+                      padding: '8px 12px',
+                      color: '#1d4ed8',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      marginBottom: 16
+                    }}>
+                      Edit Mode Active — enter notes for each stage below
+                    </div>
+                  )}
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+                    {['Assigned', 'Reviewing', 'Approved', 'Closed'].map((stage) => {
+                      const stageKey = stage.toLowerCase()
+                      const notesValue = stageData[stageKey] || ''
+                      const colorMap = {
+                        Assigned: '#10b981',
+                        Reviewing: '#eab308',
+                        Approved: '#2563eb',
+                        Closed: '#6b7280'
+                      }
+
+                      return (
+                        <div key={stage} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: colorMap[stage] }}>{stage}</span>
+                          {isEditing ? (
+                            <textarea
+                              value={notesValue}
+                              onChange={(e) => setStageData({ ...stageData, [stageKey]: e.target.value })}
+                              placeholder="Notes for this stage..."
+                              style={{
+                                width: '100%',
+                                height: 80,
+                                padding: '8px 10px',
+                                borderRadius: 8,
+                                border: '1px solid #3b82f6',
+                                fontSize: 12,
+                                outline: 'none',
+                                resize: 'none',
+                                fontFamily: 'inherit',
+                                background: '#fff'
+                              }}
+                            />
+                          ) : (
+                            <div style={{
+                              height: 80,
+                              padding: '8px 10px',
+                              borderRadius: 8,
+                              border: '1px solid #e2e8f0',
+                              fontSize: 12,
+                              background: '#fff',
+                              color: notesValue ? '#1e293b' : '#94a3b8',
+                              overflowY: 'auto',
+                              whiteSpace: 'pre-wrap'
+                            }}>
+                              {notesValue || 'Notes for this stage...'}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div style={{ marginBottom: 20 }}>
+                    <p style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 10 }}>Activity</p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {getTimelineEntries().length === 0 ? (
+                        <p style={{ fontSize: 12, color: '#94a3b8' }}>No activity logged yet.</p>
+                      ) : (
+                        getTimelineEntries().map((act, index) => {
+                          const colorMap = {
+                            response: '#10b981',
+                            adjournment: '#eab308',
+                            assigned: '#10b981',
+                            reviewing: '#eab308',
+                            approved: '#2563eb',
+                            closed: '#6b7280',
+                            custom: '#3b82f6'
+                          }
+                          const dotColor = colorMap[act.type] || '#cbd5e1'
+                          return (
+                            <div key={index} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, marginTop: 4, flexShrink: 0 }} />
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: '#1e293b' }}>{act.title}</span>
+                                  <span style={{ fontSize: 10, color: '#94a3b8' }}>{formatDate(act.date)}</span>
+                                </div>
+                                {act.description && (
+                                  <p style={{ fontSize: 11, color: '#475569', margin: '3px 0 0 0' }}>{act.description}</p>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: 16 }}>
+                    {isEditing ? (
+                      <textarea
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder="Follow up or general comment..."
+                        style={{
+                          width: '100%',
+                          height: 60,
+                          padding: '8px 10px',
+                          borderRadius: 8,
+                          border: '1px solid #3b82f6',
+                          fontSize: 12,
+                          outline: 'none',
+                          resize: 'none',
+                          fontFamily: 'inherit',
+                          background: '#fff'
+                        }}
+                      />
+                    ) : (
+                      <div style={{
+                        padding: '10px 12px',
+                        borderRadius: 8,
+                        border: '1px solid #e2e8f0',
+                        fontSize: 12,
+                        background: '#fff',
+                        color: commentText ? '#1e293b' : '#94a3b8',
+                        minHeight: 40,
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        {commentText || 'Follow up or general comment...'}
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-start' }}>
+                    <button
+                      onClick={() => {
+                        if (isEditing) {
+                          handleSaveInlineWorkflow()
+                        } else {
+                          setIsEditing(true)
+                        }
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        background: '#2563eb',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {isEditing ? 'Save' : 'Update Status'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))
         )}

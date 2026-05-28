@@ -69,14 +69,14 @@ export const dashboardService = {
     };
   }),
 
-  getRecentNotices: () => 
+  getRecentNotices: () =>
     apiService.get('/api/dashboard/recent-notices')
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
         return { data: [] };
       }),
 
-  getAssignments: () => 
+  getAssignments: () =>
     apiService.get('/api/dashboard/recent-notices')
       .then(res => {
         const raw = res?.items || res || [];
@@ -91,14 +91,14 @@ export const dashboardService = {
 }
 
 export const noticeService = {
-  getNotices: () => 
+  getNotices: () =>
     apiService.get('/api/notices/all')
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
         return { data: [] };
       }),
 
-  getNoticeById: (id) => 
+  getNoticeById: (id) =>
     apiService.get(`/api/dashboard/recent-notices/view-notice/${id}`)
       .then(res => {
         console.log('✅ getNoticeById SUCCESS for ID:', id)
@@ -138,7 +138,7 @@ export const noticeService = {
     }
   },
 
-  getProceedingsNotices: (proceedingName) => 
+  getProceedingsNotices: (proceedingName) =>
     apiService.get(`/api/proceedings/${encodeURIComponent(proceedingName)}/notices`)
       .then(res => ({ data: res }))
       .catch(err => {
@@ -146,7 +146,7 @@ export const noticeService = {
         return { data: null };
       }),
 
-  getProceedings: () => 
+  getProceedings: () =>
     apiService.get('/api/proceedings')
       .then(res => ({ data: res }))
       .catch(err => {
@@ -162,7 +162,7 @@ export const assignmentService = {
 }
 
 export const clientService = {
-  getClients: () => 
+  getClients: () =>
     apiService.get('/api/users')
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
@@ -198,7 +198,7 @@ export const healthService = {
 }
 
 export const userService = {
-  getUsers: (params) => 
+  getUsers: (params) =>
     apiService.get('/api/users', { params })
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
@@ -207,12 +207,12 @@ export const userService = {
       }),
 
   runAutoAssignment: () => apiService.post('/api/users/run-auto-assignment').then(res => ({ data: res })),
-  assignProfessional: (userId, professionalId) => 
+  assignProfessional: (userId, professionalId) =>
     apiService.put(`/api/users/${userId}/assign-professional`, { professional_id: professionalId }).then(res => ({ data: res })),
 }
 
 export const professionalService = {
-  getProfessionals: () => 
+  getProfessionals: () =>
     apiService.get('/api/clients')
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
@@ -220,11 +220,11 @@ export const professionalService = {
         return { data: [] };
       }),
 
-  getProfessionalUsers: (id, params) => 
+  getProfessionalUsers: (id, params) =>
     apiService.get(`/api/clients/${id}/users`, { params })
       .then(res => ({ data: res })),
 
-  getProceedingsForAction: () => 
+  getProceedingsForAction: () =>
     apiService.get('/api/professional/proceedings/for-action')
       .then(res => ({ data: res }))
       .catch(err => {
@@ -232,7 +232,7 @@ export const professionalService = {
         return { data: { data: [] } }
       }),
 
-  getProceedingsForInformation: () => 
+  getProceedingsForInformation: () =>
     apiService.get('/api/professional/proceedings/for-information')
       .then(res => ({ data: res }))
       .catch(err => {
@@ -263,6 +263,15 @@ export const professionalWorkflowService = {
   updateWorkflow: async (noticeId, payload) => {
     try {
       const res = await apiService.put(`/api/professional/notice-workflow/${noticeId}`, payload)
+      return { data: res }
+    } catch (err) {
+      return { data: null, error: err }
+    }
+  },
+
+  addActivity: async (noticeId, payload) => {
+    try {
+      const res = await apiService.post(`/api/professional/notice-workflow/${noticeId}/activity`, payload)
       return { data: res }
     } catch (err) {
       return { data: null, error: err }

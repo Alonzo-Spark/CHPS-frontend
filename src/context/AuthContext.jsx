@@ -11,7 +11,7 @@ export function AuthProvider({ children }) {
   })
   const [token, setToken] = useState(() => localStorage.getItem('token') || localStorage.getItem('access_token'))
   const [role, setRole] = useState(() => localStorage.getItem('role')?.toLowerCase() || null)
-  
+
   // Set loading to true initially if there is a token to verify
   const [loading, setLoading] = useState(() => {
     const storedToken = localStorage.getItem('token') || localStorage.getItem('access_token')
