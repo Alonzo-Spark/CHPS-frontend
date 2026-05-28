@@ -36,7 +36,16 @@ export default function StaffNotices() {
   const [actionProceedings, setActionProceedings] = useState([])
   const [infoProceedings, setInfoProceedings] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('action')
+  const location = useLocation()
+  const defaultTab = new URLSearchParams(location.search).get('tab') || 'action'
+  const [activeTab, setActiveTab] = useState(defaultTab)
+
+  useEffect(() => {
+    const tabParam = new URLSearchParams(location.search).get('tab')
+    if (tabParam && (tabParam === 'action' || tabParam === 'info')) {
+      setActiveTab(tabParam)
+    }
+  }, [location.search])
   
   // Filter States
   const [showFilterPanel, setShowFilterPanel] = useState(false)
@@ -61,7 +70,6 @@ export default function StaffNotices() {
   const navigate = useNavigate()
   const role = localStorage.getItem('role')?.toLowerCase()
 
-  const location = useLocation()
   const filterAssessee = location.state?.assesseeName || new URLSearchParams(location.search).get('assessee')
   const proceedings = activeTab === 'action' ? actionProceedings : infoProceedings
 
@@ -88,7 +96,7 @@ export default function StaffNotices() {
       proceeding_name: name,
       assessment_year: p.assessment_year || p.financial_year || 'N/A',
       status: p.status || 'Pending',
-      limitation_date: p.limitation_date || '—',
+      limitation_date: p.limitation_date || p.proceeding_limitation_date || '—',
       closure_date: p.closure_date || '—',
       financial_year: p.financial_year || 'N/A',
       closure_order: p.closure_order || '—',
@@ -154,13 +162,8 @@ export default function StaffNotices() {
 
   const isProfessionalOrAdmin = role === 'professional' || role === 'admin'
 
-  let actionList = isProfessionalOrAdmin 
-    ? actionProceedings 
-    : actionProceedings.filter(p => p.status?.toLowerCase() !== 'completed' && p.status?.toLowerCase() !== 'closed')
-
-  let infoList = isProfessionalOrAdmin 
-    ? infoProceedings 
-    : infoProceedings.filter(p => p.status?.toLowerCase() === 'completed' || p.status?.toLowerCase() === 'closed')
+  let actionList = actionProceedings
+  let infoList = infoProceedings
 
   if (filterAssessee) {
     actionList = actionList.filter(p => (p.assessee_name || '').toLowerCase().includes(filterAssessee.toLowerCase()))
@@ -397,7 +400,7 @@ export default function StaffNotices() {
                     <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center' }}>
                       <button 
                         onClick={() => {
-                          const target = (role === 'professional' || role === 'admin') ? p.id : p.proceeding_name
+                          const target = p.proceeding_name
                           navigate(`/staff/notice-orders/${encodeURIComponent(target)}`)
                         }}
                         style={{ 
@@ -500,7 +503,7 @@ export default function StaffNotices() {
                   <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center', alignItems: 'center' }}>
                       <button 
                         onClick={() => {
-                          const target = (role === 'professional' || role === 'admin') ? p.id : p.proceeding_name
+                          const target = p.proceeding_name
                           navigate(`/staff/notice-orders/${encodeURIComponent(target)}`)
                         }}
                       style={{ 

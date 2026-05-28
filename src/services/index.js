@@ -272,10 +272,18 @@ export const professionalWorkflowService = {
 
 export const professionalDashboardService = {
   getRecentNotices: ({ limit = 20, offset = 0 } = {}) =>
-    apiService.get('/api/dashboard/recent-notices', { params: { limit, offset } })
-      .then(res => ({ data: res?.items || res || [] }))
+    apiService.get('/api/professional/dashboard/recent-notices', { params: { limit, offset } })
+      .then(res => ({ data: res?.recent_notices || res?.items || res || [] }))
       .catch(err => {
         return { data: [] };
+      }),
+
+  getNoticeDetail: (noticeId) =>
+    apiService.get(`/api/professional/dashboard/view-notice/${noticeId}`)
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.error(`getNoticeDetail API failed for ${noticeId}:`, err);
+        return { data: null, error: err };
       }),
 }
 

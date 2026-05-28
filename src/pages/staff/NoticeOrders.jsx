@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, Filter, FileText, FileType } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { noticeService, professionalWorkflowService, professionalService } from '../../services'
+import { noticeService, professionalWorkflowService, professionalService, professionalDashboardService } from '../../services'
 import { useAuth } from '../../context/AuthContext'
 
 const getStatus = (item) => {
@@ -42,6 +42,20 @@ export default function NoticeOrders() {
   const [showFilterPanel, setShowFilterPanel] = useState(false)
   const [filters, setFilters] = useState({ section: '', referenceId: '', date: '' })
   const [appliedFilters, setAppliedFilters] = useState({ section: '', referenceId: '', date: '' })
+  const [activeModal, setActiveModal] = useState(null)
+  const [modalData, setModalData] = useState(null)
+  const [refreshTrigger, setRefreshTrigger] = useState(0)
+  const [workflowForm, setWorkflowForm] = useState({
+    noticeId: null,
+    workflow_status: 'Pending',
+    current_stage: 'Pending',
+    assigned_notes: '',
+    reviewing_notes: '',
+    approved_notes: '',
+    closed_notes: '',
+    activity_title: '',
+    activity_description: ''
+  })
 
   // Fetch notices for this proceeding. If role is admin/professional, treat `id` as proceeding_id and call professional API.
   // Otherwise treat `id` as proceeding_name and call public proceedings API.
@@ -53,16 +67,68 @@ export default function NoticeOrders() {
 
         let res = null
         let payload = null
+        let resolvedProceedingDetails = null
+        let resolvedUserPan = null
+        let resolvedUserName = null
 
-        if (role === 'professional' || role === 'admin' || isProfessional) {
-          // proceeding id expected
-          res = await professionalService.getProceedingNoticesById(id)
-          payload = res?.data || res
-        } else {
-          // proceeding name expected
+        const isNumericId = /^\d+$/.test(String(id).trim())
+
+        if (!isNumericId) {
           const proceedingName = decodeURIComponent(id || '')
           res = await noticeService.getProceedingsNotices(proceedingName)
           payload = res?.data || res
+        } else {
+          if (role === 'professional' || isProfessional) {
+            let proceedingId = null
+            let noticeDetail = null
+
+            try {
+              const noticeRes = await professionalWorkflowService.getWorkflow(id)
+              noticeDetail = noticeRes?.data || noticeRes
+            } catch (err) {
+              console.warn('Failed to fetch notice workflow details', err)
+            }
+
+            if (noticeDetail && noticeDetail.notice) {
+              resolvedProceedingDetails = {
+                proceeding_name: noticeDetail.notice.proceeding_name || noticeDetail.notice.reference_id || 'N/A',
+                pan_number: noticeDetail.user?.pan || 'N/A',
+                assessee_name: noticeDetail.user?.name || 'N/A',
+                assessment_year: noticeDetail.notice.assessment_year || 'N/A',
+                financial_year: noticeDetail.notice.financial_year || 'N/A',
+                applicable_act: noticeDetail.notice.applicable_act || 'Income Tax Act 1961'
+              }
+              resolvedUserPan = noticeDetail.user?.pan
+              resolvedUserName = noticeDetail.user?.name
+              proceedingId = noticeDetail.notice.proceeding_id
+            }
+
+            let loadedFromProceeding = false
+            if (proceedingId) {
+              try {
+                res = await professionalService.getProceedingNoticesById(proceedingId)
+                payload = res?.data || res
+                loadedFromProceeding = true
+              } catch (err) {
+                console.warn('Failed to load proceeding notices, falling back to single notice', err)
+              }
+            }
+
+            if (!loadedFromProceeding && noticeDetail && noticeDetail.notice) {
+              const singleNotice = {
+                ...noticeDetail.notice,
+                notice_id: noticeDetail.notice.id,
+                section: noticeDetail.notice.notice_us,
+                due_date: noticeDetail.notice.response_due_date,
+                view_responses: noticeDetail.responses || [],
+                view_adjournments: noticeDetail.adjournments || [],
+              }
+              payload = [singleNotice]
+            }
+          } else {
+            res = await noticeService.getNoticeById(id)
+            payload = res?.data || res
+          }
         }
 
         // Normalize into array
@@ -80,11 +146,11 @@ export default function NoticeOrders() {
         }
 
         // extract proceeding details if available
-        const proc = payload?.proceeding_details || payload || {}
+        const proc = resolvedProceedingDetails || payload?.proceeding_details || payload || {}
         setProceeding({
           proceedingName: proc.proceeding_name || proc.proceedingName || payload?.proceeding_name || decodeURIComponent(id || '') || 'N/A',
-          pan: payload?.user_pan || proc.pan || payload?.pan || payload?.pan_number || 'N/A',
-          assesseeName: payload?.user_name || proc.assessee_name || payload?.assessee_name || payload?.user?.name || 'N/A',
+          pan: resolvedUserPan || payload?.user_pan || proc.pan || payload?.pan || payload?.pan_number || 'N/A',
+          assesseeName: resolvedUserName || payload?.user_name || proc.assessee_name || payload?.assessee_name || payload?.user?.name || 'N/A',
           assessmentYear: proc.assessment_year || payload?.assessment_year || 'N/A',
           financialYear: proc.financial_year || payload?.financial_year || 'N/A',
           applicableAct: proc.applicable_act || payload?.applicable_act || 'Income Tax Act 1961'
@@ -99,29 +165,9 @@ export default function NoticeOrders() {
     }
 
     if (id) fetch()
-  }, [id, role, isProfessional])
+  }, [id, role, isProfessional, refreshTrigger])
 
-  // Optional: fetch professional workflow details when viewing as professional
-  useEffect(() => {
-    const fetchWorkflow = async () => {
-      if (!(role === 'professional') || !id) return
-      try {
-        const res = await professionalWorkflowService.getWorkflow(id)
-        const wf = res?.data
-        if (!wf) return
-        if (wf.notice) {
-          setNotices(prev => (prev && prev.length > 0) ? prev : [{ ...wf.notice }])
-        }
-        // merge additional proceeding info
-        if (wf.proceeding_details) {
-          setProceeding(prev => ({ ...(prev || {}), assessmentYear: wf.proceeding_details.assessment_year || prev?.assessmentYear }))
-        }
-      } catch (e) {
-        console.warn('Workflow fetch failed:', e)
-      }
-    }
-    fetchWorkflow()
-  }, [id, role])
+
 
   const extractSection = (desc) => {
     if (!desc) return '—'
@@ -140,26 +186,105 @@ export default function NoticeOrders() {
   const handleViewResponse = async (item) => {
     try {
       const noticeId = item?.notice_id || item?.id
-      const res = await noticeService.getResponse(noticeId)
-      const payload = res?.data || {}
-      // For brevity, just open response modal or log
-      console.log('Response payload', payload)
-      alert('Response details loaded (check console)')
+      let details = null
+
+      if (role === 'professional' || isProfessional) {
+        const res = await professionalWorkflowService.getWorkflow(noticeId)
+        const wf = res?.data
+        if (wf && wf.responses && wf.responses.length > 0) {
+          details = wf.responses[0]
+        }
+      } else {
+        const res = await noticeService.getResponse(noticeId)
+        details = res?.data?.response_details || res?.response_details || res?.data || res
+      }
+
+      if (details && (details.response_remarks || details.response_submitted_on || details.response_filed_by)) {
+        setModalData(details)
+        setActiveModal('response')
+      } else {
+        setModalData({ response_remarks: 'No response found' })
+        setActiveModal('response')
+      }
     } catch (err) {
       console.warn('Fetch response failed', err)
-      alert('Failed to load response details')
+      setModalData({ response_remarks: 'No response found' })
+      setActiveModal('response')
     }
   }
 
   const handleAdjournment = async (item) => {
     try {
       const noticeId = item?.notice_id || item?.id
-      const res = await noticeService.getAdjournment(noticeId)
-      console.log('Adjournment payload', res?.data)
-      alert('Adjournment details loaded (check console)')
+      let details = null
+
+      if (role === 'professional' || isProfessional) {
+        const res = await professionalWorkflowService.getWorkflow(noticeId)
+        const wf = res?.data
+        if (wf && wf.adjournments && wf.adjournments.length > 0) {
+          details = wf.adjournments[0]
+        }
+      } else {
+        const res = await noticeService.getAdjournment(noticeId)
+        details = res?.data?.adjournment_details || res?.adjournment_details || res?.data || res
+      }
+
+      if (details && (details.reason_for_seeking_adjournment || details.adjournment_request_date || details.status_action)) {
+        setModalData(details)
+        setActiveModal('adjournment')
+      } else {
+        setModalData({ reason_for_seeking_adjournment: 'No adjournment request found' })
+        setActiveModal('adjournment')
+      }
     } catch (err) {
       console.warn('Adjournment fetch failed', err)
-      alert('Failed to load adjournment details')
+      setModalData({ reason_for_seeking_adjournment: 'No adjournment request found' })
+      setActiveModal('adjournment')
+    }
+  }
+
+  const handleManageWorkflow = async (item) => {
+    try {
+      const noticeId = item?.notice_id || item?.id
+      const res = await professionalWorkflowService.getWorkflow(noticeId)
+      const wf = res?.data
+      if (wf) {
+        setWorkflowForm({
+          noticeId: noticeId,
+          workflow_status: wf.workflow?.workflow_status || 'Pending',
+          current_stage: wf.workflow?.workflow_status || 'Pending',
+          assigned_notes: wf.workflow?.assigned_notes || '',
+          reviewing_notes: wf.workflow?.reviewing_notes || '',
+          approved_notes: wf.workflow?.approved_notes || '',
+          closed_notes: wf.workflow?.closed_notes || '',
+          activity_title: '',
+          activity_description: ''
+        })
+        setActiveModal('workflow')
+      } else {
+        alert('Workflow data not found')
+      }
+    } catch (err) {
+      console.error('Failed to fetch workflow', err)
+      alert('Error fetching workflow data')
+    }
+  }
+
+  const handleSaveWorkflow = async (e) => {
+    e.preventDefault()
+    try {
+      const { noticeId, ...payload } = workflowForm
+      const res = await professionalWorkflowService.updateWorkflow(noticeId, payload)
+      if (res.data) {
+        alert('Workflow updated successfully!')
+        setActiveModal(null)
+        setRefreshTrigger(prev => prev + 1)
+      } else {
+        alert('Failed to update workflow')
+      }
+    } catch (err) {
+      console.error('Failed to update workflow', err)
+      alert('Error saving workflow details')
     }
   }
 
@@ -325,7 +450,7 @@ export default function NoticeOrders() {
                 </div>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0', display: 'flex', flexDirection: 'column' }}>
                   <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Action</p>
-                  <div style={{ marginTop: 22 }}>
+                  <div style={{ marginTop: 14 }}>
                     <span
                       onClick={() => handleViewResponse(n)}
                       style={{ color: '#2563eb', cursor: 'pointer', fontSize: 12, fontWeight: 600, textDecoration: 'underline', display: 'inline-block' }}
@@ -335,7 +460,7 @@ export default function NoticeOrders() {
                       View Response
                     </span>
                   </div>
-                  <div style={{ marginTop: 24 }}>
+                  <div style={{ marginTop: 14 }}>
                     <span
                       onClick={() => handleAdjournment(n)}
                       style={{ color: '#2563eb', cursor: 'pointer', fontSize: 12, fontWeight: 600, textDecoration: 'underline', display: 'inline-block' }}
@@ -345,6 +470,18 @@ export default function NoticeOrders() {
                       Seek Adjournment
                     </span>
                   </div>
+                  {(role === 'professional' || isProfessional) && (
+                    <div style={{ marginTop: 14 }}>
+                      <span
+                        onClick={() => handleManageWorkflow(n)}
+                        style={{ color: '#059669', cursor: 'pointer', fontSize: 12, fontWeight: 600, textDecoration: 'underline', display: 'inline-block' }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = '#047857'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = '#059669'}
+                      >
+                        Manage Workflow
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
                   <button
@@ -359,6 +496,455 @@ export default function NoticeOrders() {
           ))
         )}
       </div>
+
+      {activeModal && modalData && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.4)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: 20
+        }}>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(226, 232, 240, 0.8)',
+            borderRadius: 16,
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            width: '100%',
+            maxWidth: 500,
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '18px 24px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: '#f8fafc'
+            }}>
+              <h3 style={{ fontSize: 16, fontWeight: 600, color: '#0f172a', margin: 0 }}>
+                {activeModal === 'response' ? 'View Submitted Response' : 'Adjournment Details'}
+              </h3>
+              <button
+                onClick={() => { setActiveModal(null); setModalData(null); }}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  fontSize: 18,
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  padding: 4,
+                  lineHeight: 1
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Body */}
+            <div style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {activeModal === 'response' ? (
+                <>
+                  <div>
+                    <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Response Remarks</p>
+                    <p style={{ fontSize: 14, fontWeight: 500, color: '#1e293b', margin: 0, background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                      {modalData.response_remarks || '—'}
+                    </p>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div>
+                      <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Submitted On</p>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', margin: 0 }}>
+                        {modalData.response_submitted_on || '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Response Type</p>
+                      <span style={{
+                        display: 'inline-block',
+                        background: '#eff6ff',
+                        color: '#1d4ed8',
+                        padding: '3px 10px',
+                        borderRadius: 20,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        marginTop: 2
+                      }}>
+                        {modalData.response_type || '—'}
+                      </span>
+                    </div>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Filed By</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', margin: 0 }}>
+                      {modalData.response_filed_by || '—'}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Reason for Adjournment</p>
+                    <p style={{ fontSize: 14, fontWeight: 500, color: '#1e293b', margin: 0, background: '#f8fafc', padding: 12, borderRadius: 8, border: '1px solid #e2e8f0' }}>
+                      {modalData.reason_for_seeking_adjournment || '—'}
+                    </p>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div>
+                      <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Request Date</p>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', margin: 0 }}>
+                        {modalData.adjournment_request_date || '—'}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Sought Upto</p>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', margin: 0 }}>
+                        {modalData.adjournment_sought_upto || '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div>
+                      <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Status</p>
+                      <span style={{
+                        display: 'inline-block',
+                        background: modalData.status_action?.toLowerCase() === 'approved' ? '#f0fdf4' : '#fffbeb',
+                        color: modalData.status_action?.toLowerCase() === 'approved' ? '#166534' : '#92400e',
+                        border: `0.5px solid ${modalData.status_action?.toLowerCase() === 'approved' ? '#bbf7d0' : '#fcd34d'}`,
+                        padding: '3px 10px',
+                        borderRadius: 20,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        marginTop: 2
+                      }}>
+                        {modalData.status_action || 'Pending'}
+                      </span>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Adjourned Date</p>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', margin: 0 }}>
+                        {modalData.adjourned_date_for_submission_of_response || '—'}
+                      </p>
+                    </div>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>AO Remarks</p>
+                    <p style={{ fontSize: 14, fontWeight: 500, color: '#1e293b', margin: 0, fontStyle: 'italic' }}>
+                      "{modalData.itd_remarks || 'No remarks provided'}"
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{
+              padding: '14px 24px',
+              borderTop: '1px solid #e2e8f0',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              background: '#f8fafc'
+            }}>
+              <button
+                onClick={() => { setActiveModal(null); setModalData(null); }}
+                style={{
+                  padding: '8px 16px',
+                  background: '#1e3a8a',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'background 0.15s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#172554'}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#1e3a8a'}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeModal === 'workflow' && workflowForm && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.4)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: 20
+        }}>
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(226, 232, 240, 0.8)',
+            borderRadius: 16,
+            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+            width: '100%',
+            maxWidth: 600,
+            maxHeight: '90vh',
+            overflow: 'hidden',
+            display: 'flex',
+            flexDirection: 'column'
+          }}>
+            {/* Header */}
+            <div style={{
+              padding: '18px 24px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: '#f8fafc'
+            }}>
+              <h3 style={{ fontSize: 16, fontWeight: 600, color: '#0f172a', margin: 0 }}>
+                Manage Notice Workflow
+              </h3>
+              <button
+                onClick={() => { setActiveModal(null); }}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  fontSize: 18,
+                  color: '#64748b',
+                  cursor: 'pointer',
+                  padding: 4,
+                  lineHeight: 1
+                }}
+              >
+                &times;
+              </button>
+            </div>
+
+            {/* Body */}
+            <form onSubmit={handleSaveWorkflow} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div style={{ padding: '24px', overflowY: 'auto', maxHeight: '60vh', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                
+                {/* Workflow Status */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>Workflow Status / Stage</label>
+                  <select
+                    value={workflowForm.workflow_status}
+                    onChange={e => setWorkflowForm({ ...workflowForm, workflow_status: e.target.value, current_stage: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 14,
+                      color: '#1e293b',
+                      outline: 'none',
+                      background: '#fff'
+                    }}
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Assigned">Assigned</option>
+                    <option value="Reviewing">Reviewing</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Closed">Closed</option>
+                  </select>
+                </div>
+
+                {/* Assigned Notes */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>Assigned Notes</label>
+                  <textarea
+                    rows={2}
+                    value={workflowForm.assigned_notes}
+                    onChange={e => setWorkflowForm({ ...workflowForm, assigned_notes: e.target.value })}
+                    placeholder="Enter notes for assigned stage..."
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
+                      color: '#1e293b',
+                      outline: 'none',
+                      resize: 'vertical',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+
+                {/* Reviewing Notes */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>Reviewing Notes</label>
+                  <textarea
+                    rows={2}
+                    value={workflowForm.reviewing_notes}
+                    onChange={e => setWorkflowForm({ ...workflowForm, reviewing_notes: e.target.value })}
+                    placeholder="Enter notes for reviewing stage..."
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
+                      color: '#1e293b',
+                      outline: 'none',
+                      resize: 'vertical',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+
+                {/* Approved Notes */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>Approved Notes</label>
+                  <textarea
+                    rows={2}
+                    value={workflowForm.approved_notes}
+                    onChange={e => setWorkflowForm({ ...workflowForm, approved_notes: e.target.value })}
+                    placeholder="Enter notes for approved stage..."
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
+                      color: '#1e293b',
+                      outline: 'none',
+                      resize: 'vertical',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+
+                {/* Closed Notes */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>Closed Notes</label>
+                  <textarea
+                    rows={2}
+                    value={workflowForm.closed_notes}
+                    onChange={e => setWorkflowForm({ ...workflowForm, closed_notes: e.target.value })}
+                    placeholder="Enter notes for closed stage..."
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
+                      color: '#1e293b',
+                      outline: 'none',
+                      resize: 'vertical',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+
+                {/* Activity title */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>Activity Title (to log a new entry)</label>
+                  <input
+                    type="text"
+                    value={workflowForm.activity_title}
+                    onChange={e => setWorkflowForm({ ...workflowForm, activity_title: e.target.value })}
+                    placeholder="e.g. Document submitted, Response prepared"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
+                      color: '#1e293b',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                {/* Activity description */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>Activity Description</label>
+                  <textarea
+                    rows={2}
+                    value={workflowForm.activity_description}
+                    onChange={e => setWorkflowForm({ ...workflowForm, activity_description: e.target.value })}
+                    placeholder="Enter activity description..."
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      fontSize: 13,
+                      color: '#1e293b',
+                      outline: 'none',
+                      resize: 'vertical',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div style={{
+                padding: '14px 24px',
+                borderTop: '1px solid #e2e8f0',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: 12,
+                background: '#f8fafc'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => { setActiveModal(null); }}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#f3f4f6',
+                    color: '#4b5563',
+                    border: '1px solid #d1d5db',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '8px 16px',
+                    background: '#059669',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'background 0.15s'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#047857'}
+                  onMouseLeave={e => e.currentTarget.style.backgroundColor = '#059669'}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   )
 }

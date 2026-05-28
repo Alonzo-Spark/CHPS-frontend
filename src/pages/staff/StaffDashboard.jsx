@@ -64,8 +64,8 @@ export default function StaffDashboard() {
             return {
               ...n,
               notice_id: noticeId,
-              user: n.user || n.user_name || n.professional_name || "N/A",
-              user_name: n.user || n.user_name || n.professional_name || "N/A",
+              user: n.assessee_name || n.user || n.user_name || n.professional_name || "N/A",
+              user_name: n.assessee_name || n.user || n.user_name || n.professional_name || "N/A",
               proceeding_name: n.proceeding_name || n.notice_type || "N/A",              assessment_year: n.assessment_year || n.financial_year || 'N/A',              reference_id: n.reference_id || `REF-${noticeId}`,
               issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
               due_date: n.due_date || "-",
@@ -100,8 +100,8 @@ export default function StaffDashboard() {
             return {
               ...n,
               notice_id: noticeId,
-              user: n.user || n.user_name || n.professional_name || "N/A",
-              user_name: n.user || n.user_name || n.professional_name || "N/A",
+              user: n.assessee_name || n.user || n.user_name || n.professional_name || "N/A",
+              user_name: n.assessee_name || n.user || n.user_name || n.professional_name || "N/A",
               proceeding_name: n.proceeding_name || n.notice_type || "N/A",
               reference_id: n.reference_id || `REF-${noticeId}`,
               issued_on: n.issued_on || n.assigned_at || n.createdAt || "-",
@@ -136,8 +136,8 @@ export default function StaffDashboard() {
           return {
             ...n,
             notice_id: noticeId,
-            user: n.user || n.user_name || n.professional_name || 'N/A',
-            user_name: n.user || n.user_name || n.professional_name || 'N/A',
+            user: n.assessee_name || n.user || n.user_name || n.professional_name || 'N/A',
+            user_name: n.assessee_name || n.user || n.user_name || n.professional_name || 'N/A',
             proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
             assessment_year: n.assessment_year || n.financial_year || 'N/A',
             reference_id: n.reference_id || `REF-${noticeId}`,
@@ -524,7 +524,10 @@ export default function StaffDashboard() {
                       </td>
                       <td
                         style={{ padding: '11px 10px', fontWeight: !a.is_read ? 700 : 600, color: !a.is_read ? '#1e293b' : '#334155', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}
-                        onClick={() => navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })}
+                        onClick={() => {
+                          const isInfo = (a.status || '').toLowerCase() === 'completed' || (a.status || '').toLowerCase() === 'closed'
+                          navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })
+                        }}
                         title="Click to view e-Proceeding"
                       >
                         {a.proceeding_name}
