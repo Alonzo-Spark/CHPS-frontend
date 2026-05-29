@@ -79,12 +79,31 @@ export default function Clients() {
     clients.forEach(c => {
       const cid = c.id
       if (!cid) return
-      noticeControlService.getNoticeControl(cid).then(res => {
-        if (res.data && res.data.available_years) {
-          setNoticeControl(prev => ({ ...prev, [cid]: { available_years: res.data.available_years, blocked_years: res.data.blocked_years || [] } }))
-        } else {
-          setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [...ALL_YEARS], blocked_years: [] } }))
+      Promise.all([
+        noticeControlService.getNoticeControl(cid).catch(() => null),
+        noticeControlService.getAssessmentYears(cid).catch(() => null)
+      ]).then(([ncRes, ayRes]) => {
+        const commonYearsRaw = ayRes?.data?.data || ayRes?.data?.years || ayRes?.data?.available_years || ayRes?.data || ayRes?.years || ayRes?.available_years || ayRes || null
+        const commonYears = Array.isArray(commonYearsRaw) ? commonYearsRaw : null
+
+        const ncData = ncRes?.data || {}
+        const blocked = ncData.blocked_years || []
+
+        let available = commonYears || ncData.available_years || []
+        if (blocked.length > 0) {
+          available = available.filter(y => !blocked.includes(y))
         }
+
+        setNoticeControl(prev => ({
+          ...prev,
+          [cid]: {
+            available_years: available,
+            blocked_years: blocked
+          }
+        }))
+      }).catch(err => {
+        console.warn('Failed to load years/control details for client:', cid, err)
+        setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [], blocked_years: [] } }))
       })
     })
   }, [clients])
@@ -94,7 +113,7 @@ export default function Clients() {
     if (sel.length === 0) return
     const res = await noticeControlService.blockYears(clientId, sel)
     setNoticeControl(prev => {
-      const cur = prev[clientId] || { available_years: [...ALL_YEARS], blocked_years: [] }
+      const cur = prev[clientId] || { available_years: [], blocked_years: [] }
       const newBlocked = [...new Set([...cur.blocked_years, ...sel])]
       const newAvailable = cur.available_years.filter(y => !sel.includes(y))
       return { ...prev, [clientId]: { available_years: newAvailable, blocked_years: newBlocked } }
@@ -456,10 +475,10 @@ export default function Clients() {
                             <>
                               <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setYearDropdownOpen(null)} />
                               <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 130, marginTop: 4, maxHeight: 180, overflowY: 'auto' }}>
-                                {((noticeControl[c.id] || {}).available_years || ALL_YEARS).length === 0 ? (
+                                {((noticeControl[c.id] || {}).available_years || []).length === 0 ? (
                                   <div style={{ padding: '8px 10px', fontSize: 10, color: '#94a3b8' }}>All years blocked</div>
                                 ) : (
-                                  ((noticeControl[c.id] || {}).available_years || ALL_YEARS).map(year => (
+                                  ((noticeControl[c.id] || {}).available_years || []).map(year => (
                                     <label key={year} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', fontSize: 11, cursor: 'pointer', borderBottom: '0.5px solid #f1f5f9' }}
                                       onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
                                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
