@@ -131,8 +131,27 @@ export default function StaffDashboard() {
       try {
         const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
         const res = await noticeService.getNotices()
-        const raw = res?.data?.items || res?.data || []
-        const rawList = Array.isArray(raw) ? raw : []
+        const extractNotices = (r) => {
+          let rList = []
+          if (Array.isArray(r?.data?.items)) rList = r.data.items
+          else if (Array.isArray(r?.data?.data)) rList = r.data.data
+          else if (Array.isArray(r?.data?.results)) rList = r.data.results
+          else if (Array.isArray(r?.data)) rList = r.data
+          else if (Array.isArray(r?.items)) rList = r.items
+          else if (Array.isArray(r?.results)) rList = r.results
+          else if (Array.isArray(r)) rList = r
+          else if (r && typeof r === 'object') {
+            const searchObj = r.data && typeof r.data === 'object' ? r.data : r
+            for (const key of Object.keys(searchObj)) {
+              if (Array.isArray(searchObj[key])) {
+                rList = searchObj[key]
+                break
+              }
+            }
+          }
+          return Array.isArray(rList) ? rList : []
+        }
+        const rawList = extractNotices(res)
         const mapped = rawList.map(n => {
           const noticeId = n.notice_id ?? n.id
           const permanentlyRead = readNoticeIds.includes(noticeId)
@@ -218,8 +237,9 @@ export default function StaffDashboard() {
     navigate(`/staff/notice-orders/${noticeId}`)
   }
 
-  const noFiltersApplied = !appliedFilters.month && !appliedFilters.year && !appliedFilters.assessment
-  const sourceData = (noFiltersApplied && allNoticesLoaded && allNotices.length > 0) ? allNotices : assignments
+  const isAllFilter = (val) => !val || String(val).trim() === '' || String(val).trim().toLowerCase() === 'all'
+  const noFiltersApplied = isAllFilter(appliedFilters.month) && isAllFilter(appliedFilters.year) && isAllFilter(appliedFilters.assessment)
+  const sourceData = noFiltersApplied ? allNotices : assignments
 
   // Keep unread count in sync with what's visible
   useEffect(() => {
@@ -241,11 +261,11 @@ export default function StaffDashboard() {
 
     // Filter by Month, Year, Assessment
     const assignedDate = (a?.issued_on && a?.issued_on !== '-') ? new Date(a.issued_on) : null
-    const matchesMonth = !appliedFilters.month || (assignedDate && assignedDate.getMonth() + 1 === parseInt(appliedFilters.month))
-    const matchesYear = !appliedFilters.year || (assignedDate && assignedDate.getFullYear() === parseInt(appliedFilters.year))
+    const matchesMonth = isAllFilter(appliedFilters.month) || (assignedDate && assignedDate.getMonth() + 1 === parseInt(appliedFilters.month))
+    const matchesYear = isAllFilter(appliedFilters.year) || (assignedDate && assignedDate.getFullYear() === parseInt(appliedFilters.year))
     
     const status = (a?.status || '').toLowerCase()
-    const matchesAssessment = !appliedFilters.assessment || status === appliedFilters.assessment.toLowerCase()
+    const matchesAssessment = isAllFilter(appliedFilters.assessment) || status === appliedFilters.assessment.toLowerCase()
 
     return matchesSearch && matchesMonth && matchesYear && matchesAssessment
   })

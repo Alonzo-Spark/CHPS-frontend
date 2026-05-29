@@ -126,8 +126,27 @@ export default function ProfessionalDashboard() {
     try {
       const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
       const res = await noticeService.getNotices()
-      const raw = res?.data?.items || res?.data || []
-      const rawList = Array.isArray(raw) ? raw : []
+      const extractNotices = (r) => {
+        let rList = []
+        if (Array.isArray(r?.data?.items)) rList = r.data.items
+        else if (Array.isArray(r?.data?.data)) rList = r.data.data
+        else if (Array.isArray(r?.data?.results)) rList = r.data.results
+        else if (Array.isArray(r?.data)) rList = r.data
+        else if (Array.isArray(r?.items)) rList = r.items
+        else if (Array.isArray(r?.results)) rList = r.results
+        else if (Array.isArray(r)) rList = r
+        else if (r && typeof r === 'object') {
+          const searchObj = r.data && typeof r.data === 'object' ? r.data : r
+          for (const key of Object.keys(searchObj)) {
+            if (Array.isArray(searchObj[key])) {
+              rList = searchObj[key]
+              break
+            }
+          }
+        }
+        return Array.isArray(rList) ? rList : []
+      }
+      const rawList = extractNotices(res)
       const mapped = rawList.map(n => {
         const noticeId = n.notice_id ?? n.id
         const permanentlyRead = readNoticeIds.includes(noticeId)
@@ -164,12 +183,28 @@ export default function ProfessionalDashboard() {
       const cid = a.client_id
       if (!cid) return
       if (noticeControl[cid]) return // already fetched
-      noticeControlService.getNoticeControl(cid).then(res => {
-        if (res.data && res.data.available_years) {
-          setNoticeControl(prev => ({ ...prev, [cid]: { available_years: res.data.available_years, blocked_years: res.data.blocked_years || [] } }))
-        } else {
-          setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [...ALL_YEARS], blocked_years: [] } }))
+      Promise.all([
+        noticeControlService.getNoticeControl(cid).catch(() => null),
+        noticeControlService.getAssessmentYears(cid).catch(() => null)
+      ]).then(([ncRes, ayRes]) => {
+        const commonYearsRaw = ayRes?.data?.years || ayRes?.data?.available_years || ayRes?.data || ayRes?.years || ayRes?.available_years || ayRes || null
+        const commonYears = Array.isArray(commonYearsRaw) ? commonYearsRaw : null
+        
+        const ncData = ncRes?.data || {}
+        const blocked = ncData.blocked_years || []
+        
+        let available = commonYears || ncData.available_years || [...ALL_YEARS]
+        if (blocked.length > 0) {
+          available = available.filter(y => !blocked.includes(y))
         }
+        
+        setNoticeControl(prev => ({
+          ...prev,
+          [cid]: {
+            available_years: available,
+            blocked_years: blocked
+          }
+        }))
       }).catch(() => {
         setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [...ALL_YEARS], blocked_years: [] } }))
       })
@@ -247,8 +282,9 @@ export default function ProfessionalDashboard() {
   }
 
   // FILTERING
-  const noFiltersApplied = !appliedFilters.month && !appliedFilters.year && !appliedFilters.assessment
-  const sourceData = (noFiltersApplied && allNoticesLoaded && allNotices.length > 0) ? allNotices : assignments
+  const isAllFilter = (val) => !val || String(val).trim() === '' || String(val).trim().toLowerCase() === 'all'
+  const noFiltersApplied = isAllFilter(appliedFilters.month) && isAllFilter(appliedFilters.year) && isAllFilter(appliedFilters.assessment)
+  const sourceData = noFiltersApplied ? allNotices : assignments
 
   // Keep unread count in sync with what's visible
   useEffect(() => {
@@ -273,14 +309,14 @@ export default function ProfessionalDashboard() {
         : null
 
     const matchesMonth =
-      !appliedFilters.month ||
+      isAllFilter(appliedFilters.month) ||
       (
         issuedDate &&
         issuedDate.getMonth() + 1 === Number(appliedFilters.month)
       )
 
     const matchesYear =
-      !appliedFilters.year ||
+      isAllFilter(appliedFilters.year) ||
       (
         issuedDate &&
         issuedDate.getFullYear() === Number(appliedFilters.year)
@@ -289,7 +325,7 @@ export default function ProfessionalDashboard() {
     const status = (a.status || '').toLowerCase()
 
     const matchesAssessment =
-      !appliedFilters.assessment ||
+      isAllFilter(appliedFilters.assessment) ||
       status === appliedFilters.assessment.toLowerCase()
 
     return (
@@ -680,7 +716,10 @@ export default function ProfessionalDashboard() {
                       >
                         <div
                           style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#1e293b' }}
-                          onClick={() => navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })}
+                          onClick={() => {
+                            const isInfo = (a.status || '').toLowerCase() === 'completed' || (a.status || '').toLowerCase() === 'closed'
+                            navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })
+                          }}
                           onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
                           onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
                         >
@@ -711,7 +750,10 @@ export default function ProfessionalDashboard() {
                           cursor: 'pointer',
                           fontSize: 13
                         }}
-                        onClick={() => handleViewNotice(a)}
+                        onClick={() => {
+                          const isInfo = (a.status || '').toLowerCase() === 'completed' || (a.status || '').toLowerCase() === 'closed'
+                          navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })
+                        }}
                       >
                         {a.proceeding_name}
                       </td>
