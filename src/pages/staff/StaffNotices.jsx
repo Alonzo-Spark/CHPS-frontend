@@ -101,7 +101,7 @@ export default function StaffNotices() {
     return {
       id: p.id || p.proceeding_id || p.notice_id || String(Math.random()),
       proceeding_name: name,
-      assessment_year: p.assessment_year || p.financial_year || 'N/A',
+      assessment_year: p.assessment_year || p.financial_year || p.year || p.assessmentYear || p.ay || 'N/A',
       status: p.status || 'Pending',
       limitation_date: p.limitation_date || p.proceeding_limitation_date || '—',
       closure_date: p.closure_date || '—',

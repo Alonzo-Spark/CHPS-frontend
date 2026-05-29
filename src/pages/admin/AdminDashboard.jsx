@@ -45,7 +45,8 @@ export default function AdminDashboard() {
           assigned_professional: item.professional ? {
             professional_name: item.professional.professional_name
           } : null,
-          status: item.assigned_status || 'Pending'
+          status: item.assigned_status || 'Pending',
+          assessment_year: item.assessment_year || item.financial_year || item.year || item.assessmentYear || item.ay || item.client?.assessment_year || item.client?.financial_year || item.client?.year || 'N/A'
         }))
         setClients(mapped)
       })
@@ -86,8 +87,8 @@ export default function AdminDashboard() {
 
           <div style={{ flex: 1, width: '100%' }}>
             {/* Header Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', width: '100%', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              {['Assessee', 'PAN', 'Assigned Professional', 'Status', 'Proceedings'].map(h => (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', width: '100%', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+              {['Assessee', 'PAN', 'Assessment Year', 'Assigned Professional', 'Status', 'Proceedings'].map(h => (
                 <div key={h} style={{ padding: '14px 28px', color: '#64748b', fontSize: 14, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', textAlign: 'left' }}>{h}</div>
               ))}
             </div>
@@ -99,11 +100,12 @@ export default function AdminDashboard() {
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', fontSize: 14 }}>No data found.</div>
             ) : (
               filtered.map((c, i) => (
-                <div key={c.id || i} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', width: '100%', borderBottom: '0.5px solid #f1f5f9', alignItems: 'center' }}>
+                <div key={c.id || i} style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', width: '100%', borderBottom: '0.5px solid #f1f5f9', alignItems: 'center' }}>
                   <div style={{ padding: '14px 28px', fontWeight: 600 }}>
                     <span style={{ fontSize: 14, color: '#1e293b' }}>{c.name}</span>
                   </div>
                   <div style={{ padding: '14px 28px', color: '#64748b', fontSize: 14 }}>{c.pan}</div>
+                  <div style={{ padding: '14px 28px', color: '#475569', fontWeight: 500, fontSize: 14 }}>{c.assessment_year}</div>
                   <div style={{ padding: '14px 28px', color: '#1e3a8a', fontWeight: 500, fontSize: 14 }}>
                     {c.assigned_professional?.professional_name || c.assigned_professional || '—'}
                   </div>
