@@ -631,7 +631,7 @@ export default function NoticeOrders() {
 
         <div style={{ marginBottom: 32 }}>
           <p style={{ fontSize: 10, fontWeight: 500, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 11 }}>Proceeding details</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 16 }}>
+          <div className="proceeding-details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(0,1fr))', gap: 16 }}>
             {[
               { label: 'Proceeding Name', value: proceeding?.proceedingName || proceeding?.proceeding_name || id || "N/A" },
               { label: 'PAN', value: proceeding?.pan || proceeding?.pan_number || "N/A", isBold: true },
@@ -690,7 +690,7 @@ export default function NoticeOrders() {
                   </button>
                 )}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 110px' }}>
+              <div className="notice-card-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 110px' }}>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0' }}>
                   <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Section</p>
                   <p style={{ fontSize: 24, fontWeight: 500, color: '#1e293b', lineHeight: 1.1 }}>{n.section || extractSection(n.description) || "—"}</p>
@@ -763,7 +763,7 @@ export default function NoticeOrders() {
                     </div>
                   )}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
+                  <div className="stage-notes-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
                     {['Assigned', 'Reviewing', 'Approved', 'Closed'].map((stage) => {
                       const stageKey = stage.toLowerCase()
                       const notesValue = stageData[stageKey] || ''

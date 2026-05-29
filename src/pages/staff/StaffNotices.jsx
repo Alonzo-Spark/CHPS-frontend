@@ -70,7 +70,10 @@ export default function StaffNotices() {
   const navigate = useNavigate()
   const role = localStorage.getItem('role')?.toLowerCase()
 
-  const filterAssessee = location.state?.assesseeName || new URLSearchParams(location.search).get('assessee')
+  const params = new URLSearchParams(location.search)
+  const filterAssessee = location.state?.assesseeName || params.get('assessee')
+  const filterPan = location.state?.assesseePan || params.get('pan')
+  const filterUid = location.state?.assesseeId || params.get('uid')
   const proceedings = activeTab === 'action' ? actionProceedings : infoProceedings
 
   const normalizeProceeding = (p) => {
@@ -91,6 +94,10 @@ export default function StaffNotices() {
       }]
     }
 
+    const resolvedAssessee = p.assessee_name || p.user_name || p.client_name || p.user?.name || p.client?.name || p.user?.full_name || p.client?.full_name || p.user?.username || p.client?.username || (typeof p.user === 'string' ? p.user : '') || (typeof p.client === 'string' ? p.client : '') || p.name || 'N/A';
+    const resolvedPan = p.pan || p.pan_number || p.user_pan || p.user?.pan || p.client?.pan || 'N/A';
+    const resolvedUserId = String(p.user_id || p.userId || p.client_id || p.clientId || p.user?.id || p.client?.id || '');
+
     return {
       id: p.id || p.proceeding_id || p.notice_id || String(Math.random()),
       proceeding_name: name,
@@ -101,8 +108,9 @@ export default function StaffNotices() {
       financial_year: p.financial_year || 'N/A',
       closure_order: p.closure_order || '—',
       applicable_act: p.applicable_act || 'Income Tax Act 1961',
-      pan: p.pan || p.pan_number || 'N/A',
-      assessee_name: p.assessee_name || p.user_name || 'N/A',
+      pan: resolvedPan,
+      assessee_name: resolvedAssessee,
+      user_id: resolvedUserId,
       notices_count: p.notices_count || 1,
       timeline: timeline
     }
@@ -110,13 +118,24 @@ export default function StaffNotices() {
 
   const extractProceedings = (res) => {
     let raw = []
-    if (res?.data?.data) raw = res.data.data
-    else if (res?.data?.proceedings) raw = res.data.proceedings
-    else if (res?.data?.items) raw = res.data.items
+    if (Array.isArray(res?.data?.data)) raw = res.data.data
+    else if (Array.isArray(res?.data?.results)) raw = res.data.results
+    else if (Array.isArray(res?.data?.proceedings)) raw = res.data.proceedings
+    else if (Array.isArray(res?.data?.items)) raw = res.data.items
     else if (Array.isArray(res?.data)) raw = res.data
+    else if (Array.isArray(res?.results)) raw = res.results
+    else if (Array.isArray(res?.proceedings)) raw = res.proceedings
+    else if (Array.isArray(res?.items)) raw = res.items
     else if (Array.isArray(res)) raw = res
-    else if (res?.items) raw = res.items
-    else if (res?.proceedings) raw = res.proceedings
+    else if (res && typeof res === 'object') {
+      const searchObj = res.data && typeof res.data === 'object' ? res.data : res
+      for (const key of Object.keys(searchObj)) {
+        if (Array.isArray(searchObj[key])) {
+          raw = searchObj[key]
+          break
+        }
+      }
+    }
     return Array.isArray(raw) ? raw : []
   }
 
@@ -165,9 +184,37 @@ export default function StaffNotices() {
   let actionList = actionProceedings
   let infoList = infoProceedings
 
-  if (filterAssessee) {
-    actionList = actionList.filter(p => (p.assessee_name || '').toLowerCase().includes(filterAssessee.toLowerCase()))
-    infoList = infoList.filter(p => (p.assessee_name || '').toLowerCase().includes(filterAssessee.toLowerCase()))
+  if (filterAssessee || filterPan || filterUid) {
+    const nameText = String(filterAssessee || '').trim().toLowerCase()
+    const panText = String(filterPan || '').trim().toLowerCase()
+    const uidText = String(filterUid || '').trim()
+
+    const matchesProceed = (p) => {
+      // 1. Match by user_id (most precise)
+      if (uidText && p.user_id && String(p.user_id).trim() === uidText) return true
+      // 2. Match by PAN
+      if (panText && panText !== 'n/a') {
+        const pPan = String(p.pan || '').trim().toLowerCase()
+        if (pPan && pPan !== 'n/a' && pPan === panText) return true
+      }
+      // 3. Match by name
+      if (nameText) {
+        const pName = String(p.assessee_name || '').trim().toLowerCase()
+        if (pName && pName !== 'n/a' && (pName.includes(nameText) || nameText.includes(pName))) return true
+      }
+      return false
+    }
+
+    const filteredAction = actionList.filter(matchesProceed)
+    const filteredInfo = infoList.filter(matchesProceed)
+
+    // Fallback: if the API doesn't embed user info per proceeding (all assessee_name = N/A),
+    // show ALL proceedings since the API may already be scoped to the right user.
+    const allActionNoUser = actionList.every(p => !p.user_id && (p.assessee_name === 'N/A' || !p.assessee_name) && (p.pan === 'N/A' || !p.pan))
+    const allInfoNoUser = infoList.every(p => !p.user_id && (p.assessee_name === 'N/A' || !p.assessee_name) && (p.pan === 'N/A' || !p.pan))
+
+    actionList = (filteredAction.length === 0 && allActionNoUser) ? actionList : filteredAction
+    infoList = (filteredInfo.length === 0 && allInfoNoUser) ? infoList : filteredInfo
   }
 
   const currentList = activeTab === 'action' ? actionList : infoList
@@ -334,7 +381,7 @@ export default function StaffNotices() {
                   </div>
 
                   {/* Info Grid */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 2fr 1.5fr' }}>
+                  <div className="info-grid-row" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 2fr 1.5fr' }}>
                     {/* Col 1: PAN & Assessee */}
                     <div style={{ padding: '16px 20px', borderRight: '0.5px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div>
@@ -444,7 +491,7 @@ export default function StaffNotices() {
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr' }}>
+                <div className="action-grid-row" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr' }}>
                   {/* Col 1 - PAN, Assessee & Timeline */}
                   <div style={{ padding: '16px 20px', borderRight: '0.5px solid #e2e8f0', display: 'flex', gap: 20 }}>
                     {/* PAN & Assessee beside timeline */}

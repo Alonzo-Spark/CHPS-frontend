@@ -344,7 +344,7 @@ export default function Clients() {
                     <td style={{ padding: '12px 10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <span
-                          onClick={() => navigate(`/staff/notices?assessee=${encodeURIComponent(c.name)}`, { state: { assesseeName: c.name } })}
+                          onClick={() => navigate(`/staff/notices?assessee=${encodeURIComponent(c.name)}&pan=${encodeURIComponent(c.pan || '')}&uid=${encodeURIComponent(c.id || '')}`, { state: { assesseeName: c.name, assesseePan: c.pan, assesseeId: c.id } })}
                           style={{ fontWeight: 600, fontSize: 13, cursor: 'pointer', color: '#1e3a8a' }}
                           onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
                           onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}

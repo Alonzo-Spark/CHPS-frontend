@@ -13,7 +13,7 @@ export default function Topbar({ breadcrumbs = [] }) {
     : 'MT'
 
   return (
-    <div style={{ height: 50, background: '#fff', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
+    <div className="topbar-container" style={{ height: 50, background: '#fff', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
         {breadcrumbs.map((crumb, i) => (
           <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
