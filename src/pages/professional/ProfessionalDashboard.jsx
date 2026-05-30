@@ -246,6 +246,11 @@ export default function ProfessionalDashboard() {
   const handleViewNotice = async (notice) => {
     console.log('Clicked Notice:', notice)
     const noticeId = notice.notice_id ?? notice.id
+    
+    if (!noticeId) {
+      alert("No notice details available for this record.")
+      return
+    }
 
     try {
       if (noticeId) {
@@ -711,14 +716,14 @@ export default function ProfessionalDashboard() {
                           borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent',
                           transition: 'border-left-color 0.3s ease',
                           fontWeight: !a.is_read ? '700' : 'normal',
-                          fontSize: 13
+                          fontSize: 15
                         }}
                       >
                         <div
                           style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#1e293b' }}
                           onClick={() => {
                             const isInfo = (a.status || '').toLowerCase() === 'completed' || (a.status || '').toLowerCase() === 'closed'
-                            navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })
+                            navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&uid=${a?.client_id || ''}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '', assesseeId: a?.client_id } })
                           }}
                           onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
                           onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
@@ -748,11 +753,11 @@ export default function ProfessionalDashboard() {
                           fontWeight: !a.is_read ? '700' : '600',
                           color: !a.is_read ? '#1e293b' : '#334155',
                           cursor: 'pointer',
-                          fontSize: 13
+                          fontSize: 15  
                         }}
                         onClick={() => {
                           const isInfo = (a.status || '').toLowerCase() === 'completed' || (a.status || '').toLowerCase() === 'closed'
-                          navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })
+                          navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&uid=${a?.client_id || ''}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '', assesseeId: a?.client_id } })
                         }}
                       >
                         {a.proceeding_name}
@@ -764,7 +769,7 @@ export default function ProfessionalDashboard() {
                           padding: 12,
                           color: '#2563eb',
                           fontWeight: !a.is_read ? '600' : 'normal',
-                          fontSize: 13
+                          fontSize: 15
                         }}
                       >
                         {a.professional_name}
@@ -776,14 +781,14 @@ export default function ProfessionalDashboard() {
                           padding: 12,
                           color: '#475569',
                           fontWeight: !a.is_read ? '600' : 'normal',
-                          fontSize: 13
+                          fontSize: 15
                         }}
                       >
                         {a.assessment_year || 'N/A'}
                       </td>
 
                       {/* ISSUED */}
-                      <td style={{ padding: 12, fontWeight: !a.is_read ? '600' : 'normal', fontSize: 13 }}>
+                      <td style={{ padding: 12, fontWeight: !a.is_read ? '600' : 'normal', fontSize: 15 }}>
                         {formatDate(a.issued_on)}
                       </td>
 
@@ -793,7 +798,7 @@ export default function ProfessionalDashboard() {
                           padding: 12,
                           color: '#dc2626',
                           fontWeight: !a.is_read ? '700' : 'normal',
-                          fontSize: 13
+                          fontSize: 15
                         }}
                       >
                         {formatDate(a.due_date)}
@@ -805,7 +810,7 @@ export default function ProfessionalDashboard() {
                           <div style={{ position: 'relative' }}>
                             <button
                               onClick={() => setYearDropdownOpen(yearDropdownOpen === (a.client_id || index) ? null : (a.client_id || index))}
-                              style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontSize: 10, cursor: 'pointer', color: '#1e293b', minWidth: 70, textAlign: 'left', whiteSpace: 'nowrap' }}
+                              style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontSize: 15, cursor: 'pointer', color: '#1e293b', minWidth: 70, textAlign: 'left', whiteSpace: 'nowrap' }}
                             >
                               {(selectedYears[a.client_id] || []).length > 0 ? `${(selectedYears[a.client_id]).length} selected` : 'Years ▾'}
                             </button>
@@ -817,7 +822,7 @@ export default function ProfessionalDashboard() {
                                     <div style={{ padding: '8px 10px', fontSize: 10, color: '#94a3b8' }}>No years available</div>
                                   ) : (
                                     ((noticeControl[a.client_id] || {}).available_years || []).map(year => (
-                                      <label key={year} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', fontSize: 11, cursor: 'pointer', borderBottom: '0.5px solid #f1f5f9' }}
+                                      <label key={year} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', fontSize: 15, cursor: 'pointer', borderBottom: '0.5px solid #f1f5f9' }}
                                         onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
                                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                                       >
@@ -832,19 +837,19 @@ export default function ProfessionalDashboard() {
                           </div>
                           <button
                             onClick={() => handleBlockYears(a.client_id)}
-                            style={{ padding: '4px 10px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}
+                            style={{ padding: '4px 10px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 5, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
                           >
                             Block
                           </button>
                           <button
                             onClick={() => handleUnblockYears(a.client_id)}
                             disabled={!((noticeControl[a.client_id] || {}).blocked_years || []).length}
-                            style={{ padding: '4px 10px', background: ((noticeControl[a.client_id] || {}).blocked_years || []).length ? '#16a34a' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: ((noticeControl[a.client_id] || {}).blocked_years || []).length ? 'pointer' : 'default' }}
+                            style={{ padding: '4px 10px', background: ((noticeControl[a.client_id] || {}).blocked_years || []).length ? '#16a34a' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 5, fontSize: 15, fontWeight: 600, cursor: ((noticeControl[a.client_id] || {}).blocked_years || []).length ? 'pointer' : 'default' }}
                           >
                             Unblock
                           </button>
                           {((noticeControl[a.client_id] || {}).blocked_years || []).length > 0 && (
-                            <div style={{ fontSize: 9, color: '#dc2626', marginTop: 2, width: '100%' }}>
+                            <div style={{ fontSize: 14, color: '#dc2626', marginTop: 2, width: '100%' }}>
                               Blocked: {(noticeControl[a.client_id].blocked_years).join(', ')}
                             </div>
                           )}
@@ -866,7 +871,7 @@ export default function ProfessionalDashboard() {
                             fontWeight: '600',
                             boxShadow: !a.is_read ? '0 2px 4px rgba(30, 58, 138, 0.25)' : 'none',
                             transition: 'all 0.2s ease',
-                            fontSize: 11
+                            fontSize: 15
                           }}
                         >
                           VIEW NOTICE

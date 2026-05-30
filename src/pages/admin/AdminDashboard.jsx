@@ -39,6 +39,7 @@ export default function AdminDashboard() {
         const data = Array.isArray(raw) ? raw : []
         const mapped = data.map(item => ({
           id: item.assignment_id,
+          client_id: item.client?.client_id,
           name: item.client?.client_name || 'N/A',
           email: item.client?.client_email || 'N/A',
           pan: item.client?.client_pan || 'N/A',
@@ -114,7 +115,7 @@ export default function AdminDashboard() {
                     <button
                       onClick={() => {
                         const isInfo = (c.status || '').toLowerCase() === 'completed' || (c.status || '').toLowerCase() === 'closed'
-                        navigate(`/proceedings?assessee=${encodeURIComponent(c.name)}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: c.name } })
+                        navigate(`/proceedings?assessee=${encodeURIComponent(c.name)}&uid=${c.client_id || ''}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: c.name, assesseeId: c.client_id } })
                       }}
                       style={{
                         background: '#2563eb',
@@ -130,7 +131,7 @@ export default function AdminDashboard() {
                       onMouseEnter={e => e.currentTarget.style.backgroundColor = '#1d4ed8'}
                       onMouseLeave={e => e.currentTarget.style.backgroundColor = '#2563eb'}
                     >
-                      View Proceedings
+                      View Notice
                     </button>
                   </div>
                 </div>

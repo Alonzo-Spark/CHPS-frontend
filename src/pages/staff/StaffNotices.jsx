@@ -40,6 +40,11 @@ export default function StaffNotices() {
   const defaultTab = new URLSearchParams(location.search).get('tab') || 'action'
   const [activeTab, setActiveTab] = useState(defaultTab)
 
+  const [selectedProceeding, setSelectedProceeding] = useState(null)
+  const [proceedingNotices, setProceedingNotices] = useState([])
+  const [loadingNotices, setLoadingNotices] = useState(false)
+  const [noticesError, setNoticesError] = useState(null)
+
   useEffect(() => {
     const tabParam = new URLSearchParams(location.search).get('tab')
     if (tabParam && (tabParam === 'action' || tabParam === 'info')) {
@@ -137,6 +142,23 @@ export default function StaffNotices() {
       }
     }
     return Array.isArray(raw) ? raw : []
+  }
+
+  const handleProceedingClick = async (p) => {
+    setSelectedProceeding(p)
+    setProceedingNotices([])
+    setNoticesError(null)
+    setLoadingNotices(true)
+    try {
+      const res = await professionalService.getProceedingNoticesById(p.id)
+      const raw = extractProceedings(res)
+      setProceedingNotices(raw)
+    } catch (err) {
+      console.error('Failed to fetch proceeding notices:', err)
+      setNoticesError('Unable to load notices. Please try again.')
+    } finally {
+      setLoadingNotices(false)
+    }
   }
 
   useEffect(() => {
@@ -244,6 +266,68 @@ export default function StaffNotices() {
           <h2 style={{ fontSize: 25, fontWeight: 600, color: '#1e293b', marginBottom: 12 }}>e-Proceeding</h2>
         </div>
 
+        {selectedProceeding ? (
+          <div>
+            <div style={{ marginBottom: 20 }}>
+              <button
+                onClick={() => {
+                  setSelectedProceeding(null)
+                  setProceedingNotices([])
+                }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: 13, padding: 0 }}
+              >
+                <ArrowLeft size={14} /> Back to Proceedings
+              </button>
+            </div>
+            
+            <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, padding: 24, boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+              <div style={{ marginBottom: 24, borderBottom: '1px solid #e2e8f0', paddingBottom: 16 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 600, color: '#1e293b', marginBottom: 6 }}>Notices for {selectedProceeding.proceeding_name}</h3>
+                <p style={{ fontSize: 14, color: '#64748b' }}>Client: {selectedProceeding.assessee_name}</p>
+              </div>
+
+              {loadingNotices ? (
+                <div style={{ textAlign: 'center', padding: 48, color: '#94a3b8' }}>Loading notices...</div>
+              ) : noticesError ? (
+                <div style={{ textAlign: 'center', padding: 48, color: '#ef4444' }}>{noticesError}</div>
+              ) : proceedingNotices.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 48, color: '#94a3b8' }}>No notices available for this proceeding</div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                    <thead>
+                      <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                        <th style={{ padding: '12px 16px', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Reference ID</th>
+                        <th style={{ padding: '12px 16px', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Notice Type</th>
+                        <th style={{ padding: '12px 16px', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Notice Category</th>
+                        <th style={{ padding: '12px 16px', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Issued Date</th>
+                        <th style={{ padding: '12px 16px', fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase' }}>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {proceedingNotices.map((n, i) => (
+                        <tr 
+                          key={n.id || n.notice_id || i}
+                          onClick={() => navigate(`/staff/notice-orders/${n.id || n.notice_id}`)}
+                          style={{ borderBottom: '1px solid #f1f5f9', cursor: 'pointer', transition: 'background 0.2s' }}
+                          onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <td style={{ padding: '16px', fontSize: 14, color: '#1e293b', fontWeight: 500 }}>{n.reference_id || 'N/A'}</td>
+                          <td style={{ padding: '16px', fontSize: 14, color: '#475569' }}>{n.notice_type || n.notice_name || 'N/A'}</td>
+                          <td style={{ padding: '16px', fontSize: 14, color: '#475569' }}>{n.notice_category || 'N/A'}</td>
+                          <td style={{ padding: '16px', fontSize: 14, color: '#475569' }}>{n.issued_on || 'N/A'}</td>
+                          <td style={{ padding: '16px' }}>{statusBadge(n.status || n.workflow_status)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
         {/* Search + Filter */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 14, gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #cbd5e1', borderRadius: 6, padding: '8px 12px', background: '#fff' }}>
@@ -446,10 +530,7 @@ export default function StaffNotices() {
 
                     <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center' }}>
                       <button 
-                        onClick={() => {
-                          const target = p.proceeding_name
-                          navigate(`/staff/notice-orders/${encodeURIComponent(target)}`)
-                        }}
+                        onClick={() => handleProceedingClick(p)}
                         style={{ 
                           padding: '9px 16px', 
                           background: '#1e3a8a', 
@@ -549,10 +630,7 @@ export default function StaffNotices() {
                   {/* Col 3 - Action */}
                   <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10, justifyContent: 'center', alignItems: 'center' }}>
                       <button 
-                        onClick={() => {
-                          const target = p.proceeding_name
-                          navigate(`/staff/notice-orders/${encodeURIComponent(target)}`)
-                        }}
+                        onClick={() => handleProceedingClick(p)}
                       style={{ 
                         display: 'flex', 
                         flexDirection: 'column',
@@ -586,6 +664,8 @@ export default function StaffNotices() {
         <p style={{ fontSize: 13, color: '#64748b', textAlign: 'center', padding: '4px 0' }}>
           Showing {proceedings.length} proceedings
         </p>
+          </>
+        )}
       </div>
     </DashboardLayout>
   )
