@@ -145,6 +145,27 @@ export default function StaffNotices() {
   }
 
   const handleProceedingClick = async (p) => {
+    if (role === 'staff') {
+      setNoticesError(null)
+      setLoadingNotices(true)
+      try {
+        const res = await professionalService.getProceedingNoticesById(p.id)
+        const raw = extractProceedings(res)
+        if (raw && raw.length > 0) {
+          const firstNoticeId = raw[0].id || raw[0].notice_id
+          navigate(`/staff/notice-orders/${firstNoticeId}`)
+        } else {
+          alert('No notices available for this proceeding')
+        }
+      } catch (err) {
+        console.error('Failed to fetch proceeding notices:', err)
+        setNoticesError('Unable to load notices. Please try again.')
+      } finally {
+        setLoadingNotices(false)
+      }
+      return
+    }
+
     setSelectedProceeding(p)
     setProceedingNotices([])
     setNoticesError(null)
