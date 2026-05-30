@@ -64,7 +64,8 @@ export default function AdminDashboard() {
     const nameMatch = (c.name || '').toLowerCase().includes(q)
     const panMatch = (c.pan || '').toLowerCase().includes(q)
     const profMatch = ((c.assigned_professional?.professional_name || c.assigned_professional) || '').toLowerCase().includes(q)
-    return nameMatch || panMatch || profMatch
+    const yearMatch = (c.assessment_year || '').toString().toLowerCase().includes(q)
+    return nameMatch || panMatch || profMatch || yearMatch
   })
 
   return (
@@ -78,7 +79,7 @@ export default function AdminDashboard() {
               <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
-                placeholder="Search Assessee, PAN, or Professional..."
+                placeholder="Search Assessee, PAN, Assessment Year, or Professional..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 style={{ width: '100%', padding: '9px 12px 9px 36px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, outline: 'none' }}

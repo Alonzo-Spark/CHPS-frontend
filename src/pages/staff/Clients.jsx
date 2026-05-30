@@ -461,7 +461,7 @@ export default function Clients() {
                                       // Update local clients state for immediate UI feedback — updates all rows with this client
                                       setClients(prev => prev.map(cl => {
                                         if ((cl.id || clients.indexOf(cl)) === (c.id || i)) {
-                                          return { ...cl, assigned_professional: profName, status: 'completed' }
+                                          return { ...cl, assigned_professional: profName }
                                         }
                                         return cl
                                       }))

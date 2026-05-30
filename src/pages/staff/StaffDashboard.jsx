@@ -251,19 +251,29 @@ export default function StaffDashboard() {
   const filtered = sourceData.filter(a => {
     const term = search.trim().toLowerCase()
 
-    // Search filter
+    // Global search across all visible columns
     const matchesSearch = !term || (() => {
       const userName = (a?.user || a?.user_name || '').toLowerCase()
       const referenceId = (a?.reference_id || `REF-${a?.notice_id}`).toLowerCase()
       const noticeId = String(a?.notice_id ?? '')
-      return userName.includes(term) || referenceId.includes(term) || noticeId.includes(term)
+      const assessmentYear = (a?.assessment_year || '').toString().toLowerCase()
+      const proceedingName = (a?.proceeding_name || '').toLowerCase()
+      const assignedProfessional = (a?.assigned_professional || '').toLowerCase()
+      return (
+        userName.includes(term) ||
+        referenceId.includes(term) ||
+        noticeId.includes(term) ||
+        assessmentYear.includes(term) ||
+        proceedingName.includes(term) ||
+        assignedProfessional.includes(term)
+      )
     })()
 
     // Filter by Month, Year, Assessment
     const assignedDate = (a?.issued_on && a?.issued_on !== '-') ? new Date(a.issued_on) : null
     const matchesMonth = isAllFilter(appliedFilters.month) || (assignedDate && assignedDate.getMonth() + 1 === parseInt(appliedFilters.month))
     const matchesYear = isAllFilter(appliedFilters.year) || (assignedDate && assignedDate.getFullYear() === parseInt(appliedFilters.year))
-    
+
     const status = (a?.status || '').toLowerCase()
     const matchesAssessment = isAllFilter(appliedFilters.assessment) || status === appliedFilters.assessment.toLowerCase()
 
@@ -319,7 +329,7 @@ export default function StaffDashboard() {
                 <Search size={16} color="#64748b" />
                 <input
                   type="text"
-                  placeholder="Search user..."
+                  placeholder="Search name, PAN, year, professional, proceeding…"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   style={{
