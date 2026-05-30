@@ -6,15 +6,17 @@ import { userService, professionalService, noticeControlService } from '../../se
 
 const statusBadge = (status = '') => {
   const s = (status || '').toLowerCase().replace(/[_-]/g, ' ').trim()
+  // Do NOT display "Pending" — return empty for pending status
+  if (s === 'pending') return null
   const map = {
-    pending: { bg: '#fff7ed', color: '#d97706' },
     'under review': { bg: '#eff6ff', color: '#1d4ed8' },
     completed: { bg: '#f0fdf4', color: '#16a34a' },
     'in progress': { bg: '#eff6ff', color: '#2563eb' },
     assigned: { bg: '#f5f3ff', color: '#7c3aed' },
   }
   const style = map[s] || { bg: '#f1f5f9', color: '#475569' }
-  const label = status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase().replace(/[_]/g, ' ') : 'N/A'
+  const label = status ? status.charAt(0).toUpperCase() + status.slice(1).toLowerCase().replace(/[_]/g, ' ') : ''
+  if (!label) return null
   return (
     <span style={{ background: style.bg, color: style.color, padding: '3px 9px', borderRadius: 20, fontSize: 10, fontWeight: 600 }}>{label}</span>
   )
@@ -22,8 +24,12 @@ const statusBadge = (status = '') => {
 
 const avatarColors = ['#1e40af', '#166534', '#7c3aed', '#9a3412', '#166534']
 
-// Assessment years for Notice Control - these are the fiscal year options
-const ALL_YEARS = ['2019-20', '2020-21', '2021-22', '2022-23', '2023-24', '2024-25']
+// Hardcoded assessment years 2012–2026
+const ALL_YEARS = [
+  '2012-13', '2013-14', '2014-15', '2015-16', '2016-17',
+  '2017-18', '2018-19', '2019-20', '2020-21', '2021-22',
+  '2022-23', '2023-24', '2024-25', '2025-26'
+]
 
 // Status: issue+due=Completed, issue only=Pending
 const getStatus = (item) => {
@@ -49,6 +55,8 @@ export default function Clients() {
   const [noticeControl, setNoticeControl] = useState({})
   const [yearDropdownOpen, setYearDropdownOpen] = useState(null)
   const [selectedYears, setSelectedYears] = useState({})
+  // Track locally blocked years per client for UI display (before API sync)
+  const [localBlockedYears, setLocalBlockedYears] = useState({})
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -118,6 +126,11 @@ export default function Clients() {
       const newAvailable = cur.available_years.filter(y => !sel.includes(y))
       return { ...prev, [clientId]: { available_years: newAvailable, blocked_years: newBlocked } }
     })
+    // Update local blocked display
+    setLocalBlockedYears(prev => {
+      const cur = prev[clientId] || []
+      return { ...prev, [clientId]: [...new Set([...cur, ...sel])] }
+    })
     setSelectedYears(prev => ({ ...prev, [clientId]: [] }))
   }
 
@@ -130,6 +143,7 @@ export default function Clients() {
       const newAvailable = [...new Set([...c.available_years, ...c.blocked_years])].sort()
       return { ...prev, [clientId]: { available_years: newAvailable, blocked_years: [] } }
     })
+    setLocalBlockedYears(prev => ({ ...prev, [clientId]: [] }))
     setSelectedYears(prev => ({ ...prev, [clientId]: [] }))
   }
 
@@ -145,12 +159,20 @@ export default function Clients() {
     ...clients.map(c => c.assigned_professional?.professional_name || c.assigned_professional || '').filter(Boolean)
   ]))
 
+  // Global search across all relevant columns including years
   const filtered = (Array.isArray(clients) ? clients : []).filter(c => {
+    const q = search.toLowerCase()
+    const nc = noticeControl[c.id] || {}
+    const blockedYrs = nc.blocked_years || []
+    const selYrs = selectedYears[c.id] || []
+    const allClientYears = [...new Set([...blockedYrs, ...selYrs])]
+
     const searchMatch = search === '' ||
-      (c?.name || '').toLowerCase().includes(search.toLowerCase()) ||
-      (c?.pan || '').toLowerCase().includes(search.toLowerCase()) ||
-      (c?.email || '').toLowerCase().includes(search.toLowerCase()) ||
-      (c?.assigned_professional?.professional_name || c?.assigned_professional || '').toLowerCase().includes(search.toLowerCase())
+      (c?.name || '').toLowerCase().includes(q) ||
+      (c?.pan || '').toLowerCase().includes(q) ||
+      (c?.email || '').toLowerCase().includes(q) ||
+      (c?.assigned_professional?.professional_name || c?.assigned_professional || '').toLowerCase().includes(q) ||
+      allClientYears.some(y => y.toLowerCase().includes(q))
 
     const cStatus = getStatus(c).toLowerCase()
     const targetStatus = appliedStatus.toLowerCase()
@@ -202,10 +224,10 @@ export default function Clients() {
                 <Search size={13} color="#94a3b8" />
                 <input
                   type="text"
-                  placeholder="Search by User / PAN…"
+                  placeholder="Search by Name / Email / PAN / Professional / Year…"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', width: 180 }}
+                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', width: 260 }}
                 />
               </div>
               <button
@@ -358,162 +380,206 @@ export default function Clients() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((c, i) => (
-                  <tr key={c.id || i} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px 10px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span
-                          onClick={() => navigate(`/staff/notices?assessee=${encodeURIComponent(c.name)}&pan=${encodeURIComponent(c.pan || '')}&uid=${encodeURIComponent(c.id || '')}`, { state: { assesseeName: c.name, assesseePan: c.pan, assesseeId: c.id } })}
-                          style={{ fontWeight: 600, fontSize: 13, cursor: 'pointer', color: '#1e3a8a' }}
-                          onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                          onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                filtered.map((c, i) => {
+                  const nc = noticeControl[c.id] || { available_years: [], blocked_years: [] }
+                  const blockedYrs = nc.blocked_years || []
+                  const selYrs = selectedYears[c.id] || []
+                  const hasBlocked = blockedYrs.length > 0
+
+                  // Years available = ALL_YEARS minus already-blocked
+                  const availableForDropdown = ALL_YEARS.filter(y => !blockedYrs.includes(y))
+
+                  return (
+                    <tr key={c.id || i} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
+                      <td style={{ padding: '12px 10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span
+                            onClick={() => navigate(`/staff/notices?assessee=${encodeURIComponent(c.name)}&pan=${encodeURIComponent(c.pan || '')}&uid=${encodeURIComponent(c.id || '')}`, { state: { assesseeName: c.name, assesseePan: c.pan, assesseeId: c.id } })}
+                            style={{ fontWeight: 600, fontSize: 13, cursor: 'pointer', color: '#1e3a8a' }}
+                            onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                            onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                          >
+                            {c.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '12px 10px', fontSize: 13 }}>{c.email}</td>
+                      <td style={{ padding: '12px 10px', color: '#64748b', fontSize: 12 }}>{c.pan}</td>
+                      <td style={{ padding: '12px 10px', color: '#1e3a8a', fontWeight: 500, fontSize: 13 }}>
+                        {c.assigned_professional?.professional_name || c.assigned_professional}
+                      </td>
+                      {/* Status column — "Pending" is intentionally hidden, column remains */}
+                      <td style={{ padding: '12px 10px' }}>{statusBadge(getStatus(c))}</td>
+                      {/* Action column — renamed "Assign" → "Transfer" */}
+                      <td style={{ padding: '11px 10px', position: 'relative' }}>
+                        <button
+                          style={{ background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                          onClick={() => setAssignDropdownOpen(assignDropdownOpen === (c.id || i) ? null : (c.id || i))}
                         >
-                          {c.name}
-                        </span>
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px 10px', fontSize: 13 }}>{c.email}</td>
-                    <td style={{ padding: '12px 10px', color: '#64748b', fontSize: 12 }}>{c.pan}</td>
-                    <td style={{ padding: '12px 10px', color: '#1e3a8a', fontWeight: 500, fontSize: 13 }}>
-                      {c.assigned_professional?.professional_name || c.assigned_professional}
-                    </td>
-                    <td style={{ padding: '12px 10px' }}>{statusBadge(getStatus(c))}</td>
-                    <td style={{ padding: '11px 10px', position: 'relative' }}>
-                      <button
-                        style={{ background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
-                        onClick={() => setAssignDropdownOpen(assignDropdownOpen === (c.id || i) ? null : (c.id || i))}
-                      >
-                        Assign
-                      </button>
-                      {assignDropdownOpen === (c.id || i) && (
-                        <>
-                          <div
-                            style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }}
-                            onClick={() => setAssignDropdownOpen(null)}
-                          />
-                          <div style={{
-                            position: 'absolute',
-                            top: '100%',
-                            left: 0,
-                            zIndex: 100,
-                            background: '#fff',
-                            border: '1px solid #e2e8f0',
-                            borderRadius: 8,
-                            boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                            minWidth: 180,
-                            maxHeight: 200,
-                            overflowY: 'auto',
-                            marginTop: 4
-                          }}>
-                            {uniqueProfessionals.length === 0 ? (
-                              <div style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8' }}>No professionals available</div>
-                            ) : (
-                              uniqueProfessionals.map(profName => (
-                                <div
-                                  key={profName}
-                                  onClick={async () => {
-                                    // Find professional id from loaded professionals
-                                    const profObj = professionals.find(p => (p.name || p.professional_name || '').toLowerCase() === (profName || '').toLowerCase())
-                                    try {
-                                      if (profObj && profObj.id) {
-                                        await userService.assignProfessional(c.id, profObj.id)
-                                      } else {
-                                        // Fallback: attempt to call API with professional name if id not found
-                                        await userService.assignProfessional(c.id, profName)
+                          Transfer
+                        </button>
+                        {assignDropdownOpen === (c.id || i) && (
+                          <>
+                            <div
+                              style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }}
+                              onClick={() => setAssignDropdownOpen(null)}
+                            />
+                            <div style={{
+                              position: 'absolute',
+                              top: '100%',
+                              left: 0,
+                              zIndex: 100,
+                              background: '#fff',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: 8,
+                              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                              minWidth: 180,
+                              maxHeight: 200,
+                              overflowY: 'auto',
+                              marginTop: 4
+                            }}>
+                              {uniqueProfessionals.length === 0 ? (
+                                <div style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8' }}>No professionals available</div>
+                              ) : (
+                                uniqueProfessionals.map(profName => (
+                                  <div
+                                    key={profName}
+                                    onClick={async () => {
+                                      // Find professional id from loaded professionals
+                                      const profObj = professionals.find(p => (p.name || p.professional_name || '').toLowerCase() === (profName || '').toLowerCase())
+                                      try {
+                                        if (profObj && profObj.id) {
+                                          await userService.assignProfessional(c.id, profObj.id)
+                                        } else {
+                                          // Fallback: attempt to call API with professional name if id not found
+                                          await userService.assignProfessional(c.id, profName)
+                                        }
+                                      } catch (err) {
+                                        console.warn('assignProfessional API failed:', err)
                                       }
-                                    } catch (err) {
-                                      console.warn('assignProfessional API failed:', err)
-                                    }
 
-                                    // Update local clients state for immediate UI feedback
-                                    setClients(prev => prev.map(cl => {
-                                      if ((cl.id || clients.indexOf(cl)) === (c.id || i)) {
-                                        return { ...cl, assigned_professional: profName, status: 'completed' }
+                                      // Update local clients state for immediate UI feedback — updates all rows with this client
+                                      setClients(prev => prev.map(cl => {
+                                        if ((cl.id || clients.indexOf(cl)) === (c.id || i)) {
+                                          return { ...cl, assigned_professional: profName, status: 'completed' }
+                                        }
+                                        return cl
+                                      }))
+
+                                      // Notify other dashboards to refresh or update UI
+                                      try {
+                                        window.dispatchEvent(new CustomEvent('professionalAssigned', { detail: { userId: c.id, professionalName: profName } }))
+                                      } catch (e) {
+                                        // ignore if dispatch not supported
                                       }
-                                      return cl
-                                    }))
 
-                                    // Notify other dashboards to refresh or update UI
-                                    try {
-                                      window.dispatchEvent(new CustomEvent('professionalAssigned', { detail: { userId: c.id, professionalName: profName } }))
-                                    } catch (e) {
-                                      // ignore if dispatch not supported
-                                    }
-
-                                    setAssignDropdownOpen(null)
-                                  }}
-                                  style={{
-                                    padding: '9px 14px',
-                                    fontSize: 12,
-                                    color: '#1e293b',
-                                    cursor: 'pointer',
-                                    borderBottom: '0.5px solid #f1f5f9',
-                                    transition: 'background 0.15s'
-                                  }}
-                                  onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-                                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                >
-                                  {profName}
-                                </div>
-                              ))
+                                      setAssignDropdownOpen(null)
+                                    }}
+                                    style={{
+                                      padding: '9px 14px',
+                                      fontSize: 12,
+                                      color: '#1e293b',
+                                      cursor: 'pointer',
+                                      borderBottom: '0.5px solid #f1f5f9',
+                                      transition: 'background 0.15s'
+                                    }}
+                                    onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                  >
+                                    {profName}
+                                  </div>
+                                ))
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </td>
+                      {/* Notice Control column */}
+                      <td style={{ padding: '8px 6px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            {/* Multi-select year dropdown — hardcoded 2012–2026 */}
+                            <div style={{ position: 'relative' }}>
+                              <button
+                                onClick={() => setYearDropdownOpen(yearDropdownOpen === (c.id || i) ? null : (c.id || i))}
+                                style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontSize: 10, cursor: 'pointer', color: '#1e293b', minWidth: 70, textAlign: 'left', whiteSpace: 'nowrap' }}
+                              >
+                                {selYrs.length > 0 ? `${selYrs.length} selected` : 'Years ▾'}
+                              </button>
+                              {yearDropdownOpen === (c.id || i) && (
+                                <>
+                                  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setYearDropdownOpen(null)} />
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: 0,
+                                    zIndex: 100,
+                                    background: '#fff',
+                                    border: '1px solid #e2e8f0',
+                                    borderRadius: 8,
+                                    boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                                    minWidth: 130,
+                                    marginTop: 4,
+                                    maxHeight: 180,
+                                    overflowY: 'auto'
+                                  }}>
+                                    {availableForDropdown.length === 0 ? (
+                                      <div style={{ padding: '8px 10px', fontSize: 10, color: '#94a3b8' }}>All years blocked</div>
+                                    ) : (
+                                      availableForDropdown.map(year => (
+                                        <label key={year} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', fontSize: 11, cursor: 'pointer', borderBottom: '0.5px solid #f1f5f9' }}
+                                          onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                          <input type="checkbox" checked={selYrs.includes(year)} onChange={() => toggleYearSelection(c.id, year)} style={{ accentColor: '#1e3a8a', cursor: 'pointer' }} />
+                                          {year}
+                                        </label>
+                                      ))
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleBlockYears(c.id)}
+                              style={{ padding: '4px 10px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}
+                            >
+                              Block
+                            </button>
+                            {/* Unblock — shown in GREEN only when at least one year is blocked */}
+                            {hasBlocked && (
+                              <button
+                                onClick={() => handleUnblockYears(c.id)}
+                                style={{ padding: '4px 10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}
+                              >
+                                Unblock
+                              </button>
                             )}
                           </div>
-                        </>
-                      )}
-                    </td>
-                    <td style={{ padding: '8px 6px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                        {/* Multi-select year dropdown */}
-                        <div style={{ position: 'relative' }}>
-                          <button
-                            onClick={() => setYearDropdownOpen(yearDropdownOpen === (c.id || i) ? null : (c.id || i))}
-                            style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontSize: 10, cursor: 'pointer', color: '#1e293b', minWidth: 70, textAlign: 'left', whiteSpace: 'nowrap' }}
-                          >
-                            {(selectedYears[c.id] || []).length > 0 ? `${(selectedYears[c.id]).length} selected` : 'Years ▾'}
-                          </button>
-                          {yearDropdownOpen === (c.id || i) && (
-                            <>
-                              <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setYearDropdownOpen(null)} />
-                              <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 130, marginTop: 4, maxHeight: 180, overflowY: 'auto' }}>
-                                {((noticeControl[c.id] || {}).available_years || []).length === 0 ? (
-                                  <div style={{ padding: '8px 10px', fontSize: 10, color: '#94a3b8' }}>All years blocked</div>
-                                ) : (
-                                  ((noticeControl[c.id] || {}).available_years || []).map(year => (
-                                    <label key={year} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', fontSize: 11, cursor: 'pointer', borderBottom: '0.5px solid #f1f5f9' }}
-                                      onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-                                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                    >
-                                      <input type="checkbox" checked={(selectedYears[c.id] || []).includes(year)} onChange={() => toggleYearSelection(c.id, year)} style={{ accentColor: '#1e3a8a', cursor: 'pointer' }} />
-                                      {year}
-                                    </label>
-                                  ))
-                                )}
+                          {/* Selected year chips */}
+                          {selYrs.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                              {selYrs.map(y => (
+                                <span key={y} style={{ background: '#eff6ff', color: '#1e3a8a', borderRadius: 4, fontSize: 9, padding: '2px 6px', fontWeight: 600 }}>{y}</span>
+                              ))}
+                            </div>
+                          )}
+                          {/* Blocked years display */}
+                          {hasBlocked && (
+                            <div style={{ fontSize: 9, color: '#dc2626', marginTop: 1 }}>
+                              <span style={{ fontWeight: 700 }}>Blocked: </span>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 2 }}>
+                                {blockedYrs.map(y => (
+                                  <span key={y} style={{ background: '#fee2e2', color: '#dc2626', borderRadius: 4, fontSize: 9, padding: '2px 6px', fontWeight: 600 }}>{y}</span>
+                                ))}
                               </div>
-                            </>
+                            </div>
                           )}
                         </div>
-                        <button
-                          onClick={() => handleBlockYears(c.id)}
-                          style={{ padding: '4px 10px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}
-                        >
-                          Block
-                        </button>
-                        <button
-                          onClick={() => handleUnblockYears(c.id)}
-                          disabled={!((noticeControl[c.id] || {}).blocked_years || []).length}
-                          style={{ padding: '4px 10px', background: ((noticeControl[c.id] || {}).blocked_years || []).length ? '#16a34a' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: ((noticeControl[c.id] || {}).blocked_years || []).length ? 'pointer' : 'default' }}
-                        >
-                          Unblock
-                        </button>
-                        {((noticeControl[c.id] || {}).blocked_years || []).length > 0 && (
-                          <div style={{ fontSize: 9, color: '#dc2626', marginTop: 2, width: '100%' }}>
-                            Blocked: {(noticeControl[c.id].blocked_years).join(', ')}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
