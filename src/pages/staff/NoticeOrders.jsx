@@ -235,57 +235,16 @@ export default function NoticeOrders() {
           payload = res?.data || res
         } else {
           if (role === 'professional' || isProfessional) {
-            let proceedingId = null
-            let noticeDetail = null
-
             try {
               const noticeRes = await professionalWorkflowService.getWorkflow(id)
-              noticeDetail = noticeRes?.data || noticeRes
-              setWorkflowDetails(noticeDetail)
+              setWorkflowDetails(noticeRes?.data || noticeRes)
             } catch (err) {
               console.warn('Failed to fetch notice workflow details', err)
             }
-
-            if (noticeDetail && noticeDetail.notice) {
-              resolvedProceedingDetails = {
-                proceeding_name: noticeDetail.notice.proceeding_name || noticeDetail.notice.reference_id || 'N/A',
-                pan_number: noticeDetail.user?.pan || 'N/A',
-                assessee_name: noticeDetail.user?.name || 'N/A',
-                assessment_year: noticeDetail.notice.assessment_year || 'N/A',
-                financial_year: noticeDetail.notice.financial_year || 'N/A',
-                applicable_act: noticeDetail.notice.applicable_act || 'Income Tax Act 1961'
-              }
-              resolvedUserPan = noticeDetail.user?.pan
-              resolvedUserName = noticeDetail.user?.name
-              proceedingId = noticeDetail.notice.proceeding_id
-            }
-
-            let loadedFromProceeding = false
-            if (proceedingId) {
-              try {
-                res = await professionalService.getProceedingNoticesById(proceedingId)
-                payload = res?.data || res
-                loadedFromProceeding = true
-              } catch (err) {
-                console.warn('Failed to load proceeding notices, falling back to single notice', err)
-              }
-            }
-
-            if (!loadedFromProceeding && noticeDetail && noticeDetail.notice) {
-              const singleNotice = {
-                ...noticeDetail.notice,
-                notice_id: noticeDetail.notice.id,
-                section: noticeDetail.notice.notice_us,
-                due_date: noticeDetail.notice.response_due_date,
-                view_responses: noticeDetail.responses || [],
-                view_adjournments: noticeDetail.adjournments || [],
-              }
-              payload = [singleNotice]
-            }
-          } else {
-            res = await noticeService.getNoticeById(id)
-            payload = res?.data || res
           }
+          
+          res = await noticeService.getNoticeById(id)
+          payload = res?.data || res
         }
 
         // Normalize into array
@@ -693,7 +652,7 @@ export default function NoticeOrders() {
               <div className="notice-card-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 110px' }}>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0' }}>
                   <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Section</p>
-                  <p style={{ fontSize: 24, fontWeight: 500, color: '#1e293b', lineHeight: 1.1 }}>{n.section || extractSection(n.description) || "—"}</p>
+                  <p style={{ fontSize: 24, fontWeight: 500, color: '#1e293b', lineHeight: 1.1 }}>{n.section || n.notice_us || n.notice_type || extractSection(n.description) || "—"}</p>
                   <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Notice u/s</p>
 
                   <div style={{ marginTop: 16 }}>
