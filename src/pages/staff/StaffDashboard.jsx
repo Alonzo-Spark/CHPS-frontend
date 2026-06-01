@@ -259,13 +259,24 @@ export default function StaffDashboard() {
       const assessmentYear = (a?.assessment_year || '').toString().toLowerCase()
       const proceedingName = (a?.proceeding_name || '').toLowerCase()
       const assignedProfessional = (a?.assigned_professional || '').toLowerCase()
+      const issuedOnFormatted = formatDate(a?.issued_on).toLowerCase()
+      const issuedOnRaw = (a?.issued_on || '').toLowerCase()
+      const dueDateFormatted = formatDate(a?.due_date).toLowerCase()
+      const dueDateRaw = (a?.due_date || '').toLowerCase()
+      const statusText = (a?.status || '').toLowerCase()
+
       return (
         userName.includes(term) ||
         referenceId.includes(term) ||
         noticeId.includes(term) ||
         assessmentYear.includes(term) ||
         proceedingName.includes(term) ||
-        assignedProfessional.includes(term)
+        assignedProfessional.includes(term) ||
+        issuedOnFormatted.includes(term) ||
+        issuedOnRaw.includes(term) ||
+        dueDateFormatted.includes(term) ||
+        dueDateRaw.includes(term) ||
+        statusText.includes(term)
       )
     })()
 

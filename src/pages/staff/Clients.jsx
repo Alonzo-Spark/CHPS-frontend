@@ -252,18 +252,23 @@ export default function Clients() {
 
   // Global search across all relevant columns including years
   const filtered = (Array.isArray(clients) ? clients : []).filter(c => {
-    const q = search.toLowerCase()
+    const q = search.toLowerCase().trim()
     const nc = noticeControl[c.id] || {}
     const blockedYrs = nc.blocked_years || []
     const selYrs = selectedYears[c.id] || []
     const allClientYears = [...new Set([...blockedYrs, ...selYrs])]
 
-    const searchMatch = search === '' ||
+    const searchMatch = q === '' ||
       (c?.name || '').toLowerCase().includes(q) ||
       (c?.pan || '').toLowerCase().includes(q) ||
       (c?.email || '').toLowerCase().includes(q) ||
       (c?.assigned_professional?.professional_name || c?.assigned_professional || '').toLowerCase().includes(q) ||
-      allClientYears.some(y => y.toLowerCase().includes(q))
+      getStatus(c).toLowerCase().includes(q) ||
+      allClientYears.some(y => y.toLowerCase().includes(q)) ||
+      (clientTimelines[c.id] || []).some(evt => 
+        (evt.name || '').toLowerCase().includes(q) || 
+        formatTimelineDate(evt.date).toLowerCase().includes(q)
+      )
 
     const cStatus = getStatus(c).toLowerCase()
     const targetStatus = appliedStatus.toLowerCase()
@@ -311,14 +316,15 @@ export default function Clients() {
               <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>View and manage all user assignments</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid #cbd5e1', borderRadius: 8, padding: '6px 11px', background: '#fff' }}>
+              <div className="clients-search-container" style={{ display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid #cbd5e1', borderRadius: 8, padding: '6px 11px', background: '#fff' }}>
                 <Search size={13} color="#94a3b8" />
                 <input
                   type="text"
                   placeholder="Search by Name / Email / PAN / Professional / Year…"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', width: 260 }}
+                  className="clients-search-input"
+                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', width: '100%', maxWidth: 360 }}
                 />
               </div>
               <button
@@ -443,7 +449,8 @@ export default function Clients() {
             </div>
           )}
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+          <div className="clients-table-wrapper">
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
             <colgroup>
               <col style={{ width: '14%' }} /><col style={{ width: '15%' }} /><col style={{ width: '11%' }} />
               <col style={{ width: '16%' }} /><col style={{ width: '20%' }} /><col style={{ width: '24%' }} />
@@ -501,7 +508,7 @@ export default function Clients() {
                       </td>
                       {/* Activity Timeline column */}
                       <td style={{ padding: '12px 10px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: '80px', overflowY: 'auto' }}>
                           {(clientTimelines[c.id] || []).length === 0 ? (
                             <span style={{ color: '#94a3b8', fontSize: 11, fontStyle: 'italic' }}>No activity</span>
                           ) : (
@@ -603,6 +610,7 @@ export default function Clients() {
               )}
             </tbody>
           </table>
+          </div>
 
 
           <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px solid #f1f5f9' }}>

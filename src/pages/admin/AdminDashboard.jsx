@@ -165,12 +165,17 @@ export default function AdminDashboard() {
 
   const filtered = clients.filter(c => {
     if (!search) return true
-    const q = search.toLowerCase()
+    const q = search.toLowerCase().trim()
     const nameMatch = (c.name || '').toLowerCase().includes(q)
     const panMatch = (c.pan || '').toLowerCase().includes(q)
-    const profMatch = ((c.assigned_professional?.professional_name || c.assigned_professional) || '').toLowerCase().includes(q)
+    const profMatch = (c.assigned_professional?.professional_name || c.assigned_professional || '').toLowerCase().includes(q)
     const yearMatch = (c.assessment_year || '').toString().toLowerCase().includes(q)
-    return nameMatch || panMatch || profMatch || yearMatch
+    const statusMatch = (c.status || '').toLowerCase().includes(q)
+    const timelineMatch = (clientTimelines[c.client_id] || []).some(evt => 
+      (evt.name || '').toLowerCase().includes(q) || 
+      formatTimelineDate(evt.date).toLowerCase().includes(q)
+    )
+    return nameMatch || panMatch || profMatch || yearMatch || statusMatch || timelineMatch
   })
 
   return (
@@ -180,7 +185,7 @@ export default function AdminDashboard() {
 
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column', width: '100%' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ position: 'relative', width: 320 }}>
+            <div className="admin-search-wrapper" style={{ position: 'relative', width: 320 }}>
               <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
@@ -192,7 +197,7 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <div style={{ flex: 1, width: '100%' }}>
+          <div className="admin-dashboard-list-container" style={{ flex: 1, width: '100%' }}>
             {/* Header Row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
               {['Assessee', 'PAN', 'Assessment Year', 'Assigned Professional', 'Activity Timeline', 'Action', 'Proceedings'].map(h => (
@@ -218,7 +223,7 @@ export default function AdminDashboard() {
                   </div>
                   {/* Activity Timeline Column */}
                   <div style={{ padding: '14px 20px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: '80px', overflowY: 'auto' }}>
                       {(clientTimelines[c.client_id] || []).length === 0 ? (
                         <span style={{ color: '#94a3b8', fontSize: 13, fontStyle: 'italic' }}>No activity</span>
                       ) : (

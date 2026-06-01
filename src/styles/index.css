@@ -23,12 +23,33 @@ img, svg, canvas, video, iframe {
 }
 
 /* -------------------------------------------------------------
-   Mobile Stacked Sidebar & Layout (320px – 480px)
+   Responsive Sidebar & Layout Behavior
    ------------------------------------------------------------- */
-@media (max-width: 480px) {
+
+/* 1. Tablet View (641px – 1024px) */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .sidebar-aside {
+    width: 180px !important;
+    transition: width 0.3s ease !important;
+  }
+  .sidebar-aside nav > div {
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+    gap: 6px !important;
+  }
+  .sidebar-aside > div:first-child {
+    padding: 12px 10px !important;
+  }
+  .sidebar-aside > div:first-child p {
+    font-size: 11px !important;
+  }
+}
+
+/* 2. Mobile View (<= 640px) */
+@media (max-width: 640px) {
   .dashboard-layout-container {
     flex-direction: column !important;
-    overflow: auto !important;
+    overflow-y: auto !important;
   }
   
   .sidebar-aside {
@@ -44,6 +65,11 @@ img, svg, canvas, video, iframe {
     border-bottom: none !important;
     padding: 4px 0 !important;
   }
+
+  /* Hide subtitle and keep branding compact on mobile */
+  .sidebar-aside > div:first-child > div:last-child p:last-child {
+    display: none !important;
+  }
   
   .sidebar-aside nav {
     flex-direction: row !important;
@@ -55,6 +81,7 @@ img, svg, canvas, video, iframe {
 
   .sidebar-aside nav > div {
     padding: 8px 12px !important;
+    font-size: 12px !important;
   }
   
   .dashboard-main-content {
@@ -192,6 +219,39 @@ img, svg, canvas, video, iframe {
 /* -------------------------------------------------------------
    Page layouts and Tables Responsiveness
    ------------------------------------------------------------- */
+@media (max-width: 1024px) {
+  /* Scrollable Table wrappers */
+  .clients-table-wrapper,
+  .admin-dashboard-list-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    width: 100% !important;
+  }
+  
+  .clients-table-wrapper table {
+    min-width: 900px !important;
+  }
+
+  .admin-dashboard-list-container > div {
+    min-width: 950px !important;
+  }
+  
+  /* Ensure e-proceedings page can handle grids and elements cleanly */
+  .dashboard-page-container table {
+    display: block !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+  
+  .dashboard-page-container table thead,
+  .dashboard-page-container table tbody {
+    display: table !important;
+    width: 100% !important;
+    min-width: 900px !important;
+  }
+}
+
 @media (max-width: 768px) {
   /* Prevent horizontal text layout overflow in generic lists */
   table th, table td {
@@ -200,21 +260,58 @@ img, svg, canvas, video, iframe {
   }
 }
 
-@media (max-width: 480px) {
-  /* Handle lists/flex groups stacking */
-  div[style*="display: flex"][style*="justify-content: space-between"],
-  div[style*="display: 'flex'"][style*="justifyContent: 'space-between'"] {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 12px !important;
-  }
-  
+@media (max-width: 640px) {
   /* Prevent huge fonts on mobile header info sections */
-  div[style*="font-size: 24"] {
-    font-size: 20px !important;
-  }
+  div[style*="font-size: 24"],
   div[style*="fontSize: 24"] {
     font-size: 20px !important;
+  }
+
+  /* Make header flex containers stack vertically on mobile */
+  .dashboard-layout-container div[style*="display: flex"][style*="justify-content: space-between"],
+  .dashboard-layout-container div[style*="display: flex"][style*="justify-content: 'space-between'"],
+  .dashboard-layout-container div[style*="display: 'flex'"][style*="justifyContent: 'space-between'"],
+  .clients-search-container,
+  .admin-search-wrapper,
+  .notices-search-container {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+  }
+
+  /* Make search inputs fluid */
+  .clients-search-input,
+  .notices-search-input {
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  /* Touch-friendly forms & inputs targets */
+  .dashboard-layout-container select,
+  .dashboard-layout-container input[type="text"],
+  .dashboard-layout-container input[type="date"] {
+    width: 100% !important;
+    height: 42px !important;
+    font-size: 14px !important;
+  }
+  
+  .dashboard-layout-container button {
+    width: 100% !important;
+    min-height: 40px !important;
+    padding: 8px 16px !important;
+    font-size: 13px !important;
+    display: inline-flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+  
+  /* Timeline containers smooth scroll */
+  .dashboard-layout-container div[style*="overflowY: auto"],
+  .dashboard-layout-container div[style*="overflow-y: auto"],
+  .dashboard-layout-container div[style*="maxHeight: 80"],
+  .dashboard-layout-container div[style*="max-height: 80"] {
+    scroll-behavior: smooth !important;
+    -webkit-overflow-scrolling: touch !important;
   }
 }
 
