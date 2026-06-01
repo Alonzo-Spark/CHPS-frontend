@@ -146,6 +146,16 @@ export const noticeService = {
         return { data: null };
       }),
 
+  updateNoticeStatus: async (noticeId, payload) => {
+    try {
+      const res = await apiService.put(`/api/notices/${noticeId}/status`, payload)
+      return { data: res }
+    } catch (err) {
+      console.warn(`updateNoticeStatus API for ${noticeId} failed`, err)
+      return { data: null, error: err }
+    }
+  },
+
   getProceedings: () =>
     apiService.get('/api/proceedings')
       .then(res => ({ data: res }))
