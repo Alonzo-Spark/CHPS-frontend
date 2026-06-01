@@ -5,7 +5,7 @@ import DashboardLayout from '../../layouts/DashboardLayout'
 import { clientService, professionalService } from '../../services'
 
 export default function CreateClient() {
-  const [form, setForm] = useState({ name: '', pan: '', password: '', email: '', professional_id: '', referred_by: '', referred_by_email: '', referred_by_phone: '' })
+  const [form, setForm] = useState({ name: '', pan: '', password: '', email: '', professional_id: '', referred_by: '', referred_by_email: '', referred_by_phone: '', year: '' })
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
@@ -115,6 +115,23 @@ export default function CreateClient() {
               <label style={labelStyle}>Mail</label>
               <input type="email" placeholder="client@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} style={inputStyle} />
               {fieldErrors.email && <p style={{ marginTop: 6, color: '#dc2626', fontSize: 12 }}>{fieldErrors.email}</p>}
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>Year</label>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={form.year}
+                  onChange={e => setForm({ ...form, year: e.target.value })}
+                  style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', paddingRight: 36 }}
+                >
+                  <option value="">Select Year</option>
+                  {Array.from({ length: new Date().getFullYear() - 2012 + 1 }, (_, i) => 2012 + i).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+                <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }}>▾</span>
+              </div>
             </div>
 
             <div style={{ marginBottom: 24 }}>
