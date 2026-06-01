@@ -206,6 +206,30 @@ export const userService = {
         return { data: [] };
       }),
 
+  blockUser: (userId) =>
+    apiService.put('/api/admin/users/block', { user_id: userId })
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`blockUser API failed for ${userId}`, err);
+        throw err;
+      }),
+
+  unblockUser: (userId) =>
+    apiService.put('/api/admin/users/unblock', { user_id: userId })
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`unblockUser API failed for ${userId}`, err);
+        throw err;
+      }),
+
+  deleteUser: (userId) =>
+    apiService.delete(`/api/admin/users/${userId}`)
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`deleteUser API failed for ${userId}`, err);
+        throw err;
+      }),
+
   runAutoAssignment: () => apiService.post('/api/users/run-auto-assignment').then(res => ({ data: res })),
   assignProfessional: (userId, professionalId) =>
     apiService.put(`/api/users/${userId}/assign-professional`, { professional_id: professionalId }).then(res => ({ data: res })),

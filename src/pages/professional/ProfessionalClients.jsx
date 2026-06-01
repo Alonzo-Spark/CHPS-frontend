@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Search, Filter, Trash2, Ban, AlertTriangle } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { professionalClientService } from '../../services'
+import { userService } from '../../services'
 
 export default function ProfessionalClients() {
   const [clients, setClients] = useState([])
@@ -22,17 +22,26 @@ export default function ProfessionalClients() {
   const fetchClients = async () => {
     try {
       setLoading(true)
-      const res = await professionalClientService.getClients()
+      const res = await userService.getUsers()
       const rawClients = res.data || []
-      
+
       // Extra deduplication on frontend to guarantee no duplicate rows
       const uniqueClientsMap = new Map()
       rawClients.forEach(c => {
-        if (!uniqueClientsMap.has(c.client_id)) {
-          uniqueClientsMap.set(c.client_id, c)
+        const clientId = c.user_id || c.client_id || c.id || c.userId || `${c.email || c.name || c.username || 'unknown'}-${c.pan_number || c.pan || 'na'}`
+        const normalizedClient = {
+          ...c,
+          client_id: clientId,
+          client_name: c.client_name || c.name || c.full_name || c.username || 'Unknown User',
+          pan_number: c.pan_number || c.pan || 'N/A',
+          status: c.status || c.account_status || c.stage || ''
+        }
+
+        if (!uniqueClientsMap.has(clientId)) {
+          uniqueClientsMap.set(clientId, normalizedClient)
         }
       })
-      
+
       setClients(Array.from(uniqueClientsMap.values()))
     } catch (err) {
       console.error('Failed to fetch clients', err)
@@ -42,25 +51,25 @@ export default function ProfessionalClients() {
     }
   }
 
-  const handleDisable = async (clientId) => {
+  const handleBlock = async (clientId) => {
     try {
-      await professionalClientService.disableClient(clientId)
+      await userService.blockUser(clientId)
       // Update local state
-      setClients(prev => prev.map(c => c.client_id === clientId ? { ...c, status: 'DISABLED' } : c))
+      setClients(prev => prev.map(c => c.client_id === clientId ? { ...c, status: 'BLOCKED' } : c))
     } catch (err) {
-      console.error('Failed to disable client', err)
-      alert('Failed to disable client. Please try again.')
+      console.error('Failed to block client', err)
+      alert('Failed to block client. Please try again.')
     }
   }
 
-  const handleEnable = async (clientId) => {
+  const handleUnblock = async (clientId) => {
     try {
-      await professionalClientService.enableClient(clientId)
+      await userService.unblockUser(clientId)
       // Update local state
       setClients(prev => prev.map(c => c.client_id === clientId ? { ...c, status: 'ACTIVE' } : c))
     } catch (err) {
-      console.error('Failed to enable client', err)
-      alert('Failed to enable client. Please try again.')
+      console.error('Failed to unblock client', err)
+      alert('Failed to unblock client. Please try again.')
     }
   }
 
@@ -72,7 +81,7 @@ export default function ProfessionalClients() {
   const handleDelete = async () => {
     if (!clientToDelete) return
     try {
-      await professionalClientService.deleteClient(clientToDelete.client_id)
+      await userService.deleteUser(clientToDelete.client_id)
       setClients(prev => prev.filter(c => c.client_id !== clientToDelete.client_id))
       setShowDeleteModal(false)
       setClientToDelete(null)
@@ -86,6 +95,7 @@ export default function ProfessionalClients() {
   const totalClients = clients.length
   const activeClients = clients.filter(c => (c.status || '').toUpperCase() === 'ACTIVE').length
   const disabledClients = clients.filter(c => (c.status || '').toUpperCase() === 'DISABLED').length
+  const blockedClients = clients.filter(c => (c.status || '').toUpperCase() === 'BLOCKED').length
 
   // Filtering Logic
   const filteredClients = clients.filter(c => {
@@ -105,6 +115,7 @@ export default function ProfessionalClients() {
     if (st === 'ACTIVE') return { bg: '#dcfce7', color: '#166534', border: '#bbf7d0' }
     if (st === 'PENDING') return { bg: '#fef9c3', color: '#854d0e', border: '#fef08a' }
     if (st === 'DISABLED') return { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' }
+    if (st === 'BLOCKED') return { bg: '#fee2e2', color: '#991b1b', border: '#fecaca' }
     return { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' } // default
   }
 
@@ -128,6 +139,10 @@ export default function ProfessionalClients() {
           <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Disabled Clients</p>
             <p style={{ color: '#64748b', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{disabledClients}</p>
+          </div>
+          <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Blocked Clients</p>
+            <p style={{ color: '#b91c1c', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{blockedClients}</p>
           </div>
           
         </div>
@@ -167,6 +182,7 @@ export default function ProfessionalClients() {
                 <option value="ACTIVE">Active</option>
                 <option value="PENDING">Pending</option>
                 <option value="DISABLED">Disabled</option>
+                <option value="BLOCKED">Blocked</option>
               </select>
               
             </div>
@@ -195,14 +211,15 @@ export default function ProfessionalClients() {
                 ) : (
                   filteredClients.map((client) => {
                     const badge = getBadgeStyle(client.status)
+                    const isBlocked = (client.status || '').toUpperCase() === 'BLOCKED'
                     const isDisabled = (client.status || '').toUpperCase() === 'DISABLED'
                     
                     return (
                       <tr key={client.client_id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                        <td style={{ padding: '16px 20px', fontSize: 14, fontWeight: 500, color: isDisabled ? '#94a3b8' : '#1e293b' }}>
+                        <td style={{ padding: '16px 20px', fontSize: 14, fontWeight: 500, color: (isDisabled || isBlocked) ? '#94a3b8' : '#1e293b' }}>
                           {client.client_name}
                         </td>
-                        <td style={{ padding: '16px 20px', fontSize: 14, color: isDisabled ? '#94a3b8' : '#475569' }}>
+                        <td style={{ padding: '16px 20px', fontSize: 14, color: (isDisabled || isBlocked) ? '#94a3b8' : '#475569' }}>
                           {client.pan_number || 'N/A'}
                         </td>
                         <td style={{ padding: '16px 20px' }}>
@@ -221,9 +238,9 @@ export default function ProfessionalClients() {
                         </td>
                         <td style={{ padding: '16px 20px', textAlign: 'right' }}>
                           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                            {isDisabled ? (
+                            {isBlocked ? (
                               <button 
-                                onClick={() => handleEnable(client.client_id)}
+                                onClick={() => handleUnblock(client.client_id)}
                                 style={{ 
                                   display: 'flex', alignItems: 'center', gap: 6, 
                                   padding: '6px 12px', 
@@ -238,11 +255,11 @@ export default function ProfessionalClients() {
                                 onMouseEnter={(e) => { e.currentTarget.style.background = '#bbf7d0' }}
                                 onMouseLeave={(e) => { e.currentTarget.style.background = '#dcfce7' }}
                               >
-                                Enable
+                                Unblock
                               </button>
                             ) : (
                               <button 
-                                onClick={() => handleDisable(client.client_id)}
+                                onClick={() => handleBlock(client.client_id)}
                                 style={{ 
                                   display: 'flex', alignItems: 'center', gap: 6, 
                                   padding: '6px 12px', 
@@ -257,7 +274,7 @@ export default function ProfessionalClients() {
                                 onMouseEnter={(e) => { e.currentTarget.style.background = '#f8fafc' }}
                                 onMouseLeave={(e) => { e.currentTarget.style.background = '#fff' }}
                               >
-                                <Ban size={14} /> Disable
+                                <Ban size={14} /> Block
                               </button>
                             )}
                             <button 
@@ -311,7 +328,7 @@ export default function ProfessionalClients() {
               <div>
                 <h3 style={{ fontSize: 18, fontWeight: 600, color: '#0f172a', margin: '0 0 8px 0' }}>Delete Client</h3>
                 <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.5, margin: 0 }}>
-                  Are you sure you want to permanently delete <strong>{clientToDelete?.client_name}</strong>? 
+                  Are you sure you want to permanently delete <strong>{clientToDelete?.client_name || clientToDelete?.name || clientToDelete?.full_name || clientToDelete?.username || 'this user'}</strong>? 
                   This will remove all their records and assignments. This action cannot be undone.
                 </p>
               </div>
