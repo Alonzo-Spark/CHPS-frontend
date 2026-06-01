@@ -222,14 +222,16 @@ img, svg, canvas, video, iframe {
 @media (max-width: 1024px) {
   /* Scrollable Table wrappers */
   .clients-table-wrapper,
-  .admin-dashboard-list-container {
+  .admin-dashboard-list-container,
+  .professional-table-wrapper {
     overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
     width: 100% !important;
   }
   
-  .clients-table-wrapper table {
-    min-width: 900px !important;
+  .clients-table-wrapper table,
+  .professional-table-wrapper table {
+    min-width: 950px !important;
   }
 
   .admin-dashboard-list-container > div {
@@ -261,6 +263,21 @@ img, svg, canvas, video, iframe {
 }
 
 @media (max-width: 640px) {
+  /* Smaller padding inside the layout content on mobile L & M */
+  .dashboard-layout-container div[style*="padding: 20px 22px"],
+  .dashboard-layout-container div[style*="padding: '20px 22px'"] {
+    padding: 10px 8px !important;
+  }
+
+  /* Stack main headers on mobile L & M to prevent truncation/overlaps */
+  .dashboard-layout-container div[style*="padding: 14px 18px"],
+  .dashboard-layout-container div[style*="padding: '14px 18px'"] {
+    padding: 12px 10px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
   /* Prevent huge fonts on mobile header info sections */
   div[style*="font-size: 24"],
   div[style*="fontSize: 24"] {
@@ -273,7 +290,8 @@ img, svg, canvas, video, iframe {
   .dashboard-layout-container div[style*="display: 'flex'"][style*="justifyContent: 'space-between'"],
   .clients-search-container,
   .admin-search-wrapper,
-  .notices-search-container {
+  .notices-search-container,
+  .professional-search-container {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 10px !important;
@@ -304,14 +322,180 @@ img, svg, canvas, video, iframe {
     justify-content: center !important;
     align-items: center !important;
   }
-  
-  /* Timeline containers smooth scroll */
-  .dashboard-layout-container div[style*="overflowY: auto"],
-  .dashboard-layout-container div[style*="overflow-y: auto"],
-  .dashboard-layout-container div[style*="maxHeight: 80"],
-  .dashboard-layout-container div[style*="max-height: 80"] {
-    scroll-behavior: smooth !important;
+}
+
+/* -------------------------------------------------------------
+   Clean & Minimal Scrollbar Area styling (Both Dashboards)
+   ------------------------------------------------------------- */
+.dashboard-layout-container div[style*="overflowY: auto"],
+.dashboard-layout-container div[style*="overflow-y: auto"],
+.dashboard-layout-container div[style*="maxHeight: 80"],
+.dashboard-layout-container div[style*="max-height: 80"] {
+  scroll-behavior: smooth !important;
+  -webkit-overflow-scrolling: touch !important;
+  padding: 4px 6px !important;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(100, 116, 139, 0.25) rgba(0, 0, 0, 0.02) !important;
+}
+
+.dashboard-layout-container div[style*="overflowY: auto"]::-webkit-scrollbar,
+.dashboard-layout-container div[style*="overflow-y: auto"]::-webkit-scrollbar,
+.dashboard-layout-container div[style*="maxHeight: 80"]::-webkit-scrollbar,
+.dashboard-layout-container div[style*="max-height: 80"]::-webkit-scrollbar {
+  width: 4px !important;
+  height: 4px !important;
+}
+
+.dashboard-layout-container div[style*="overflowY: auto"]::-webkit-scrollbar-track,
+.dashboard-layout-container div[style*="overflow-y: auto"]::-webkit-scrollbar-track,
+.dashboard-layout-container div[style*="maxHeight: 80"]::-webkit-scrollbar-track,
+.dashboard-layout-container div[style*="max-height: 80"]::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.02) !important;
+  border-radius: 10px !important;
+}
+
+.dashboard-layout-container div[style*="overflowY: auto"]::-webkit-scrollbar-thumb,
+.dashboard-layout-container div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb,
+.dashboard-layout-container div[style*="maxHeight: 80"]::-webkit-scrollbar-thumb,
+.dashboard-layout-container div[style*="max-height: 80"]::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.25) !important;
+  border-radius: 10px !important;
+}
+
+.dashboard-layout-container div[style*="overflowY: auto"]::-webkit-scrollbar-thumb:hover,
+.dashboard-layout-container div[style*="overflow-y: auto"]::-webkit-scrollbar-thumb:hover,
+.dashboard-layout-container div[style*="maxHeight: 80"]::-webkit-scrollbar-thumb:hover,
+.dashboard-layout-container div[style*="max-height: 80"]::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.45) !important;
+}
+
+/* -------------------------------------------------------------
+   Comprehensive Global Site-Wide Responsiveness Safeguards
+   ------------------------------------------------------------- */
+html, body {
+  max-width: 100vw !important;
+  overflow-x: hidden !important;
+}
+
+/* 1. Global Viewport Padding Modifications for Small Mobile Screens */
+@media (max-width: 480px) {
+  .dashboard-layout-container div[style*="padding: 20px 22px"],
+  .dashboard-layout-container div[style*="padding: '20px 22px'"] {
+    padding: 12px 10px !important;
+  }
+}
+
+/* 2. Authentication Pages (LoginPage, RegisterPage, PasswordSetupPage, AdminActionPage) */
+.auth-container {
+  padding: 16px !important;
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 20px 20px !important;
+    border-radius: 12px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-bottom: 12px !important;
+  }
+  .auth-info-card {
+    padding: 16px 16px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  .auth-container h1 {
+    font-size: 18px !important;
+  }
+  .auth-container h2 {
+    font-size: 16px !important;
+  }
+  .auth-container p {
+    font-size: 12px !important;
+  }
+}
+
+/* 3. Form Card Containers (CreateClient Form Card) */
+@media (max-width: 640px) {
+  .form-card-container {
+    padding: 12px 8px !important;
+    align-items: stretch !important;
+  }
+  .form-card {
+    padding: 20px 20px !important;
+    border-radius: 10px !important;
+    max-width: 100% !important;
+  }
+  .form-card button {
+    height: 42px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* 4. Client Proceedings (ClientProceedings.jsx) */
+@media (max-width: 768px) {
+  .client-proceedings-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .client-proceedings-header div[style*="text-align: right"] {
+    text-align: left !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+  .client-proceedings-info-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+}
+
+/* 5. Proceeding Details (Proceeding.jsx) */
+@media (max-width: 640px) {
+  .proceeding-card {
+    border-radius: 10px !important;
+  }
+  .proceeding-header-container {
+    padding: 16px 18px !important;
+  }
+  .proceeding-header-container > div {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .proceeding-header-status {
+    text-align: left !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+  }
+  .proceeding-info-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+}
+
+/* 6. Professor Dashboard (ProfessorDashboard.jsx) */
+@media (max-width: 768px) {
+  .professor-dashboard-container {
+    padding: 16px 12px !important;
+  }
+  .professor-header-card {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+    padding: 18px 20px !important;
+  }
+  .professor-header-card button {
+    width: 100% !important;
+    height: 40px !important;
+  }
+  .professor-users-card {
+    overflow-x: auto !important;
     -webkit-overflow-scrolling: touch !important;
+  }
+  .professor-users-card table {
+    min-width: 600px !important;
   }
 }
 

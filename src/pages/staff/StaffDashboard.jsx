@@ -251,19 +251,29 @@ export default function StaffDashboard() {
   const filtered = sourceData.filter(a => {
     const term = search.trim().toLowerCase()
 
-    // Global search across all visible columns
+    // Global search across all visible columns (User, Proceeding Name, Assessment Year, Assigned Professional, Issued On, Due Date)
     const matchesSearch = !term || (() => {
-      const userName = (a?.user || a?.user_name || '').toLowerCase()
-      const referenceId = (a?.reference_id || `REF-${a?.notice_id}`).toLowerCase()
+      const userName = (a?.user || a?.user_name || a?.assessee_name || '').toLowerCase()
+      const referenceId = (a?.reference_id || `REF-${a?.notice_id || ''}`).toLowerCase()
       const noticeId = String(a?.notice_id ?? '')
       const assessmentYear = (a?.assessment_year || '').toString().toLowerCase()
       const proceedingName = (a?.proceeding_name || '').toLowerCase()
-      const assignedProfessional = (a?.assigned_professional || '').toLowerCase()
-      const issuedOnFormatted = formatDate(a?.issued_on).toLowerCase()
-      const issuedOnRaw = (a?.issued_on || '').toLowerCase()
-      const dueDateFormatted = formatDate(a?.due_date).toLowerCase()
-      const dueDateRaw = (a?.due_date || '').toLowerCase()
+      
+      const profObj = a?.assigned_professional
+      const assignedProfessional = (
+        typeof profObj === 'string' 
+          ? profObj 
+          : (profObj?.professional_name || profObj?.name || '—')
+      ).toLowerCase()
+
       const statusText = (a?.status || '').toLowerCase()
+      const panText = (a?.pan || a?.client?.pan || a?.user?.pan || '').toLowerCase()
+
+      const issuedDates = getDateSearchStrings(a?.issued_on)
+      const dueDates = getDateSearchStrings(a?.due_date)
+
+      const matchesIssued = issuedDates.some(dStr => dStr.includes(term))
+      const matchesDue = dueDates.some(dStr => dStr.includes(term))
 
       return (
         userName.includes(term) ||
@@ -272,11 +282,10 @@ export default function StaffDashboard() {
         assessmentYear.includes(term) ||
         proceedingName.includes(term) ||
         assignedProfessional.includes(term) ||
-        issuedOnFormatted.includes(term) ||
-        issuedOnRaw.includes(term) ||
-        dueDateFormatted.includes(term) ||
-        dueDateRaw.includes(term) ||
-        statusText.includes(term)
+        matchesIssued ||
+        matchesDue ||
+        statusText.includes(term) ||
+        panText.includes(term)
       )
     })()
 
@@ -306,9 +315,39 @@ export default function StaffDashboard() {
   const colorFor = (i) => avatarColors[i % avatarColors.length]
 
   const formatDate = (str) => {
-    if (!str) return '-'
-    const d = new Date(str)
-    return d.toLocaleDateString('en-GB')
+    if (!str || str === '-') return '-'
+    try {
+      const d = new Date(str)
+      if (isNaN(d.getTime())) return '-'
+      return d.toLocaleDateString('en-GB')
+    } catch {
+      return '-'
+    }
+  }
+
+  const getDateSearchStrings = (str) => {
+    if (!str || str === '-') return []
+    try {
+      const d = new Date(str)
+      if (isNaN(d.getTime())) return []
+      const day = String(d.getDate()).padStart(2, '0')
+      const year = String(d.getFullYear())
+      const monthIndex = d.getMonth()
+      const monthsFull = [
+        'january', 'february', 'march', 'april', 'may', 'june',
+        'july', 'august', 'september', 'october', 'november', 'december'
+      ]
+      const monthsAbbr = [
+        'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+        'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
+      ]
+      const formattedGB = d.toLocaleDateString('en-GB')
+      const fullMonthStr = `${day} ${monthsFull[monthIndex]} ${year}`
+      const abbrMonthStr = `${day} ${monthsAbbr[monthIndex]} ${year}`
+      return [formattedGB.toLowerCase(), fullMonthStr, abbrMonthStr, str.toLowerCase()]
+    } catch {
+      return []
+    }
   }
 
   const mapNotice = (item) => ({
@@ -325,18 +364,18 @@ export default function StaffDashboard() {
 
   return (
     <DashboardLayout breadcrumbs={[{ label: 'Dashboard' }]}>
-      <div style={{ padding: '20px 22px' }}>
+      <div className="staff-dashboard-content" style={{ padding: '20px 22px' }}>
 
         {/* Assignments table */}
-        <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, overflow: 'visible' }}>
-          <div style={{ padding: '14px 18px', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div className="staff-dashboard-card" style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, overflow: 'visible' }}>
+          <div className="staff-dashboard-header" style={{ padding: '14px 18px', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
             <div>
               <p style={{ fontSize: 15, fontWeight: 600, color: '#1e293b' }}>My Assignments</p>
               <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>Managing notification workflow and compliance deadlines</p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 auto', minWidth: 280 }}>
+            <div className="staff-search-filter-row" style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 auto', minWidth: 280 }}>
               {/* Search Bar */}
-              <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', background: '#fff', boxSizing: 'border-box', minWidth: 280 }}>
+              <div className="staff-search-box" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', background: '#fff', boxSizing: 'border-box', minWidth: 280 }}>
                 <Search size={16} color="#64748b" />
                 <input
                   type="text"
@@ -379,7 +418,7 @@ export default function StaffDashboard() {
 
           {/* Filter Panel */}
           {showFilterPanel && (
-            <div style={{ padding: '12px 18px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <div className="staff-filter-panel" style={{ padding: '12px 18px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <label style={{ fontSize: 11, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Month:</label>
                 <select
@@ -517,7 +556,7 @@ export default function StaffDashboard() {
             </div>
           )}
 
-          <div style={{ overflowX: 'auto' }}>
+          <div className="staff-table-wrapper" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
               <colgroup>
                 <col style={{ width: '14%' }} />
@@ -603,7 +642,7 @@ export default function StaffDashboard() {
             </table>
           </div>
 
-          <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px solid #f1f5f9' }}>
+          <div className="staff-pagination" style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px solid #f1f5f9' }}>
             <p style={{ fontSize: 11, color: '#64748b' }}>Showing {filtered.length} of {summary?.total_notices ?? filtered.length} assignments</p>
             <div style={{ display: 'flex', gap: 6 }}>
               {['‹', '›'].map(ch => (

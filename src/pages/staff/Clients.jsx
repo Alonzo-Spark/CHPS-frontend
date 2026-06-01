@@ -24,12 +24,19 @@ const statusBadge = (status = '') => {
 
 const avatarColors = ['#1e40af', '#166534', '#7c3aed', '#9a3412', '#166534']
 
-// Hardcoded assessment years 2012–2026
-const ALL_YEARS = [
-  '2012-13', '2013-14', '2014-15', '2015-16', '2016-17',
-  '2017-18', '2018-19', '2019-20', '2020-21', '2021-22',
-  '2022-23', '2023-24', '2024-25', '2025-26'
-]
+// Dynamic assessment years from 2012 to now and future-proofed
+const getDynamicYears = () => {
+  const list = []
+  const startYear = 2012
+  const currentYear = new Date().getFullYear()
+  for (let yr = startYear; yr <= currentYear; yr++) {
+    const nextYearAbbr = String(yr + 1).slice(-2)
+    list.push(`${yr}-${nextYearAbbr}`)
+  }
+  return list
+}
+
+const ALL_YEARS = getDynamicYears()
 
 const formatTimelineDate = (dateStr) => {
   if (!dateStr || dateStr === '-') return '-'

@@ -19,9 +19,9 @@ export default function ProfessorDashboard() {
   }, [user])
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f1f5f9', padding: '40px 24px' }}>
+    <div className="professor-dashboard-container" style={{ minHeight: '100vh', background: '#f1f5f9', padding: '40px 24px' }}>
       <div style={{ maxWidth: 800, margin: '0 auto' }}>
-        <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, padding: '24px 32px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="professor-header-card" style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, padding: '24px 32px', marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h2 style={{ fontSize: 22, fontWeight: 700, color: '#1e293b' }}>Professor Dashboard</h2>
             <p style={{ color: '#64748b', fontSize: 14 }}>Welcome, {user?.name || user?.username}</p>
@@ -29,7 +29,7 @@ export default function ProfessorDashboard() {
           <button onClick={() => { logout(); navigate('/login') }} style={{ padding: '8px 20px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Logout</button>
         </div>
 
-        <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="professor-users-card" style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ padding: '16px 24px', borderBottom: '0.5px solid #e2e8f0', background: '#f8fafc' }}>
             <h3 style={{ fontSize: 16, fontWeight: 600, color: '#1e293b' }}>Your Assigned Users</h3>
             <p style={{ fontSize: 12, color: '#64748b' }}>Users currently assigned to you for audit review</p>

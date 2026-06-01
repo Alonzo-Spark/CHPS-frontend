@@ -8,14 +8,14 @@ export default function EProceedings() {
 
   return (
     <DashboardLayout breadcrumbs={[{ label: 'Dashboard', path: '/staff/dashboard' }, { label: 'E-Proceedings' }]}>
-      <div style={{ padding: '16px 20px' }}>
+      <div className="eproceedings-content" style={{ padding: '16px 20px' }}>
         <div style={{ marginBottom: 14 }}>
           <h2 style={{ fontSize: 19, fontWeight: 500, color: '#1e293b' }}>E-Proceedings</h2>
           <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Manage all e-proceedings records</p>
         </div>
 
         {/* Search + Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 8 }}>
+        <div className="eproceedings-search-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14, gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid #cbd5e1', borderRadius: 8, padding: '7px 12px', background: '#fff' }}>
             <Search size={13} color="#94a3b8" />
             <input placeholder="Search proceedings..." style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', width: 220 }} />
@@ -36,7 +36,7 @@ export default function EProceedings() {
         </div>
 
         {/* Table */}
-        <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
+        <div className="eproceedings-table-card" style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '0.5px solid #e2e8f0' }}>

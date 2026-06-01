@@ -53,9 +53,9 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f1f5f9', display: 'flex', flexDirection: 'column' }}>
+    <div className="auth-container" style={{ minHeight: '100vh', background: '#f1f5f9', display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="auth-header" style={{ padding: '16px 24px', display: 'flex', alignItems: 'center', gap: 8 }}>
         <Landmark size={20} color="#1e3a8a" />
         <span style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>
           Audit Notification Manager
@@ -63,10 +63,10 @@ export default function LoginPage() {
       </div>
 
       {/* Main */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div className="auth-main" style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         
         {/* Login card */}
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '32px 36px', width: '100%', maxWidth: 380, marginBottom: 16 }}>
+        <div className="auth-card" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '32px 36px', width: '100%', maxWidth: 380, marginBottom: 16 }}>
           <h2 style={{ textAlign: 'center', fontSize: 18, fontWeight: 600, color: '#1e293b', marginBottom: 24 }}>
             Login
           </h2>
@@ -173,7 +173,7 @@ export default function LoginPage() {
 
 
         {/* Info card */}
-        <div style={{
+        <div className="auth-info-card" style={{
           background: '#fff',
           border: '1px solid #e2e8f0',
           borderRadius: 12,
