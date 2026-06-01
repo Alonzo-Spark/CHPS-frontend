@@ -329,3 +329,37 @@ export const noticeControlService = {
         return { data: null, error: err }
       }),
 }
+
+export const professionalClientService = {
+  getClients: () =>
+    apiService.get('/api/v1/professional/clients')
+      .then(res => ({ data: res?.data || res || [] }))
+      .catch(err => {
+        console.warn("get professional clients API failed", err)
+        return { data: [] }
+      }),
+
+  disableClient: (clientId) =>
+    apiService.put(`/api/v1/professional/clients/${clientId}/disable`)
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`disable client API failed for ${clientId}`, err)
+        throw err
+      }),
+
+  enableClient: (clientId) =>
+    apiService.put(`/api/v1/professional/clients/${clientId}/enable`)
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`enable client API failed for ${clientId}`, err)
+        throw err
+      }),
+
+  deleteClient: (clientId) =>
+    apiService.delete(`/api/v1/professional/clients/${clientId}`)
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`delete client API failed for ${clientId}`, err)
+        throw err
+      }),
+}

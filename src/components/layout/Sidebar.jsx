@@ -10,12 +10,14 @@ export default function Sidebar() {
 
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: role === 'professional' ? '/professional-dashboard' : role === 'admin' ? '/admin/dashboard' : '/staff/dashboard' },
-    { label: 'Clients', icon: Users, path: '/staff/clients' },
+    { label: 'Clients', icon: Users, path: role === 'professional' ? '/professional-dashboard/clients' : '/staff/clients' },
     { label: 'Tasks', icon: CheckSquare, path: '#' },
     { label: 'Documents', icon: FileText, path: '#' },
   ].filter(item => {
-    if (role === 'professional' || role === 'admin') {
+    if (role === 'admin') {
       return item.label === 'Dashboard'
+    } else if (role === 'professional') {
+      return item.label === 'Dashboard' || item.label === 'Clients'
     } else {
       return item.label === 'Dashboard' || item.label === 'Clients'
     }
