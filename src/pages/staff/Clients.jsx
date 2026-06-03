@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, UserPlus } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { userService, professionalService, noticeControlService } from '../../services'
+import { userService, professionalService, noticeControlService, noticeService } from '../../services'
 
 const statusBadge = (status = '') => {
   const s = (status || '').toLowerCase().replace(/[_-]/g, ' ').trim()
@@ -115,6 +115,12 @@ export default function Clients() {
   const handleBlockYears = async (clientId) => {
     const sel = selectedYears[clientId] || []
     if (sel.length === 0) return
+    
+    // Call the role-based block year API for each selected year
+    await Promise.all(sel.map(year => 
+      noticeService.blockYear("STAFF", year)
+    ))
+
     const res = await noticeControlService.blockYears(clientId, sel)
     setNoticeControl(prev => {
       const cur = prev[clientId] || { available_years: [], blocked_years: [] }
@@ -133,6 +139,12 @@ export default function Clients() {
   const handleUnblockYears = async (clientId) => {
     const cur = noticeControl[clientId]
     if (!cur || cur.blocked_years.length === 0) return
+
+    // Call the role-based unblock year API for each selected year
+    await Promise.all(cur.blocked_years.map(year => 
+      noticeService.unblockYear("STAFF", year)
+    ))
+
     const res = await noticeControlService.unblockYears(clientId, cur.blocked_years)
     setNoticeControl(prev => {
       const c = prev[clientId]
