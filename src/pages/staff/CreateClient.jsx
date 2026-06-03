@@ -12,15 +12,41 @@ export default function CreateClient() {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [professionals, setProfessionals] = useState([])
+  const [showSecondaryDropdown, setShowSecondaryDropdown] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
     professionalService.getProfessionals()
-      .then(res => setProfessionals(res.data || res || []))
+      .then(res => {
+        const raw = res?.data?.items || res?.data || []
+        setProfessionals(Array.isArray(raw) ? raw : [])
+      })
       .catch(err => {
         console.error('Failed to load professionals', err)
       })
   }, [])
+
+  const getFilteredProfessionals = () => {
+    if (!form.name || professionals.length === 0) return professionals;
+    const cleaned = form.name.trim();
+    if (!cleaned) return professionals;
+    
+    const firstLetter = cleaned[0].toUpperCase();
+    let targetIdx = 0;
+    if (firstLetter >= 'A' && firstLetter <= 'F') {
+      targetIdx = 0;
+    } else if (firstLetter >= 'G' && firstLetter <= 'M') {
+      targetIdx = 1;
+    } else if (firstLetter >= 'N' && firstLetter <= 'Z') {
+      targetIdx = 2;
+    } else {
+      targetIdx = 0;
+    }
+    
+    const chosenIdx = targetIdx % professionals.length;
+    const professional = professionals[chosenIdx];
+    return [professional].filter(Boolean);
+  }
 
   const validateForm = () => {
     const errors = {}
@@ -138,19 +164,48 @@ export default function CreateClient() {
               <label style={labelStyle}>Professional</label>
               <div style={{ position: 'relative' }}>
                 <select
-                  value={form.professional_id}
-                  onChange={e => setForm({ ...form, professional_id: e.target.value })}
+                  value={form.professional_id === '' ? '' : (getFilteredProfessionals().some(p => String(p.id) === String(form.professional_id)) ? form.professional_id : 'others')}
+                  onChange={e => {
+                    const val = e.target.value;
+                    if (val === 'others') {
+                      setShowSecondaryDropdown(true);
+                      setForm({ ...form, professional_id: '' });
+                    } else {
+                      setShowSecondaryDropdown(false);
+                      setForm({ ...form, professional_id: val });
+                    }
+                  }}
                   style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', paddingRight: 36 }}
                 >
                   <option value="">Select Professional</option>
-                  {professionals.map((prof) => (
-                    <option key={prof.id} value={prof.id}>{prof.professional_name}</option>
+                  {getFilteredProfessionals().map((prof) => (
+                    <option key={prof.id} value={prof.id}>{prof.professional_name || prof.name || prof.full_name || prof.username}</option>
                   ))}
+                  <option value="others">Others</option>
                 </select>
                 <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }}>▾</span>
               </div>
               {fieldErrors.professional_id && <p style={{ marginTop: 6, color: '#dc2626', fontSize: 12 }}>{fieldErrors.professional_id}</p>}
             </div>
+
+            {showSecondaryDropdown && (
+              <div style={{ marginBottom: 24 }}>
+                <label style={labelStyle}>Select from All Professionals</label>
+                <div style={{ position: 'relative' }}>
+                  <select
+                    value={form.professional_id}
+                    onChange={e => setForm({ ...form, professional_id: e.target.value })}
+                    style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', paddingRight: 36 }}
+                  >
+                    <option value="">Select Professional</option>
+                    {professionals.map((prof) => (
+                      <option key={prof.id} value={prof.id}>{prof.professional_name || prof.name || prof.full_name || prof.username}</option>
+                    ))}
+                  </select>
+                  <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }}>▾</span>
+                </div>
+              </div>
+            )}
 
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>Referred By</label>
