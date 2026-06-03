@@ -957,6 +957,7 @@ export default function ProfessionalDashboard() {
                     const nc = noticeControl[a.client_id] || { available_years: [], blocked_years: [] }
                     const blockedYrs = nc.blocked_years || []
                     const selYrs = selectedYears[a.client_id] || []
+                    const selUnblockYrs = selectedUnblockYears[a.client_id] || []
                     const hasBlocked = blockedYrs.length > 0
                     const availableForDropdown = ALL_YEARS.filter(y => !blockedYrs.includes(y))
 

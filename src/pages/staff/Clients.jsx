@@ -529,6 +529,7 @@ export default function Clients() {
                   const nc = noticeControl[c.id] || { available_years: [], blocked_years: [] }
                   const blockedYrs = nc.blocked_years || []
                   const selYrs = selectedYears[c.id] || []
+                  const selUnblockYrs = selectedUnblockYears[c.id] || []
                   const hasBlocked = blockedYrs.length > 0
 
                   // Years available = ALL_YEARS minus already-blocked
