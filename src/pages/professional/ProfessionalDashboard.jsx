@@ -16,6 +16,21 @@ const getStatus = (item) => {
 }
 
 export default function ProfessionalDashboard() {
+  const getNoticeReadState = (n, permanentlyRead) => {
+    if (permanentlyRead) return true
+    if (n.is_read || n.isRead) return true
+    const dateStr = n.issued_on || n.assigned_at || n.createdAt
+    if (!dateStr || dateStr === '-') return true
+    try {
+      const noticeDate = new Date(dateStr)
+      if (isNaN(noticeDate.getTime())) return true
+      const limitDate = new Date('2026-03-01T00:00:00')
+      return noticeDate < limitDate
+    } catch (e) {
+      return true
+    }
+  }
+
   const [summary, setSummary] = useState(null)
   const [assignments, setAssignments] = useState([])
   const [search, setSearch] = useState('')
@@ -53,6 +68,8 @@ export default function ProfessionalDashboard() {
   const handleBlockYearsClick = (clientId) => {
     const sel = selectedYears[clientId] || []
     if (sel.length === 0) return
+    setYearDropdownOpen(null)
+    setUnblockDropdownOpen(null)
     setConfirmModal({
       isOpen: true,
       type: 'block',
@@ -64,6 +81,8 @@ export default function ProfessionalDashboard() {
   const handleUnblockYearsClick = (clientId) => {
     const sel = selectedUnblockYears[clientId] || []
     if (sel.length === 0) return
+    setYearDropdownOpen(null)
+    setUnblockDropdownOpen(null)
     setConfirmModal({
       isOpen: true,
       type: 'unblock',
@@ -155,6 +174,7 @@ export default function ProfessionalDashboard() {
         const mapped = rawList.map(n => {
           const noticeId = n.notice_id ?? n.id
           const permanentlyRead = readNoticeIds.includes(noticeId)
+          const defaultIsRead = getNoticeReadState(n, permanentlyRead)
           const uName = n.user_name || n.client_name || n.user || 'N/A'
           return {
             notice_id: noticeId,
@@ -168,7 +188,8 @@ export default function ProfessionalDashboard() {
             issued_on: n.issued_on || '-',
             due_date: n.response_due_date || n.due_date || '-',
             status: n.workflow_status || n.status || 'N/A',
-            is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
+            is_read: defaultIsRead,
+            isRead: defaultIsRead
           }
         })
 
@@ -214,6 +235,7 @@ export default function ProfessionalDashboard() {
       const mapped = rawList.map(n => {
         const noticeId = n.notice_id ?? n.id
         const permanentlyRead = readNoticeIds.includes(noticeId)
+        const defaultIsRead = getNoticeReadState(n, permanentlyRead)
         const uName = n.user_name || n.client_name || n.user || 'N/A'
         return {
           notice_id: noticeId,
@@ -227,7 +249,8 @@ export default function ProfessionalDashboard() {
           issued_on: n.issued_on || '-',
           due_date: n.response_due_date || n.due_date || '-',
           status: n.workflow_status || n.status || 'N/A',
-          is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
+          is_read: defaultIsRead,
+          isRead: defaultIsRead
         }
       })
       setAllNotices(mapped)
@@ -239,14 +262,33 @@ export default function ProfessionalDashboard() {
     }
   }
 
+  useEffect(() => {
+    const handleDocumentClick = (e) => {
+      if (!e.target.closest('.notice-control-dropdown')) {
+        setYearDropdownOpen(null)
+        setUnblockDropdownOpen(null)
+      }
+    }
+    document.addEventListener('click', handleDocumentClick)
+    return () => document.removeEventListener('click', handleDocumentClick)
+  }, [])
+
   // Fetch notice control data for each client once assignments/notices are loaded
   useEffect(() => {
     const list = filtered || assignments || []
     if (list.length === 0) return
+
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+    const username = currentUser.username || 'default_prof'
+    const profBlocked = JSON.parse(localStorage.getItem(`professionalBlockedYears_${username}`) || '{}')
+
     list.forEach(a => {
       const cid = a.client_id
       if (!cid) return
       if (noticeControl[cid]) return // already fetched
+
+      const blockedForClient = profBlocked[cid] || []
+
       Promise.all([
         noticeControlService.getNoticeControl(cid).catch(() => null),
         noticeControlService.getAssessmentYears(cid).catch(() => null)
@@ -255,7 +297,13 @@ export default function ProfessionalDashboard() {
         const commonYears = Array.isArray(commonYearsRaw) ? commonYearsRaw : null
         
         const ncData = ncRes?.data || {}
-        const blocked = ncData.blocked_years || []
+        
+        let blocked = blockedForClient
+        if (!profBlocked[cid]) {
+          blocked = ncData.blocked_years || []
+          profBlocked[cid] = blocked
+          localStorage.setItem(`professionalBlockedYears_${username}`, JSON.stringify(profBlocked))
+        }
         
         let available = commonYears || ncData.available_years || []
         if (blocked.length > 0) {
@@ -270,17 +318,25 @@ export default function ProfessionalDashboard() {
           }
         }))
       }).catch(() => {
-        setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [], blocked_years: [] } }))
+        setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [], blocked_years: blockedForClient } }))
       })
     })
   }, [assignments, allNotices])
 
   const handleBlockYears = async (clientId, yearsToBlock) => {
     if (!yearsToBlock || yearsToBlock.length === 0) return
-    const res = await noticeControlService.blockYears(clientId, yearsToBlock)
+    noticeControlService.blockYears(clientId, yearsToBlock).catch(() => null)
+
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+    const username = currentUser.username || 'default_prof'
+    const profBlocked = JSON.parse(localStorage.getItem(`professionalBlockedYears_${username}`) || '{}')
+    const currentBlocked = profBlocked[clientId] || []
+    const newBlocked = [...new Set([...currentBlocked, ...yearsToBlock])]
+    profBlocked[clientId] = newBlocked
+    localStorage.setItem(`professionalBlockedYears_${username}`, JSON.stringify(profBlocked))
+
     setNoticeControl(prev => {
       const cur = prev[clientId] || { available_years: [], blocked_years: [] }
-      const newBlocked = [...new Set([...cur.blocked_years, ...yearsToBlock])]
       const newAvailable = cur.available_years.filter(y => !yearsToBlock.includes(y))
       return { ...prev, [clientId]: { available_years: newAvailable, blocked_years: newBlocked } }
     })
@@ -289,10 +345,18 @@ export default function ProfessionalDashboard() {
 
   const handleUnblockYears = async (clientId, yearsToUnblock) => {
     if (!yearsToUnblock || yearsToUnblock.length === 0) return
-    const res = await noticeControlService.unblockYears(clientId, yearsToUnblock)
+    noticeControlService.unblockYears(clientId, yearsToUnblock).catch(() => null)
+
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+    const username = currentUser.username || 'default_prof'
+    const profBlocked = JSON.parse(localStorage.getItem(`professionalBlockedYears_${username}`) || '{}')
+    const currentBlocked = profBlocked[clientId] || []
+    const newBlocked = currentBlocked.filter(y => !yearsToUnblock.includes(y))
+    profBlocked[clientId] = newBlocked
+    localStorage.setItem(`professionalBlockedYears_${username}`, JSON.stringify(profBlocked))
+
     setNoticeControl(prev => {
       const c = prev[clientId] || { available_years: [], blocked_years: [] }
-      const newBlocked = c.blocked_years.filter(y => !yearsToUnblock.includes(y))
       const newAvailable = [...new Set([...c.available_years, ...yearsToUnblock])].sort()
       return { ...prev, [clientId]: { available_years: newAvailable, blocked_years: newBlocked } }
     })
@@ -1072,7 +1136,7 @@ export default function ProfessionalDashboard() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                               
                               {/* Block Dropdown */}
-                              <div style={{ position: 'relative' }}>
+                              <div className="notice-control-dropdown" style={{ position: 'relative' }}>
                                 <button
                                   onClick={() => setYearDropdownOpen(yearDropdownOpen === (a.client_id || index) ? null : (a.client_id || index))}
                                   style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontSize: 12, cursor: 'pointer', color: '#1e293b', minWidth: 70, textAlign: 'left', whiteSpace: 'nowrap' }}
@@ -1081,7 +1145,6 @@ export default function ProfessionalDashboard() {
                                 </button>
                                 {yearDropdownOpen === (a.client_id || index) && (
                                   <>
-                                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setYearDropdownOpen(null)} />
                                     <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 130, marginTop: 4, maxHeight: 180, overflowY: 'auto' }}>
                                       {availableForDropdown.length === 0 ? (
                                         <div style={{ padding: '8px 10px', fontSize: 10, color: '#94a3b8' }}>All years blocked</div>
@@ -1111,7 +1174,7 @@ export default function ProfessionalDashboard() {
 
                               {/* Unblock Dropdown */}
                               {hasBlocked && (
-                                <div style={{ position: 'relative' }}>
+                                <div className="notice-control-dropdown" style={{ position: 'relative' }}>
                                   <button
                                     onClick={() => setUnblockDropdownOpen(unblockDropdownOpen === (a.client_id || index) ? null : (a.client_id || index))}
                                     style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontSize: 12, cursor: 'pointer', color: '#1e293b', minWidth: 70, textAlign: 'left', whiteSpace: 'nowrap' }}
@@ -1120,7 +1183,6 @@ export default function ProfessionalDashboard() {
                                   </button>
                                   {unblockDropdownOpen === (a.client_id || index) && (
                                     <>
-                                      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setUnblockDropdownOpen(null)} />
                                       <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 130, marginTop: 4, maxHeight: 180, overflowY: 'auto' }}>
                                         {blockedYrs.map(year => (
                                           <label key={year} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer', borderBottom: '0.5px solid #f1f5f9' }}
@@ -1296,7 +1358,7 @@ export default function ProfessionalDashboard() {
                   color: '#fff'
                 }}
               >
-                {confirmModal.type === 'block' ? 'Block' : 'Unblock'}
+                {confirmModal.type === 'block' ? 'Confirm Block' : 'Confirm Unblock'}
               </button>
             </div>
           </div>

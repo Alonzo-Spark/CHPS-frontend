@@ -16,6 +16,21 @@ const getStatus = (item) => {
 }
 
 export default function StaffDashboard() {
+  const getNoticeReadState = (n, permanentlyRead) => {
+    if (permanentlyRead) return true
+    if (n.is_read || n.isRead) return true
+    const dateStr = n.issued_on || n.assigned_at || n.createdAt
+    if (!dateStr || dateStr === '-') return true
+    try {
+      const noticeDate = new Date(dateStr)
+      if (isNaN(noticeDate.getTime())) return true
+      const limitDate = new Date('2026-03-01T00:00:00')
+      return noticeDate < limitDate
+    } catch (e) {
+      return true
+    }
+  }
+
   const [summary, setSummary] = useState(null)
   const [assignments, setAssignments] = useState([])
   const [search, setSearch] = useState('')
@@ -74,6 +89,7 @@ export default function StaffDashboard() {
           const mapped = rawList.map(n => {
             const noticeId = n.notice_id ?? n.id
             const permanentlyRead = readNoticeIds.includes(noticeId)
+            const defaultIsRead = getNoticeReadState(n, permanentlyRead)
             return {
               ...n,
               notice_id: noticeId,
@@ -86,7 +102,8 @@ export default function StaffDashboard() {
               due_date: n.due_date || "-",
               assigned_professional: n.assigned_professional || n.professional_name || "—",
               status: n.status || n.workflow_status || 'N/A',
-              is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
+              is_read: defaultIsRead,
+              isRead: defaultIsRead
             }
           })
           setRecentNotices(mapped)
@@ -112,6 +129,7 @@ export default function StaffDashboard() {
           const mapped = rawList.map(n => {
             const noticeId = n.notice_id ?? n.id
             const permanentlyRead = readNoticeIds.includes(noticeId)
+            const defaultIsRead = getNoticeReadState(n, permanentlyRead)
             return {
               ...n,
               notice_id: noticeId,
@@ -124,7 +142,8 @@ export default function StaffDashboard() {
               due_date: n.due_date || "-",
               assigned_professional: n.assigned_professional || n.professional_name || "—",
               status: n.status || n.workflow_status || 'N/A',
-              is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
+              is_read: defaultIsRead,
+              isRead: defaultIsRead
             }
           })
           setAssignments(mapped)
@@ -168,6 +187,7 @@ export default function StaffDashboard() {
         const mapped = rawList.map(n => {
           const noticeId = n.notice_id ?? n.id
           const permanentlyRead = readNoticeIds.includes(noticeId)
+          const defaultIsRead = getNoticeReadState(n, permanentlyRead)
           return {
             ...n,
             notice_id: noticeId,
@@ -180,7 +200,8 @@ export default function StaffDashboard() {
             due_date: n.due_date || '-',
             assigned_professional: n.assigned_professional || n.professional_name || '—',
             status: n.status || n.workflow_status || 'N/A',
-            is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
+            is_read: defaultIsRead,
+            isRead: defaultIsRead
           }
         })
         setAllNotices(mapped)

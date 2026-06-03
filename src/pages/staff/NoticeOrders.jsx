@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Search, Filter, FileText, FileType } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { noticeService, professionalWorkflowService, professionalService, professionalDashboardService } from '../../services'
+import { noticeService, professionalWorkflowService, professionalService, professionalDashboardService, dashboardService } from '../../services'
 import { useAuth } from '../../context/AuthContext'
 
 const getStatus = (item) => {
@@ -256,6 +256,28 @@ export default function NoticeOrders() {
         let resolvedUserName = null
 
         const isNumericId = /^\d+$/.test(String(id).trim())
+
+        if (isNumericId) {
+          try {
+            await dashboardService.markNoticeRead(id)
+          } catch (err) {
+            console.warn('Failed to mark notice read in NoticeOrders', err)
+          }
+          const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
+          let updated = false
+          if (!readNoticeIds.includes(id)) {
+            readNoticeIds.push(id)
+            updated = true
+          }
+          const numId = Number(id)
+          if (!isNaN(numId) && !readNoticeIds.includes(numId)) {
+            readNoticeIds.push(numId)
+            updated = true
+          }
+          if (updated) {
+            localStorage.setItem('readNoticeIds', JSON.stringify(readNoticeIds))
+          }
+        }
 
         if (!isNumericId) {
           const proceedingName = decodeURIComponent(id || '')

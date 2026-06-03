@@ -104,6 +104,8 @@ export default function Clients() {
   const handleBlockYearsClick = (clientId) => {
     const sel = selectedYears[clientId] || []
     if (sel.length === 0) return
+    setYearDropdownOpen(null)
+    setUnblockDropdownOpen(null)
     setConfirmModal({
       isOpen: true,
       type: 'block',
@@ -115,6 +117,8 @@ export default function Clients() {
   const handleUnblockYearsClick = (clientId) => {
     const sel = selectedUnblockYears[clientId] || []
     if (sel.length === 0) return
+    setYearDropdownOpen(null)
+    setUnblockDropdownOpen(null)
     setConfirmModal({
       isOpen: true,
       type: 'unblock',
@@ -122,6 +126,17 @@ export default function Clients() {
       years: sel
     })
   }
+
+  useEffect(() => {
+    const handleDocumentClick = (e) => {
+      if (!e.target.closest('.notice-control-dropdown')) {
+        setYearDropdownOpen(null)
+        setUnblockDropdownOpen(null)
+      }
+    }
+    document.addEventListener('click', handleDocumentClick)
+    return () => document.removeEventListener('click', handleDocumentClick)
+  }, [])
 
   useEffect(() => {
     userService.getUsers({ skip: 0, limit: 50 })
@@ -148,9 +163,11 @@ export default function Clients() {
   // Fetch notice control data for each client once clients are loaded
   useEffect(() => {
     if (clients.length === 0) return
+    const staffBlocked = JSON.parse(localStorage.getItem('staffBlockedYears') || '{}')
     clients.forEach(c => {
       const cid = c.id
       if (!cid) return
+      const blockedForClient = staffBlocked[cid] || []
       Promise.all([
         noticeControlService.getNoticeControl(cid).catch(() => null),
         noticeControlService.getAssessmentYears(cid).catch(() => null)
@@ -159,7 +176,12 @@ export default function Clients() {
         const commonYears = Array.isArray(commonYearsRaw) ? commonYearsRaw : null
 
         const ncData = ncRes?.data || {}
-        const blocked = ncData.blocked_years || []
+        let blocked = blockedForClient
+        if (!staffBlocked[cid]) {
+          blocked = ncData.blocked_years || []
+          staffBlocked[cid] = blocked
+          localStorage.setItem('staffBlockedYears', JSON.stringify(staffBlocked))
+        }
 
         let available = commonYears || ncData.available_years || []
         if (blocked.length > 0) {
@@ -173,9 +195,14 @@ export default function Clients() {
             blocked_years: blocked
           }
         }))
+        setLocalBlockedYears(prev => ({
+          ...prev,
+          [cid]: blocked
+        }))
       }).catch(err => {
         console.warn('Failed to load years/control details for client:', cid, err)
-        setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [], blocked_years: [] } }))
+        setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [], blocked_years: blockedForClient } }))
+        setLocalBlockedYears(prev => ({ ...prev, [cid]: blockedForClient }))
       })
     })
   }, [clients])
@@ -257,10 +284,16 @@ export default function Clients() {
 
   const handleBlockYears = async (clientId, yearsToBlock) => {
     if (!yearsToBlock || yearsToBlock.length === 0) return
-    const res = await noticeControlService.blockYears(clientId, yearsToBlock)
+    noticeControlService.blockYears(clientId, yearsToBlock).catch(() => null)
+    
+    const staffBlocked = JSON.parse(localStorage.getItem('staffBlockedYears') || '{}')
+    const currentBlocked = staffBlocked[clientId] || []
+    const newBlocked = [...new Set([...currentBlocked, ...yearsToBlock])]
+    staffBlocked[clientId] = newBlocked
+    localStorage.setItem('staffBlockedYears', JSON.stringify(staffBlocked))
+
     setNoticeControl(prev => {
       const cur = prev[clientId] || { available_years: [], blocked_years: [] }
-      const newBlocked = [...new Set([...cur.blocked_years, ...yearsToBlock])]
       const newAvailable = cur.available_years.filter(y => !yearsToBlock.includes(y))
       return { ...prev, [clientId]: { available_years: newAvailable, blocked_years: newBlocked } }
     })
@@ -274,12 +307,19 @@ export default function Clients() {
 
   const handleUnblockYears = async (clientId, yearsToUnblock) => {
     if (!yearsToUnblock || yearsToUnblock.length === 0) return
-    const res = await noticeControlService.unblockYears(clientId, yearsToUnblock)
+    noticeControlService.unblockYears(clientId, yearsToUnblock).catch(() => null)
+
+    const staffBlocked = JSON.parse(localStorage.getItem('staffBlockedYears') || '{}')
+    const currentBlocked = staffBlocked[clientId] || []
+    const newBlocked = currentBlocked.filter(y => !yearsToUnblock.includes(y))
+    staffBlocked[clientId] = newBlocked
+    localStorage.setItem('staffBlockedYears', JSON.stringify(staffBlocked))
+
     setNoticeControl(prev => {
       const c = prev[clientId] || { available_years: [], blocked_years: [] }
-      const newBlocked = c.blocked_years.filter(y => !yearsToUnblock.includes(y))
+      const newBlockedList = c.blocked_years.filter(y => !yearsToUnblock.includes(y))
       const newAvailable = [...new Set([...c.available_years, ...yearsToUnblock])].sort()
-      return { ...prev, [clientId]: { available_years: newAvailable, blocked_years: newBlocked } }
+      return { ...prev, [clientId]: { available_years: newAvailable, blocked_years: newBlockedList } }
     })
     setLocalBlockedYears(prev => {
       const cur = prev[clientId] || []
@@ -575,7 +615,7 @@ export default function Clients() {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                             
                             {/* Block Dropdown */}
-                            <div style={{ position: 'relative' }}>
+                            <div className="notice-control-dropdown" style={{ position: 'relative' }}>
                               <button
                                 onClick={() => setYearDropdownOpen(yearDropdownOpen === (c.id || i) ? null : (c.id || i))}
                                 style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontSize: 10, cursor: 'pointer', color: '#1e293b', minWidth: 70, textAlign: 'left', whiteSpace: 'nowrap' }}
@@ -584,7 +624,6 @@ export default function Clients() {
                               </button>
                               {yearDropdownOpen === (c.id || i) && (
                                 <>
-                                  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setYearDropdownOpen(null)} />
                                   <div style={{
                                     position: 'absolute',
                                     top: '100%',
@@ -627,7 +666,7 @@ export default function Clients() {
                             
                             {/* Unblock Dropdown */}
                             {hasBlocked && (
-                              <div style={{ position: 'relative' }}>
+                              <div className="notice-control-dropdown" style={{ position: 'relative' }}>
                                 <button
                                   onClick={() => setUnblockDropdownOpen(unblockDropdownOpen === (c.id || i) ? null : (c.id || i))}
                                   style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontSize: 10, cursor: 'pointer', color: '#1e293b', minWidth: 70, textAlign: 'left', whiteSpace: 'nowrap' }}
@@ -636,7 +675,6 @@ export default function Clients() {
                                 </button>
                                 {unblockDropdownOpen === (c.id || i) && (
                                   <>
-                                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setUnblockDropdownOpen(null)} />
                                     <div style={{
                                       position: 'absolute',
                                       top: '100%',
@@ -776,7 +814,7 @@ export default function Clients() {
                   color: '#fff'
                 }}
               >
-                {confirmModal.type === 'block' ? 'Block' : 'Unblock'}
+                {confirmModal.type === 'block' ? 'Confirm Block' : 'Confirm Unblock'}
               </button>
             </div>
           </div>
