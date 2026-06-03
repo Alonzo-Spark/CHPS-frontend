@@ -206,6 +206,30 @@ export const userService = {
         return { data: [] };
       }),
 
+  blockUser: (userId) =>
+    apiService.put('/api/admin/users/block', { user_id: userId })
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`blockUser API failed for ${userId}`, err);
+        throw err;
+      }),
+
+  unblockUser: (userId) =>
+    apiService.put('/api/admin/users/unblock', { user_id: userId })
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`unblockUser API failed for ${userId}`, err);
+        throw err;
+      }),
+
+  deleteUser: (userId) =>
+    apiService.delete(`/api/admin/users/${userId}`)
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`deleteUser API failed for ${userId}`, err);
+        throw err;
+      }),
+
   runAutoAssignment: () => apiService.post('/api/users/run-auto-assignment').then(res => ({ data: res })),
   assignProfessional: (userId, professionalId) =>
     apiService.put(`/api/users/${userId}/assign-professional`, { professional_id: professionalId }).then(res => ({ data: res })),
@@ -327,5 +351,39 @@ export const noticeControlService = {
       .catch(err => {
         console.warn(`unblockYears API for client ${clientId} failed`, err)
         return { data: null, error: err }
+      }),
+}
+
+export const professionalClientService = {
+  getClients: () =>
+    apiService.get('/api/v1/professional/clients')
+      .then(res => ({ data: res?.data || res || [] }))
+      .catch(err => {
+        console.warn("get professional clients API failed", err)
+        return { data: [] }
+      }),
+
+  disableClient: (clientId) =>
+    apiService.put(`/api/v1/professional/clients/${clientId}/disable`)
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`disable client API failed for ${clientId}`, err)
+        throw err
+      }),
+
+  enableClient: (clientId) =>
+    apiService.put(`/api/v1/professional/clients/${clientId}/enable`)
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`enable client API failed for ${clientId}`, err)
+        throw err
+      }),
+
+  deleteClient: (clientId) =>
+    apiService.delete(`/api/v1/professional/clients/${clientId}`)
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`delete client API failed for ${clientId}`, err)
+        throw err
       }),
 }

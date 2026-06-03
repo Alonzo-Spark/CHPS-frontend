@@ -17,6 +17,7 @@ import { useEffect } from 'react'
 import { healthService } from './services'
 import ProfessorDashboard from './pages/professor/ProfessorDashboard'
 import ProfessionalDashboard from './pages/professional/ProfessionalDashboard'
+import ProfessionalClients from './pages/professional/ProfessionalClients'
 
 export default function App() {
   useEffect(() => {
@@ -52,6 +53,7 @@ export default function App() {
       <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
       <Route path="/professor/dashboard" element={<ProtectedRoute allowedRoles={['professor']}><ProfessorDashboard /></ProtectedRoute>} />
       <Route path="/professional-dashboard" element={<ProtectedRoute allowedRoles={['professional']}><ProfessionalDashboard /></ProtectedRoute>} />
+      <Route path="/professional-dashboard/clients" element={<ProtectedRoute allowedRoles={['professional']}><ProfessionalClients /></ProtectedRoute>} />
     </Routes>
   )
 }
