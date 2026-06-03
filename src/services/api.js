@@ -86,6 +86,15 @@ export const apiService = {
     }
   },
 
+  delete: async (url, config = {}) => {
+    try {
+      const response = await instance.delete(url, config);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
   download: async (url) => {
     try {
       // Support blob download or clean window.open depending on preference
