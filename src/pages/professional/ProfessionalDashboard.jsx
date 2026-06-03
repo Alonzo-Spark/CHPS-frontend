@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { dashboardService, professionalDashboardService, noticeService, noticeControlService } from '../../services'
+import { dashboardService, professionalDashboardService, noticeService, noticeControlService, professionalService } from '../../services'
+import { useAuth } from '../../context/AuthContext'
 
 
 // Status: issue+due=Completed, issue only=Pending
@@ -16,6 +17,7 @@ const getStatus = (item) => {
 }
 
 export default function ProfessionalDashboard() {
+  const { user } = useAuth()
   const [summary, setSummary] = useState(null)
   const [assignments, setAssignments] = useState([])
   const [search, setSearch] = useState('')
@@ -66,53 +68,52 @@ export default function ProfessionalDashboard() {
         setSummary({ total_notices: 0, pending_notices: 0, completed_notices: 0 })
       }
 
-      // RECENT NOTICES
+      // PROCEEDING-SPECIFIC NOTICES
       try {
-        const recentRes =
-          await professionalDashboardService.getRecentNotices({
-            limit: 10,
-            offset: 0
-          })
+        const storedUser = localStorage.getItem('user');
+        const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+        const profId = user?.id || user?.professional_id || parsedUser?.id || parsedUser?.professional_id;
+        
+        if (!profId) {
+          console.warn('No professional ID found');
+          setAssignments([]);
+          return;
+        }
 
-        console.log('FULL API RESPONSE:', recentRes.data)
+        const res = await professionalService.getProceedingNoticesById(profId);
+        const notices = res?.data?.notices || [];
 
-        const raw = Array.isArray(recentRes.data)
-          ? recentRes.data
-          : recentRes.data?.notice_orders ||
-          recentRes.data?.recent_notices ||
-          recentRes.data?.items ||
-          recentRes.data?.data ||
-          []
-
-        console.log('RAW ARRAY:', raw)
-
-        const rawList = Array.isArray(raw) ? raw : []
-
-        const mapped = rawList.map(n => {
-          const noticeId = n.notice_id ?? n.id
-          const permanentlyRead = readNoticeIds.includes(noticeId)
-          const uName = n.user_name || n.client_name || n.user || 'N/A'
+        const aggregatedNotices = notices.map(n => {
+          const noticeId = n.notice_id ?? n.id;
+          const permanentlyRead = readNoticeIds.includes(noticeId);
           return {
             notice_id: noticeId,
-            client_id: n.client_id || n.user_id || n.id || 0,
-            user: uName,
-            user_name: uName,
+            client_id: n.client_id || 0,
+            user: n.client_name || 'N/A',
+            user_name: n.client_name || 'N/A',
             proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
-            professional_name: n.professional_name || n.assigned_professional?.professional_name || n.assigned_professional || '—',
+            professional_name: user?.username || parsedUser?.username || '—',
             reference_id: n.reference_id || `REF-${noticeId}`,
-            assessment_year: n.assessment_year || n.financial_year || n.year || n.assessmentYear || n.ay || 'N/A',
+            assessment_year: n.assessment_year || 'N/A',
             issued_on: n.issued_on || '-',
-            due_date: n.response_due_date || n.due_date || '-',
+            due_date: n.response_due_date || '-',
             status: n.workflow_status || n.status || 'N/A',
             is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
-          }
-        })
+          };
+        });
 
-        setAssignments(mapped)
+        // Sort by issued_on DESC to keep recent notices first
+        aggregatedNotices.sort((a, b) => {
+          const dateA = a.issued_on && a.issued_on !== '-' ? new Date(a.issued_on) : new Date(0);
+          const dateB = b.issued_on && b.issued_on !== '-' ? new Date(b.issued_on) : new Date(0);
+          return dateB - dateA;
+        });
+
+        setAssignments(aggregatedNotices);
 
       } catch (err) {
-        console.error('Recent notices API failed:', err)
-        setAssignments([])
+        console.error('Failed to fetch notices:', err);
+        setAssignments([]);
       }
 
     } catch (err) {
@@ -183,31 +184,27 @@ export default function ProfessionalDashboard() {
       const cid = a.client_id
       if (!cid) return
       if (noticeControl[cid]) return // already fetched
-      Promise.all([
-        noticeControlService.getNoticeControl(cid).catch(() => null),
-        noticeControlService.getAssessmentYears(cid).catch(() => null)
-      ]).then(([ncRes, ayRes]) => {
-        const commonYearsRaw = ayRes?.data?.data || ayRes?.data?.years || ayRes?.data?.available_years || ayRes?.data || ayRes?.years || ayRes?.available_years || ayRes || null
-        const commonYears = Array.isArray(commonYearsRaw) ? commonYearsRaw : null
-        
-        const ncData = ncRes?.data || {}
-        const blocked = ncData.blocked_years || []
-        
-        let available = commonYears || ncData.available_years || []
-        if (blocked.length > 0) {
-          available = available.filter(y => !blocked.includes(y))
-        }
-        
-        setNoticeControl(prev => ({
-          ...prev,
-          [cid]: {
-            available_years: available,
-            blocked_years: blocked
+      noticeControlService.getNoticeControl(cid)
+        .then((ncRes) => {
+          const ncData = ncRes?.data || {}
+          const blocked = ncData.blocked_years || []
+          
+          let available = ncData.available_years || []
+          if (blocked.length > 0) {
+            available = available.filter(y => !blocked.includes(y))
           }
-        }))
-      }).catch(() => {
-        setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [], blocked_years: [] } }))
-      })
+          
+          setNoticeControl(prev => ({
+            ...prev,
+            [cid]: {
+              available_years: available,
+              blocked_years: blocked
+            }
+          }))
+        })
+        .catch(() => {
+          setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [], blocked_years: [] } }))
+        })
     })
   }, [assignments, allNotices])
 
@@ -289,7 +286,7 @@ export default function ProfessionalDashboard() {
   // FILTERING
   const isAllFilter = (val) => !val || String(val).trim() === '' || String(val).trim().toLowerCase() === 'all'
   const noFiltersApplied = isAllFilter(appliedFilters.month) && isAllFilter(appliedFilters.year) && isAllFilter(appliedFilters.assessment)
-  const sourceData = noFiltersApplied ? allNotices : assignments
+  const sourceData = assignments
 
   // Keep unread count in sync with what's visible
   useEffect(() => {

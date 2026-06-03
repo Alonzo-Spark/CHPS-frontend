@@ -321,14 +321,6 @@ export const professionalDashboardService = {
 }
 
 export const noticeControlService = {
-  getAssessmentYears: (clientId) =>
-    apiService.get(`/api/common/client/${clientId}/assessment-years`)
-      .then(res => ({ data: res }))
-      .catch(err => {
-        console.warn(`getAssessmentYears API for client ${clientId} failed`, err)
-        return { data: null, error: err }
-      }),
-
   getNoticeControl: (clientId) =>
     apiService.get(`/api/notice-control/${clientId}`)
       .then(res => ({ data: res }))
