@@ -5,7 +5,7 @@ import DashboardLayout from '../../layouts/DashboardLayout'
 import { clientService, professionalService } from '../../services'
 
 export default function CreateClient() {
-  const [form, setForm] = useState({ name: '', pan: '', password: '', email: '', professional_id: '', referred_by: '', referred_by_email: '', referred_by_phone: '' })
+  const [form, setForm] = useState({ name: '', pan: '', password: '', email: '', professional_id: '', referred_by: '', referred_by_email: '', referred_by_phone: '', year: '' })
   const [showPw, setShowPw] = useState(false)
   const [error, setError] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
@@ -67,8 +67,8 @@ export default function CreateClient() {
 
   return (
     <DashboardLayout breadcrumbs={[{ label: 'Dashboard', path: '/staff/dashboard' }, { label: 'Client Creation' }]}>
-      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-        <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, padding: '32px 34px', width: '100%', maxWidth: 520 }}>
+      <div className="form-card-container" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <div className="form-card" style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, padding: '32px 34px', width: '100%', maxWidth: 520 }}>
           {/* Icon + title */}
           <div style={{ textAlign: 'center', marginBottom: 24 }}>
             <div style={{ width: 42, height: 42, background: '#eff6ff', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
@@ -115,6 +115,23 @@ export default function CreateClient() {
               <label style={labelStyle}>Mail</label>
               <input type="email" placeholder="client@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} style={inputStyle} />
               {fieldErrors.email && <p style={{ marginTop: 6, color: '#dc2626', fontSize: 12 }}>{fieldErrors.email}</p>}
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label style={labelStyle}>Year</label>
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={form.year}
+                  onChange={e => setForm({ ...form, year: e.target.value })}
+                  style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', paddingRight: 36 }}
+                >
+                  <option value="">Select Year</option>
+                  {Array.from({ length: new Date().getFullYear() - 2012 + 1 }, (_, i) => 2012 + i).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+                <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }}>▾</span>
+              </div>
             </div>
 
             <div style={{ marginBottom: 24 }}>

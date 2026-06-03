@@ -57,7 +57,7 @@ export default function AdminActionPage({ action }) {
   }
 
   return (
-    <div style={{
+    <div className="auth-container" style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
       display: 'flex',
@@ -86,7 +86,7 @@ export default function AdminActionPage({ action }) {
       </div>
 
       {/* Main Status Card */}
-      <div style={cardStyle}>
+      <div className="auth-card" style={cardStyle}>
         {loading ? (
           <div>
             <div style={{

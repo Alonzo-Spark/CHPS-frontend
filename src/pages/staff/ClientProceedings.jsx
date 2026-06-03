@@ -65,7 +65,7 @@ export default function ClientProceedings() {
           <span style={{ fontSize: 12, color: '#64748b' }}>Back to users</span>
         </div>
 
-        <div style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+        <div className="client-proceedings-header" style={{ marginBottom: 20, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
           <div>
             <h2 style={{ fontSize: 20, fontWeight: 600, color: '#1e293b' }}>Client Proceedings</h2>
             <p style={{ fontSize: 12, color: '#64748b', marginTop: 3 }}>Review all proceedings for the selected client.</p>
@@ -80,7 +80,7 @@ export default function ClientProceedings() {
           <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: 18, color: '#b91c1c' }}>{error}</div>
         ) : (
           <>
-            <div style={{ marginBottom: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="client-proceedings-info-grid" style={{ marginBottom: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, padding: 18 }}>
                 <div style={{ fontSize: 10, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>Client Name</div>
                 <div style={{ fontSize: 15, fontWeight: 600, color: '#1e293b' }}>{displayValue(client?.name)}</div>

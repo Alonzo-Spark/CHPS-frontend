@@ -508,8 +508,8 @@ export default function NoticeOrders() {
       { label: 'Dashboard', path: role === 'professional' ? '/professional-dashboard' : '/staff/dashboard' },
       { label: 'Notice Orders' }
     ]}>
-      <div style={{ padding: '18px 20px' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div className="notice-orders-content" style={{ padding: '18px 20px' }}>
+        <div className="notice-orders-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5, cursor: 'pointer' }} onClick={() => navigate(role === 'professional' ? '/professional-dashboard' : '/staff/dashboard')}>
               <ArrowLeft size={13} color="#64748b" />
@@ -541,7 +541,7 @@ export default function NoticeOrders() {
         </div>
 
         {showFilterPanel && (
-          <div style={{ padding: '12px 18px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
+          <div className="notice-orders-filter-panel" style={{ padding: '12px 18px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Section:</label>
               <input
@@ -877,7 +877,7 @@ export default function NoticeOrders() {
       </div>
 
       {activeModal && modalData && (
-        <div style={{
+        <div className="modal-overlay" style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -891,7 +891,7 @@ export default function NoticeOrders() {
           zIndex: 9999,
           padding: 20
         }}>
-          <div style={{
+          <div className="modal-card" style={{
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(20px)',
             border: '1px solid rgba(226, 232, 240, 0.8)',

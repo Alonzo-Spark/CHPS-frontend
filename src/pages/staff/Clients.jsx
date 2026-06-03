@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, UserPlus } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { userService, professionalService, noticeControlService } from '../../services'
+import { userService, professionalService, noticeControlService, noticeService, clientService } from '../../services'
 
 const statusBadge = (status = '') => {
   const s = (status || '').toLowerCase().replace(/[_-]/g, ' ').trim()
@@ -24,12 +24,34 @@ const statusBadge = (status = '') => {
 
 const avatarColors = ['#1e40af', '#166534', '#7c3aed', '#9a3412', '#166534']
 
-// Hardcoded assessment years 2012–2026
-const ALL_YEARS = [
-  '2012-13', '2013-14', '2014-15', '2015-16', '2016-17',
-  '2017-18', '2018-19', '2019-20', '2020-21', '2021-22',
-  '2022-23', '2023-24', '2024-25', '2025-26'
-]
+// Dynamic assessment years from 2012 to now and future-proofed
+const getDynamicYears = () => {
+  const list = []
+  const startYear = 2012
+  const currentYear = new Date().getFullYear()
+  for (let yr = startYear; yr <= currentYear; yr++) {
+    const nextYearAbbr = String(yr + 1).slice(-2)
+    list.push(`${yr}-${nextYearAbbr}`)
+  }
+  return list
+}
+
+const ALL_YEARS = getDynamicYears()
+
+const formatTimelineDate = (dateStr) => {
+  if (!dateStr || dateStr === '-') return '-'
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    const day = String(d.getDate()).padStart(2, '0')
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    const month = months[d.getMonth()]
+    const year = d.getFullYear()
+    return `${day}-${month}-${year}`
+  } catch {
+    return dateStr
+  }
+}
 
 // Status: issue+due=Completed, issue only=Pending
 const getStatus = (item) => {
@@ -57,6 +79,7 @@ export default function Clients() {
   const [selectedYears, setSelectedYears] = useState({})
   // Track locally blocked years per client for UI display (before API sync)
   const [localBlockedYears, setLocalBlockedYears] = useState({})
+  const [clientTimelines, setClientTimelines] = useState({})
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -116,6 +139,81 @@ export default function Clients() {
     })
   }, [clients])
 
+  // Fetch chronological timeline of dynamic events (Notice Opened, Partial Response, Notice Closed) for each client
+  useEffect(() => {
+    if (clients.length === 0) return
+
+    const fetchAllClientTimelines = async () => {
+      try {
+        const noticesRes = await noticeService.getNotices()
+        const allN = noticesRes?.data || []
+        const timelineData = {}
+
+        await Promise.all(clients.map(async (c) => {
+          const cName = (c.name || '').toLowerCase()
+          const cId = c.id
+          if (!cId) return
+
+          const cNotices = allN.filter(n => (n.user || '').toLowerCase() === cName)
+
+          let events = []
+
+          // 1. Notice Opened
+          cNotices.forEach(n => {
+            if (n.issued_on) {
+              events.push({
+                name: 'Notice Opened',
+                date: n.issued_on
+              })
+            }
+          })
+
+          // 2. Partial Response
+          await Promise.all(cNotices.map(async (n) => {
+            try {
+              const respRes = await noticeService.getResponse(n.notice_id)
+              const resp = respRes?.data?.response_details || respRes?.response_details || respRes?.data || respRes
+              if (resp && resp.response_submitted_on) {
+                events.push({
+                  name: 'Partial Response',
+                  date: resp.response_submitted_on
+                })
+              }
+            } catch (e) {
+              console.warn('Failed to fetch response for notice:', n.notice_id)
+            }
+          }))
+
+          // 3. Notice Closed
+          try {
+            const procRes = await clientService.getClientProceedings(cId)
+            const procs = procRes?.data?.proceedings || procRes?.proceedings || []
+            procs.forEach(p => {
+              if (p.closure_date) {
+                events.push({
+                  name: 'Notice Closed',
+                  date: p.closure_date
+                })
+              }
+            })
+          } catch (e) {
+            console.warn('Failed to fetch proceedings for client:', cId)
+          }
+
+          // Sort chronologically
+          events.sort((a, b) => new Date(a.date) - new Date(b.date))
+          timelineData[cId] = events
+        }))
+
+        setClientTimelines(timelineData)
+      } catch (err) {
+        console.warn('Failed to load timelines:', err)
+      }
+    }
+
+    fetchAllClientTimelines()
+  }, [clients])
+
   const handleBlockYears = async (clientId) => {
     const sel = selectedYears[clientId] || []
     if (sel.length === 0) return
@@ -161,18 +259,23 @@ export default function Clients() {
 
   // Global search across all relevant columns including years
   const filtered = (Array.isArray(clients) ? clients : []).filter(c => {
-    const q = search.toLowerCase()
+    const q = search.toLowerCase().trim()
     const nc = noticeControl[c.id] || {}
     const blockedYrs = nc.blocked_years || []
     const selYrs = selectedYears[c.id] || []
     const allClientYears = [...new Set([...blockedYrs, ...selYrs])]
 
-    const searchMatch = search === '' ||
+    const searchMatch = q === '' ||
       (c?.name || '').toLowerCase().includes(q) ||
       (c?.pan || '').toLowerCase().includes(q) ||
       (c?.email || '').toLowerCase().includes(q) ||
       (c?.assigned_professional?.professional_name || c?.assigned_professional || '').toLowerCase().includes(q) ||
-      allClientYears.some(y => y.toLowerCase().includes(q))
+      getStatus(c).toLowerCase().includes(q) ||
+      allClientYears.some(y => y.toLowerCase().includes(q)) ||
+      (clientTimelines[c.id] || []).some(evt => 
+        (evt.name || '').toLowerCase().includes(q) || 
+        formatTimelineDate(evt.date).toLowerCase().includes(q)
+      )
 
     const cStatus = getStatus(c).toLowerCase()
     const targetStatus = appliedStatus.toLowerCase()
@@ -220,14 +323,15 @@ export default function Clients() {
               <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>View and manage all user assignments</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid #cbd5e1', borderRadius: 8, padding: '6px 11px', background: '#fff' }}>
+              <div className="clients-search-container" style={{ display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid #cbd5e1', borderRadius: 8, padding: '6px 11px', background: '#fff' }}>
                 <Search size={13} color="#94a3b8" />
                 <input
                   type="text"
                   placeholder="Search by Name / Email / PAN / Professional / Year…"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', width: 260 }}
+                  className="clients-search-input"
+                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', width: '100%', maxWidth: 360 }}
                 />
               </div>
               <button
@@ -352,30 +456,31 @@ export default function Clients() {
             </div>
           )}
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+          <div className="clients-table-wrapper">
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
             <colgroup>
               <col style={{ width: '14%' }} /><col style={{ width: '15%' }} /><col style={{ width: '11%' }} />
-              <col style={{ width: '16%' }} /><col style={{ width: '10%' }} /><col style={{ width: '10%' }} /><col style={{ width: '24%' }} />
+              <col style={{ width: '16%' }} /><col style={{ width: '20%' }} /><col style={{ width: '24%' }} />
             </colgroup>
             <thead>
               <tr>
-                {['User', 'Email', 'PAN', 'Assigned Professional', 'Status', 'Action', 'Notice Control'].map(h => (
+                {['User', 'Email', 'PAN', 'Assigned Professional', 'Activity Timeline', 'Notice Control'].map(h => (
                   <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>Loading users...</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: 'center', padding: 32, color: '#94a3b8' }}>Loading users...</td></tr>
               ) : clients.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '48px 0', color: '#94a3b8', fontSize: 13 }}>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '48px 0', color: '#94a3b8', fontSize: 13 }}>
                     No data available
                   </td>
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 12 }}>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 12 }}>
                     No users found matching the active search or filters.
                   </td>
                 </tr>
@@ -408,91 +513,20 @@ export default function Clients() {
                       <td style={{ padding: '12px 10px', color: '#1e3a8a', fontWeight: 500, fontSize: 13 }}>
                         {c.assigned_professional?.professional_name || c.assigned_professional}
                       </td>
-                      {/* Status column — "Pending" is intentionally hidden, column remains */}
-                      <td style={{ padding: '12px 10px' }}>{statusBadge(getStatus(c))}</td>
-                      {/* Action column — renamed "Assign" → "Transfer" */}
-                      <td style={{ padding: '11px 10px', position: 'relative' }}>
-                        <button
-                          style={{ background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 16px', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
-                          onClick={() => setAssignDropdownOpen(assignDropdownOpen === (c.id || i) ? null : (c.id || i))}
-                        >
-                          Transfer
-                        </button>
-                        {assignDropdownOpen === (c.id || i) && (
-                          <>
-                            <div
-                              style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }}
-                              onClick={() => setAssignDropdownOpen(null)}
-                            />
-                            <div style={{
-                              position: 'absolute',
-                              top: '100%',
-                              left: 0,
-                              zIndex: 100,
-                              background: '#fff',
-                              border: '1px solid #e2e8f0',
-                              borderRadius: 8,
-                              boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                              minWidth: 180,
-                              maxHeight: 200,
-                              overflowY: 'auto',
-                              marginTop: 4
-                            }}>
-                              {uniqueProfessionals.length === 0 ? (
-                                <div style={{ padding: '10px 14px', fontSize: 11, color: '#94a3b8' }}>No professionals available</div>
-                              ) : (
-                                uniqueProfessionals.map(profName => (
-                                  <div
-                                    key={profName}
-                                    onClick={async () => {
-                                      // Find professional id from loaded professionals
-                                      const profObj = professionals.find(p => (p.name || p.professional_name || '').toLowerCase() === (profName || '').toLowerCase())
-                                      try {
-                                        if (profObj && profObj.id) {
-                                          await userService.assignProfessional(c.id, profObj.id)
-                                        } else {
-                                          // Fallback: attempt to call API with professional name if id not found
-                                          await userService.assignProfessional(c.id, profName)
-                                        }
-                                      } catch (err) {
-                                        console.warn('assignProfessional API failed:', err)
-                                      }
-
-                                      // Update local clients state for immediate UI feedback — updates all rows with this client
-                                      setClients(prev => prev.map(cl => {
-                                        if ((cl.id || clients.indexOf(cl)) === (c.id || i)) {
-                                          return { ...cl, assigned_professional: profName }
-                                        }
-                                        return cl
-                                      }))
-
-                                      // Notify other dashboards to refresh or update UI
-                                      try {
-                                        window.dispatchEvent(new CustomEvent('professionalAssigned', { detail: { userId: c.id, professionalName: profName } }))
-                                      } catch (e) {
-                                        // ignore if dispatch not supported
-                                      }
-
-                                      setAssignDropdownOpen(null)
-                                    }}
-                                    style={{
-                                      padding: '9px 14px',
-                                      fontSize: 12,
-                                      color: '#1e293b',
-                                      cursor: 'pointer',
-                                      borderBottom: '0.5px solid #f1f5f9',
-                                      transition: 'background 0.15s'
-                                    }}
-                                    onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-                                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                  >
-                                    {profName}
-                                  </div>
-                                ))
-                              )}
-                            </div>
-                          </>
-                        )}
+                      {/* Activity Timeline column */}
+                      <td style={{ padding: '12px 10px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: '80px', overflowY: 'auto' }}>
+                          {(clientTimelines[c.id] || []).length === 0 ? (
+                            <span style={{ color: '#94a3b8', fontSize: 11, fontStyle: 'italic' }}>No activity</span>
+                          ) : (
+                            (clientTimelines[c.id] || []).map((evt, idx) => (
+                              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                <span style={{ fontWeight: 600, fontSize: 11, color: '#1e293b' }}>{evt.name}</span>
+                                <span style={{ fontSize: 10, color: '#64748b' }}>{formatTimelineDate(evt.date)}</span>
+                              </div>
+                            ))
+                          )}
+                        </div>
                       </td>
                       {/* Notice Control column */}
                       <td style={{ padding: '8px 6px' }}>
@@ -583,6 +617,7 @@ export default function Clients() {
               )}
             </tbody>
           </table>
+          </div>
 
 
           <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px solid #f1f5f9' }}>

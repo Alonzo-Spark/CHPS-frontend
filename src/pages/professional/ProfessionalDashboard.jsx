@@ -40,7 +40,18 @@ export default function ProfessionalDashboard() {
   const [yearDropdownOpen, setYearDropdownOpen] = useState(null)
   const [selectedYears, setSelectedYears] = useState({})
 
-  const ALL_YEARS = ['2019-20', '2020-21', '2021-22', '2022-23', '2023-24', '2024-25']
+  const getDynamicYears = () => {
+    const list = []
+    const startYear = 2012
+    const currentYear = new Date().getFullYear()
+    for (let yr = startYear; yr <= currentYear; yr++) {
+      const nextYearAbbr = String(yr + 1).slice(-2)
+      list.push(`${yr}-${nextYearAbbr}`)
+    }
+    return list
+  }
+
+  const ALL_YEARS = getDynamicYears()
 
   const navigate = useNavigate()
 
@@ -280,9 +291,36 @@ export default function ProfessionalDashboard() {
     if (!date || date === '-') return '-'
 
     try {
-      return new Date(date).toLocaleDateString('en-GB')
+      const d = new Date(date)
+      if (isNaN(d.getTime())) return '-'
+      return d.toLocaleDateString('en-GB')
     } catch {
       return '-'
+    }
+  }
+
+  const getDateSearchStrings = (str) => {
+    if (!str || str === '-') return []
+    try {
+      const d = new Date(str)
+      if (isNaN(d.getTime())) return []
+      const day = String(d.getDate()).padStart(2, '0')
+      const year = String(d.getFullYear())
+      const monthIndex = d.getMonth()
+      const monthsFull = [
+        'january', 'february', 'march', 'april', 'may', 'june',
+        'july', 'august', 'september', 'october', 'november', 'december'
+      ]
+      const monthsAbbr = [
+        'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+        'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
+      ]
+      const formattedGB = d.toLocaleDateString('en-GB')
+      const fullMonthStr = `${day} ${monthsFull[monthIndex]} ${year}`
+      const abbrMonthStr = `${day} ${monthsAbbr[monthIndex]} ${year}`
+      return [formattedGB.toLowerCase(), fullMonthStr, abbrMonthStr, str.toLowerCase()]
+    } catch {
+      return []
     }
   }
 
@@ -302,11 +340,22 @@ export default function ProfessionalDashboard() {
 
     const term = search.trim().toLowerCase()
 
+    const issuedDates = getDateSearchStrings(a.issued_on)
+    const dueDates = getDateSearchStrings(a.due_date)
+
+    const matchesIssued = issuedDates.some(dStr => dStr.includes(term))
+    const matchesDue = dueDates.some(dStr => dStr.includes(term))
+
     const matchesSearch =
       !term ||
       (a.user || '').toLowerCase().includes(term) ||
+      (a.proceeding_name || '').toLowerCase().includes(term) ||
       (a.professional_name || '').toLowerCase().includes(term) ||
-      String(a.notice_id || '').includes(term)
+      (a.assessment_year || '').toString().toLowerCase().includes(term) ||
+      matchesIssued ||
+      matchesDue ||
+      (a.reference_id || '').toLowerCase().includes(term) ||
+      (a.status || '').toLowerCase().includes(term)
 
     const issuedDate =
       a.issued_on && a.issued_on !== '-'
@@ -409,6 +458,7 @@ export default function ProfessionalDashboard() {
 
             {/* SEARCH + FILTER */}
             <div
+              className="professional-search-container"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -606,7 +656,7 @@ export default function ProfessionalDashboard() {
           )}
 
           {/* TABLE */}
-          <div style={{ overflowX: 'auto' }}>
+          <div className="professional-table-wrapper" style={{ overflowX: 'auto' }}>
 
             <table
               style={{
@@ -694,194 +744,199 @@ export default function ProfessionalDashboard() {
                     >
                       No data available
                     </td>
-                  </tr>
+                  </tr>                ) : (
 
-                ) : (
+                  filtered.map((a, index) => {
+                    const nc = noticeControl[a.client_id] || { available_years: [], blocked_years: [] }
+                    const blockedYrs = nc.blocked_years || []
+                    const selYrs = selectedYears[a.client_id] || []
+                    const hasBlocked = blockedYrs.length > 0
+                    const availableForDropdown = ALL_YEARS.filter(y => !blockedYrs.includes(y))
 
-                  filtered.map((a, index) => (
-
-                    <tr
-                      key={a.notice_id || index}
-                      style={{
-                        borderBottom: '1px solid #f1f5f9',
-                        background: !a.is_read ? '#e0f2fe' : 'transparent',
-                        transition: 'all 0.3s ease'
-                      }}
-                    >
-
-                      {/* USER */}
-                      <td
+                    return (
+                      <tr
+                        key={a.notice_id || index}
                         style={{
-                          padding: 12,
-                          borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent',
-                          transition: 'border-left-color 0.3s ease',
-                          fontWeight: !a.is_read ? '700' : 'normal',
-                          fontSize: 15
+                          borderBottom: '1px solid #f1f5f9',
+                          background: !a.is_read ? '#e0f2fe' : 'transparent',
+                          transition: 'all 0.3s ease'
                         }}
                       >
-                        <div
-                          style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#1e293b' }}
+
+                        {/* USER */}
+                        <td
+                          style={{
+                            padding: 12,
+                            borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent',
+                            transition: 'border-left-color 0.3s ease',
+                            fontWeight: !a.is_read ? '700' : 'normal',
+                            fontSize: 15
+                          }}
+                        >
+                          <div
+                            style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#1e293b' }}
+                            onClick={() => {
+                              const isInfo = (a.status || '').toLowerCase() === 'completed' || (a.status || '').toLowerCase() === 'closed'
+                              navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&uid=${a?.client_id || ''}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '', assesseeId: a?.client_id } })
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                            onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                          >
+                            {!a.is_read && (
+                              <span
+                                style={{
+                                  display: 'inline-block',
+                                  width: 8,
+                                  height: 8,
+                                  borderRadius: '50%',
+                                  backgroundColor: '#2563eb',
+                                  boxShadow: '0 0 8px #3b82f6',
+                                  flexShrink: 0
+                                }}
+                                title="New/Unread"
+                              />
+                            )}
+                            <span>{a.user}</span>
+                          </div>
+                        </td>
+
+                        {/* PROCEEDING */}
+                        <td
+                          style={{
+                            padding: 12,
+                            fontWeight: !a.is_read ? '700' : '600',
+                            color: !a.is_read ? '#1e293b' : '#334155',
+                            cursor: 'pointer',
+                            fontSize: 15  
+                          }}
                           onClick={() => {
                             const isInfo = (a.status || '').toLowerCase() === 'completed' || (a.status || '').toLowerCase() === 'closed'
                             navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&uid=${a?.client_id || ''}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '', assesseeId: a?.client_id } })
                           }}
-                          onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                          onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
                         >
-                          {!a.is_read && (
-                            <span
-                              style={{
-                                display: 'inline-block',
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                backgroundColor: '#2563eb',
-                                boxShadow: '0 0 8px #3b82f6',
-                                flexShrink: 0
-                              }}
-                              title="New/Unread"
-                            />
-                          )}
-                          <span>{a.user}</span>
-                        </div>
-                      </td>
+                          {a.proceeding_name}
+                        </td>
 
-                      {/* PROCEEDING */}
-                      <td
-                        style={{
-                          padding: 12,
-                          fontWeight: !a.is_read ? '700' : '600',
-                          color: !a.is_read ? '#1e293b' : '#334155',
-                          cursor: 'pointer',
-                          fontSize: 15  
-                        }}
-                        onClick={() => {
-                          const isInfo = (a.status || '').toLowerCase() === 'completed' || (a.status || '').toLowerCase() === 'closed'
-                          navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&uid=${a?.client_id || ''}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '', assesseeId: a?.client_id } })
-                        }}
-                      >
-                        {a.proceeding_name}
-                      </td>
-
-                      {/* PROFESSIONAL NAME */}
-                      <td
-                        style={{
-                          padding: 12,
-                          color: '#2563eb',
-                          fontWeight: !a.is_read ? '600' : 'normal',
-                          fontSize: 15
-                        }}
-                      >
-                        {a.professional_name}
-                      </td>
-
-                      {/* ASSESSMENT YEAR */}
-                      <td
-                        style={{
-                          padding: 12,
-                          color: '#475569',
-                          fontWeight: !a.is_read ? '600' : 'normal',
-                          fontSize: 15
-                        }}
-                      >
-                        {a.assessment_year || 'N/A'}
-                      </td>
-
-                      {/* ISSUED */}
-                      <td style={{ padding: 12, fontWeight: !a.is_read ? '600' : 'normal', fontSize: 15 }}>
-                        {formatDate(a.issued_on)}
-                      </td>
-
-                      {/* DUE */}
-                      <td
-                        style={{
-                          padding: 12,
-                          color: '#dc2626',
-                          fontWeight: !a.is_read ? '700' : 'normal',
-                          fontSize: 15
-                        }}
-                      >
-                        {formatDate(a.due_date)}
-                      </td>
-
-                      {/* NOTICE CONTROL */}
-                      <td style={{ padding: '8px 6px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                          <div style={{ position: 'relative' }}>
-                            <button
-                              onClick={() => setYearDropdownOpen(yearDropdownOpen === (a.client_id || index) ? null : (a.client_id || index))}
-                              style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontSize: 15, cursor: 'pointer', color: '#1e293b', minWidth: 70, textAlign: 'left', whiteSpace: 'nowrap' }}
-                            >
-                              {(selectedYears[a.client_id] || []).length > 0 ? `${(selectedYears[a.client_id]).length} selected` : 'Years ▾'}
-                            </button>
-                            {yearDropdownOpen === (a.client_id || index) && (
-                              <>
-                                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setYearDropdownOpen(null)} />
-                                <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 130, marginTop: 4, maxHeight: 180, overflowY: 'auto' }}>
-                                  {((noticeControl[a.client_id] || {}).available_years || []).length === 0 ? (
-                                    <div style={{ padding: '8px 10px', fontSize: 10, color: '#94a3b8' }}>No years available</div>
-                                  ) : (
-                                    ((noticeControl[a.client_id] || {}).available_years || []).map(year => (
-                                      <label key={year} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', fontSize: 15, cursor: 'pointer', borderBottom: '0.5px solid #f1f5f9' }}
-                                        onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-                                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                      >
-                                        <input type="checkbox" checked={(selectedYears[a.client_id] || []).includes(year)} onChange={() => toggleYearSelection(a.client_id, year)} style={{ accentColor: '#1e3a8a', cursor: 'pointer' }} />
-                                        {year}
-                                      </label>
-                                    ))
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => handleBlockYears(a.client_id)}
-                            style={{ padding: '4px 10px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 5, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
-                          >
-                            Block
-                          </button>
-                          <button
-                            onClick={() => handleUnblockYears(a.client_id)}
-                            disabled={!((noticeControl[a.client_id] || {}).blocked_years || []).length}
-                            style={{ padding: '4px 10px', background: ((noticeControl[a.client_id] || {}).blocked_years || []).length ? '#16a34a' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 5, fontSize: 15, fontWeight: 600, cursor: ((noticeControl[a.client_id] || {}).blocked_years || []).length ? 'pointer' : 'default' }}
-                          >
-                            Unblock
-                          </button>
-                          {((noticeControl[a.client_id] || {}).blocked_years || []).length > 0 && (
-                            <div style={{ fontSize: 14, color: '#dc2626', marginTop: 2, width: '100%' }}>
-                              Blocked: {(noticeControl[a.client_id].blocked_years).join(', ')}
-                            </div>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* BUTTON */}
-                      <td style={{ padding: 12 }}>
-
-                        <button
-                          onClick={() => handleViewNotice(a)}
+                        {/* PROFESSIONAL NAME */}
+                        <td
                           style={{
-                            padding: '8px 12px',
-                            background: '#1e3a8a',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: 8,
-                            cursor: 'pointer',
-                            fontWeight: '600',
-                            boxShadow: !a.is_read ? '0 2px 4px rgba(30, 58, 138, 0.25)' : 'none',
-                            transition: 'all 0.2s ease',
+                            padding: 12,
+                            color: '#2563eb',
+                            fontWeight: !a.is_read ? '600' : 'normal',
                             fontSize: 15
                           }}
                         >
-                          VIEW NOTICE
-                        </button>
+                          {a.professional_name}
+                        </td>
 
-                      </td>
+                        {/* ASSESSMENT YEAR */}
+                        <td
+                          style={{
+                            padding: 12,
+                            color: '#475569',
+                            fontWeight: !a.is_read ? '600' : 'normal',
+                            fontSize: 15
+                          }}
+                        >
+                          {a.assessment_year || 'N/A'}
+                        </td>
 
-                    </tr>
+                        {/* ISSUED */}
+                        <td style={{ padding: 12, fontWeight: !a.is_read ? '600' : 'normal', fontSize: 15 }}>
+                          {formatDate(a.issued_on)}
+                        </td>
 
-                  ))
+                        {/* DUE */}
+                        <td
+                          style={{
+                            padding: 12,
+                            color: '#dc2626',
+                            fontWeight: !a.is_read ? '700' : 'normal',
+                            fontSize: 15
+                          }}
+                        >
+                          {formatDate(a.due_date)}
+                        </td>
+
+                        {/* NOTICE CONTROL */}
+                        <td style={{ padding: '8px 6px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <div style={{ position: 'relative' }}>
+                              <button
+                                onClick={() => setYearDropdownOpen(yearDropdownOpen === (a.client_id || index) ? null : (a.client_id || index))}
+                                style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontSize: 15, cursor: 'pointer', color: '#1e293b', minWidth: 70, textAlign: 'left', whiteSpace: 'nowrap' }}
+                              >
+                                {selYrs.length > 0 ? `${selYrs.length} selected` : 'Years ▾'}
+                              </button>
+                              {yearDropdownOpen === (a.client_id || index) && (
+                                <>
+                                  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setYearDropdownOpen(null)} />
+                                  <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 100, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', minWidth: 130, marginTop: 4, maxHeight: 180, overflowY: 'auto' }}>
+                                    {availableForDropdown.length === 0 ? (
+                                      <div style={{ padding: '8px 10px', fontSize: 10, color: '#94a3b8' }}>All years blocked</div>
+                                    ) : (
+                                      availableForDropdown.map(year => (
+                                        <label key={year} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', fontSize: 15, cursor: 'pointer', borderBottom: '0.5px solid #f1f5f9' }}
+                                          onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+                                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                                        >
+                                          <input type="checkbox" checked={selYrs.includes(year)} onChange={() => toggleYearSelection(a.client_id, year)} style={{ accentColor: '#1e3a8a', cursor: 'pointer' }} />
+                                          {year}
+                                        </label>
+                                      ))
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => handleBlockYears(a.client_id)}
+                              style={{ padding: '4px 10px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 5, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}
+                            >
+                              Block
+                            </button>
+                            <button
+                              onClick={() => handleUnblockYears(a.client_id)}
+                              disabled={!blockedYrs.length}
+                              style={{ padding: '4px 10px', background: blockedYrs.length ? '#16a34a' : '#d1d5db', color: '#fff', border: 'none', borderRadius: 5, fontSize: 15, fontWeight: 600, cursor: blockedYrs.length ? 'pointer' : 'default' }}
+                            >
+                              Unblock
+                            </button>
+                            {blockedYrs.length > 0 && (
+                              <div style={{ fontSize: 14, color: '#dc2626', marginTop: 2, width: '100%' }}>
+                                Blocked: {blockedYrs.join(', ')}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* BUTTON */}
+                        <td style={{ padding: 12 }}>
+
+                          <button
+                            onClick={() => handleViewNotice(a)}
+                            style={{
+                              padding: '8px 12px',
+                              background: '#1e3a8a',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: 8,
+                              cursor: 'pointer',
+                              fontWeight: '600',
+                              boxShadow: !a.is_read ? '0 2px 4px rgba(30, 58, 138, 0.25)' : 'none',
+                              transition: 'all 0.2s ease',
+                              fontSize: 15
+                            }}
+                          >
+                            VIEW NOTICE
+                          </button>
+
+                        </td>
+
+                      </tr>
+
+                    )
+                  })
 
                 )}
 
