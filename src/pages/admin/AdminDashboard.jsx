@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { userService, assignmentService, professionalService, noticeService, clientService } from '../../services'
+import { userService, assignmentService, professionalService, noticeService, clientService, adminService } from '../../services'
 
 const statusBadge = (status = '') => {
   const s = (status || '').toLowerCase().replace(/[_-]/g, ' ').trim()
@@ -56,7 +56,17 @@ export default function AdminDashboard() {
   }
 
   const [clients, setClients] = useState([])
-  const [search, setSearch] = useState('')
+  
+  // Search state split into 3 fields
+  const [searchAssessee, setSearchAssessee] = useState('')
+  const [searchPan, setSearchPan] = useState('')
+  const [searchProfessional, setSearchProfessional] = useState('')
+  
+  // Summary Cards State
+  const [professionalsCount, setProfessionalsCount] = useState(0)
+  const [clientsCount, setClientsCount] = useState(0)
+  const [pendingNoticesCount, setPendingNoticesCount] = useState(0)
+
   const [loading, setLoading] = useState(true)
   const [professionals, setProfessionals] = useState([])
   const [assignDropdownOpen, setAssignDropdownOpen] = useState(null)
@@ -95,112 +105,144 @@ export default function AdminDashboard() {
         setProfessionals(Array.isArray(raw) ? raw : [])
       })
       .catch(() => setProfessionals([]))
+
+    // Fetch Summary Counts
+    adminService.getProfessionalsCount()
+      .then(res => setProfessionalsCount(res?.data?.count || 0))
+      .catch(() => setProfessionalsCount(0))
+
+    adminService.getClientsCount()
+      .then(res => setClientsCount(res?.data?.count || 0))
+      .catch(() => setClientsCount(0))
+
   }, [])
+
+  // Calculate pending notices dynamically
+  useEffect(() => {
+    const count = clients.filter(c => getStatus(c) === 'Pending').length
+    setPendingNoticesCount(count)
+  }, [clients])
 
   const uniqueProfessionals = Array.from(new Set([
     ...professionals.map(p => p.name || p.professional_name || '').filter(Boolean),
     ...clients.map(c => c.assigned_professional?.professional_name || c.assigned_professional || '').filter(Boolean)
   ]))
 
-  // Fetch chronological timeline of dynamic events (Notice Opened, Partial Response, Notice Closed) for each client
+  // Fetch chronological timeline of dynamic events progressively to not block rendering
   useEffect(() => {
     if (clients.length === 0) return
 
-    const fetchAllClientTimelines = async () => {
+    const fetchTimelinesProgressively = async () => {
       try {
         const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
         const noticesRes = await noticeService.getNotices()
         const allN = noticesRes?.data || []
-        const timelineData = {}
+        
+        // 1. Initial pass: compute unread status and "Notice Opened" events immediately
+        const initialTimelines = {}
         const unreadData = {}
+        const ayMap = {}
 
-        await Promise.all(clients.map(async (c) => {
+        clients.forEach(c => {
           const cName = (c.name || '').toLowerCase()
           const cId = c.client_id
           if (!cId) return
 
           const cNotices = allN.filter(n => (n.user || '').toLowerCase() === cName)
 
-          // Compute unread state for this client's notices
+          // Unread state
           const hasUnread = cNotices.some(n => {
             const nId = n.notice_id ?? n.id
-            const permanentlyRead = readNoticeIds.includes(nId)
-            return !getNoticeReadState({ ...n, is_read: permanentlyRead ? true : (n.is_read || false) })
+            return !getNoticeReadState({ ...n, is_read: readNoticeIds.includes(nId) ? true : (n.is_read || false) })
           })
           unreadData[cId] = hasUnread
 
           let events = []
-
-          // 1. Notice Opened
           cNotices.forEach(n => {
             if (n.issued_on) {
-              events.push({
-                name: 'Notice Opened',
-                date: n.issued_on
-              })
+              events.push({ name: 'Notice Opened', date: n.issued_on })
+            }
+            if (n.assessment_year && !ayMap[cId]) {
+              ayMap[cId] = n.assessment_year
             }
           })
+          
+          events.sort((a, b) => new Date(a.date) - new Date(b.date))
+          initialTimelines[cId] = events
+        })
 
-          // 2. Partial Response
+        // Update clients to have assessment_year dynamically extracted if missing
+        setClients(prev => prev.map(c => ({
+          ...c,
+          assessment_year: (c.assessment_year && c.assessment_year !== 'N/A') ? c.assessment_year : (ayMap[c.client_id] || 'N/A')
+        })))
+
+        setClientUnreadMap(unreadData)
+        setClientTimelines(prev => ({...prev, ...initialTimelines}))
+
+        const finalAyMap = { ...ayMap }
+
+        // 2. Async pass: fetch Responses and Proceedings progressively without blocking
+        clients.forEach(async (c) => {
+          const cName = (c.name || '').toLowerCase()
+          const cId = c.client_id
+          if (!cId) return
+          const cNotices = allN.filter(n => (n.user || '').toLowerCase() === cName)
+
+          let extraEvents = []
+
+          // Partial Response
           await Promise.all(cNotices.map(async (n) => {
             try {
               const respRes = await noticeService.getResponse(n.notice_id)
               const resp = respRes?.data?.response_details || respRes?.response_details || respRes?.data || respRes
               if (resp && resp.response_submitted_on) {
-                events.push({
-                  name: 'Partial Response',
-                  date: resp.response_submitted_on
-                })
+                extraEvents.push({ name: 'Partial Response', date: resp.response_submitted_on })
               }
-            } catch (e) {
-              console.warn('Failed to fetch response for notice:', n.notice_id)
-            }
+            } catch (e) {}
           }))
 
-          // 3. Notice Closed
+          // Notice Closed
           try {
             const procRes = await clientService.getClientProceedings(cId)
             const procs = procRes?.data?.proceedings || procRes?.proceedings || []
             procs.forEach(p => {
-              if (p.closure_date) {
-                events.push({
-                  name: 'Notice Closed',
-                  date: p.closure_date
-                })
-              }
+              if (p.closure_date) extraEvents.push({ name: p.status || p.proceeding_status || '', date: p.closure_date })
+              if (p.assessment_year && !ayMap[cId]) ayMap[cId] = p.assessment_year
             })
-          } catch (e) {
-            console.warn('Failed to fetch proceedings for client:', cId)
+          } catch (e) {}
+
+          if (extraEvents.length > 0) {
+            setClientTimelines(prev => {
+              const merged = [...(prev[cId] || []), ...extraEvents]
+              merged.sort((a, b) => new Date(a.date) - new Date(b.date))
+              return { ...prev, [cId]: merged }
+            })
           }
+          
+          if (finalAyMap[cId]) {
+            // We'll map AY on the fly in the render to avoid race conditions here
+          }
+        })
 
-          // Sort chronologically
-          events.sort((a, b) => new Date(a.date) - new Date(b.date))
-          timelineData[cId] = events
-        }))
-
-        setClientTimelines(timelineData)
-        setClientUnreadMap(unreadData)
       } catch (err) {
         console.warn('Failed to load timelines:', err)
       }
     }
 
-    fetchAllClientTimelines()
-  }, [clients])
+    fetchTimelinesProgressively()
+  }, [clients.length]) // Trigger only once when clients are initially loaded
 
   const filtered = clients.filter(c => {
-    if (!search) return true
-    const q = search.toLowerCase().trim()
-    const nameMatch = (c.name || '').toLowerCase().includes(q)
-    const panMatch = (c.pan || '').toLowerCase().includes(q)
-    const profMatch = (c.assigned_professional?.professional_name || c.assigned_professional || '').toLowerCase().includes(q)
-    const yearMatch = (c.assessment_year || '').toString().toLowerCase().includes(q)
-    const statusMatch = (c.status || '').toLowerCase().includes(q)
-    const timelineMatch = (clientTimelines[c.client_id] || []).some(evt => 
-      (evt.name || '').toLowerCase().includes(q) || 
-      formatTimelineDate(evt.date).toLowerCase().includes(q)
-    )
-    return nameMatch || panMatch || profMatch || yearMatch || statusMatch || timelineMatch
+    const qAssessee = searchAssessee.toLowerCase().trim()
+    const qPan = searchPan.toLowerCase().trim()
+    const qProf = searchProfessional.toLowerCase().trim()
+
+    const nameMatch = !qAssessee || (c.name || '').toLowerCase().includes(qAssessee)
+    const panMatch = !qPan || (c.pan || '').toLowerCase().includes(qPan)
+    const profMatch = !qProf || (c.assigned_professional?.professional_name || c.assigned_professional || '').toLowerCase().includes(qProf)
+
+    return nameMatch && panMatch && profMatch
   })
 
   return (
@@ -208,16 +250,48 @@ export default function AdminDashboard() {
       <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', width: '100%', flex: 1 }}>
         <h1 style={{ fontSize: 25, fontWeight: 700, color: '#1e293b', marginBottom: 20 }}>Admin Dashboard</h1>
 
+        {/* SUMMARY CARDS */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+          <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Professionals Count</p>
+            <p style={{ color: '#0f172a', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{professionalsCount}</p>
+          </div>
+          <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Clients Count</p>
+            <p style={{ color: '#0f172a', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{clientsCount}</p>
+          </div>
+          <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Pending Notices</p>
+            <p style={{ color: '#d97706', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{pendingNoticesCount}</p>
+          </div>
+        </div>
+
         <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column', width: '100%' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div className="admin-search-wrapper" style={{ position: 'relative', width: 320 }}>
-              <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)' }} />
+            <div className="admin-search-wrapper" style={{ position: 'relative', flex: 1, maxWidth: 600, display: 'flex', border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', alignItems: 'center', paddingLeft: 12, background: '#f8fafc' }}>
+                <Search size={16} color="#94a3b8" />
+              </div>
               <input
                 type="text"
-                placeholder="Search Assessee, PAN, Assessment Year, or Professional..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                style={{ width: '100%', padding: '9px 12px 9px 36px', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 14, outline: 'none' }}
+                placeholder="Assessee..."
+                value={searchAssessee}
+                onChange={e => setSearchAssessee(e.target.value)}
+                style={{ flex: 1, padding: '9px 12px', border: 'none', borderRight: '1px solid #e2e8f0', fontSize: 14, outline: 'none' }}
+              />
+              <input
+                type="text"
+                placeholder="PAN..."
+                value={searchPan}
+                onChange={e => setSearchPan(e.target.value)}
+                style={{ flex: 1, padding: '9px 12px', border: 'none', borderRight: '1px solid #e2e8f0', fontSize: 14, outline: 'none' }}
+              />
+              <input
+                type="text"
+                placeholder="Professional..."
+                value={searchProfessional}
+                onChange={e => setSearchProfessional(e.target.value)}
+                style={{ flex: 1, padding: '9px 12px', border: 'none', fontSize: 14, outline: 'none' }}
               />
             </div>
           </div>
@@ -237,36 +311,38 @@ export default function AdminDashboard() {
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', fontSize: 14 }}>No data found.</div>
             ) : (
               filtered.map((c, i) => (
-                <div key={c.id || i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', borderBottom: '0.5px solid #f1f5f9', alignItems: 'center', background: clientUnreadMap[c.client_id] ? '#e0f2fe' : 'transparent', borderLeft: clientUnreadMap[c.client_id] ? '4px solid #2563eb' : '4px solid transparent', transition: 'all 0.3s ease' }}>
+                <div key={c.id || i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', borderBottom: '0.5px solid #f1f5f9', alignItems: 'center', transition: 'all 0.3s ease' }}>
                   <div style={{ padding: '14px 20px', fontWeight: 600 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      {clientUnreadMap[c.client_id] && (
-                        <span
-                          style={{
-                            display: 'inline-block',
-                            width: 8,
-                            height: 8,
-                            borderRadius: '50%',
-                            backgroundColor: '#2563eb',
-                            boxShadow: '0 0 8px #3b82f6',
-                            flexShrink: 0
-                          }}
-                          title="Has unread notice"
-                        />
-                      )}
-                      <span style={{ fontSize: 14, color: '#1e293b', fontWeight: clientUnreadMap[c.client_id] ? 700 : 600 }}>{c.name}</span>
+                      <span style={{ fontSize: 14, color: '#1e293b', fontWeight: 600 }}>{c.name}</span>
                     </div>
                   </div>
                   <div style={{ padding: '14px 20px', color: '#64748b', fontSize: 14 }}>{c.pan}</div>
                   <div style={{ padding: '14px 20px', color: '#475569', fontWeight: 500, fontSize: 14 }}>{c.assessment_year}</div>
                   <div style={{ padding: '14px 20px', color: '#1e3a8a', fontWeight: 500, fontSize: 14 }}>
-                    {c.assigned_professional?.professional_name || c.assigned_professional || '—'}
+                    <span 
+                      style={{ cursor: 'pointer' }}
+                      onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                      onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                      onClick={() => {
+                        const profName = c.assigned_professional?.professional_name || c.assigned_professional;
+                        if (profName && profName !== '—') {
+                          const profObj = professionals.find(p => (p.name || p.professional_name || '').toLowerCase() === profName.toLowerCase());
+                          const profId = profObj?.id || profObj?.professional_id || profName;
+                          navigate(`/admin/professional/${profId}`);
+                        }
+                      }}
+                    >
+                      {c.assigned_professional?.professional_name || c.assigned_professional || '—'}
+                    </span>
                   </div>
                   {/* Activity Timeline Column */}
                   <div style={{ padding: '14px 20px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: '80px', overflowY: 'auto' }}>
-                      {(clientTimelines[c.client_id] || []).length === 0 ? (
-                        <span style={{ color: '#94a3b8', fontSize: 13, fontStyle: 'italic' }}>No activity</span>
+                    <div style={{ maxHeight: 75, overflowY: 'auto', scrollBehavior: 'smooth' }}>
+                      {!clientTimelines[c.client_id] ? (
+                        <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>Loading...</span>
+                      ) : clientTimelines[c.client_id].length === 0 ? (
+                        <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>No activity</span>
                       ) : (
                         (clientTimelines[c.client_id] || []).map((evt, idx) => (
                           <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>

@@ -136,10 +136,7 @@ export default function ProfessionalClients() {
             <p style={{ color: '#16a34a', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{activeClients}</p>
           </div>
           
-          <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Disabled Clients</p>
-            <p style={{ color: '#64748b', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{disabledClients}</p>
-          </div>
+
           <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Blocked Clients</p>
             <p style={{ color: '#b91c1c', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{blockedClients}</p>

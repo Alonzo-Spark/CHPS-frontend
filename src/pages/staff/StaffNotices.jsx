@@ -94,7 +94,7 @@ export default function StaffNotices() {
     } else {
       timeline = [{
         date: p.issued_on || p.created_at || '—',
-        label: p.status || 'Pending',
+        label: p.status || '',
         type: (p.status || '').toLowerCase() === 'completed' || (p.status || '').toLowerCase() === 'closed' ? 'done' : 'open'
       }]
     }
@@ -107,7 +107,7 @@ export default function StaffNotices() {
       id: p.id || p.proceeding_id || p.notice_id || String(Math.random()),
       proceeding_name: name,
       assessment_year: p.assessment_year || p.financial_year || p.year || p.assessmentYear || p.ay || 'N/A',
-      status: p.status || 'Pending',
+      status: p.status || '',
       limitation_date: p.limitation_date || p.proceeding_limitation_date || '—',
       closure_date: p.closure_date || '—',
       financial_year: p.financial_year || 'N/A',
@@ -208,8 +208,7 @@ export default function StaffNotices() {
   }
 
   const statusFor = (p) => {
-    if (p.status) return p.status
-    return 'Pending'
+    return p.status || ''
   }
 
   const isProfessionalOrAdmin = role === 'professional' || role === 'admin'
@@ -635,7 +634,7 @@ export default function StaffNotices() {
                         {p.timeline && p.timeline.length > 1 && (
                           <div style={{ position: 'absolute', left: 6, top: 8, bottom: 8, width: '1.5px', backgroundColor: '#cbd5e1', zIndex: 0 }} />
                         )}
-                        {(p.timeline || [{ date: '—', label: p.status || 'Open', type: (p.status || '').toLowerCase() === 'closed' || (p.status || '').toLowerCase() === 'completed' ? 'done' : 'open' }]).map((t, ti) => (
+                        {(p.timeline || [{ date: '—', label: p.status || '', type: (p.status || '').toLowerCase() === 'closed' || (p.status || '').toLowerCase() === 'completed' ? 'done' : 'open' }]).map((t, ti) => (
                           <div key={ti} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: ti === p.timeline.length - 1 ? 0 : 16, position: 'relative', zIndex: 1 }}>
                             <div style={{ marginLeft: -22 }}>
                               <TlDot type={t.type || 'open'} />
