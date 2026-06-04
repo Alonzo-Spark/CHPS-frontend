@@ -117,10 +117,10 @@ export default function Proceeding() {
         </div>
 
         {/* MAIN CONTAINER */}
-        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="proceeding-card" style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, overflow: 'hidden' }}>
           
           {/* HEADER */}
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
+          <div className="proceeding-header-container" style={{ padding: '20px 24px', borderBottom: '1px solid #e2e8f0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: 16 }}>
               <div>
                 <h1 style={{ fontSize: 20, fontWeight: 700, color: '#1e293b', margin: 0 }}>
@@ -130,7 +130,7 @@ export default function Proceeding() {
                   Reference: {currentNotice.reference_id || 'N/A'}
                 </p>
               </div>
-              <div style={{ textAlign: 'right' }}>
+              <div className="proceeding-header-status" style={{ textAlign: 'right' }}>
                 <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>Status</p>
                 {statusBadge(currentNotice.workflow_status || 'Pending')}
               </div>
@@ -140,7 +140,7 @@ export default function Proceeding() {
           {/* PROCEEDING DETAILS SECTION */}
           <div style={{ padding: '24px', borderBottom: '1px solid #e2e8f0' }}>
             <h2 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 16 }}>Proceeding Information</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+            <div className="proceeding-info-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
               
               <div>
                 <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Assessee Name</p>

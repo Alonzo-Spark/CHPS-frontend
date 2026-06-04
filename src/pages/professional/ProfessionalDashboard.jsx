@@ -42,7 +42,18 @@ export default function ProfessionalDashboard() {
   const [yearDropdownOpen, setYearDropdownOpen] = useState(null)
   const [selectedYears, setSelectedYears] = useState({})
 
-  const ALL_YEARS = ['2019-20', '2020-21', '2021-22', '2022-23', '2023-24', '2024-25']
+  const getDynamicYears = () => {
+    const list = []
+    const startYear = 2012
+    const currentYear = new Date().getFullYear()
+    for (let yr = startYear; yr <= currentYear; yr++) {
+      const nextYearAbbr = String(yr + 1).slice(-2)
+      list.push(`${yr}-${nextYearAbbr}`)
+    }
+    return list
+  }
+
+  const ALL_YEARS = getDynamicYears()
 
   const navigate = useNavigate()
 
@@ -324,9 +335,36 @@ export default function ProfessionalDashboard() {
     if (!date || date === '-') return '-'
 
     try {
-      return new Date(date).toLocaleDateString('en-GB')
+      const d = new Date(date)
+      if (isNaN(d.getTime())) return '-'
+      return d.toLocaleDateString('en-GB')
     } catch {
       return '-'
+    }
+  }
+
+  const getDateSearchStrings = (str) => {
+    if (!str || str === '-') return []
+    try {
+      const d = new Date(str)
+      if (isNaN(d.getTime())) return []
+      const day = String(d.getDate()).padStart(2, '0')
+      const year = String(d.getFullYear())
+      const monthIndex = d.getMonth()
+      const monthsFull = [
+        'january', 'february', 'march', 'april', 'may', 'june',
+        'july', 'august', 'september', 'october', 'november', 'december'
+      ]
+      const monthsAbbr = [
+        'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+        'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
+      ]
+      const formattedGB = d.toLocaleDateString('en-GB')
+      const fullMonthStr = `${day} ${monthsFull[monthIndex]} ${year}`
+      const abbrMonthStr = `${day} ${monthsAbbr[monthIndex]} ${year}`
+      return [formattedGB.toLowerCase(), fullMonthStr, abbrMonthStr, str.toLowerCase()]
+    } catch {
+      return []
     }
   }
 
@@ -346,11 +384,22 @@ export default function ProfessionalDashboard() {
 
     const term = search.trim().toLowerCase()
 
+    const issuedDates = getDateSearchStrings(a.issued_on)
+    const dueDates = getDateSearchStrings(a.due_date)
+
+    const matchesIssued = issuedDates.some(dStr => dStr.includes(term))
+    const matchesDue = dueDates.some(dStr => dStr.includes(term))
+
     const matchesSearch =
       !term ||
       (a.user || '').toLowerCase().includes(term) ||
+      (a.proceeding_name || '').toLowerCase().includes(term) ||
       (a.professional_name || '').toLowerCase().includes(term) ||
-      String(a.notice_id || '').includes(term)
+      (a.assessment_year || '').toString().toLowerCase().includes(term) ||
+      matchesIssued ||
+      matchesDue ||
+      (a.reference_id || '').toLowerCase().includes(term) ||
+      (a.status || '').toLowerCase().includes(term)
 
     const issuedDate =
       a.issued_on && a.issued_on !== '-'
@@ -453,6 +502,7 @@ export default function ProfessionalDashboard() {
 
             {/* SEARCH + FILTER */}
             <div
+              className="professional-search-container"
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -668,6 +718,12 @@ export default function ProfessionalDashboard() {
             </button>
             <button
               onClick={() => setActiveDashboardTab('blocked')}
+          )}
+
+          {/* TABLE */}
+          <div className="professional-table-wrapper" style={{ overflowX: 'auto' }}>
+
+            <table
               style={{
                 padding: '12px 16px',
                 fontSize: 13,

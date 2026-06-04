@@ -35,7 +35,7 @@ export default function RegisterPage() {
   const iconStyle = { position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f0f4ff 0%, #e8edf8 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <div className="auth-container" style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f0f4ff 0%, #e8edf8 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       {/* Logo */}
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <div style={{ width: 52, height: 52, background: '#1e3a8a', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
@@ -46,7 +46,7 @@ export default function RegisterPage() {
       </div>
 
       {/* Card */}
-      <div style={{ background: '#fff', borderRadius: 12, padding: '32px 36px', width: '100%', maxWidth: 420, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
+      <div className="auth-card" style={{ background: '#fff', borderRadius: 12, padding: '32px 36px', width: '100%', maxWidth: 420, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>Account Creation</h2>
         <p style={{ fontSize: 12, color: '#64748b', marginBottom: 24 }}>Complete your profile to access the audit portal.</p>
 
