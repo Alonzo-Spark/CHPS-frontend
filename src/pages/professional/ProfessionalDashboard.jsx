@@ -718,12 +718,6 @@ export default function ProfessionalDashboard() {
             </button>
             <button
               onClick={() => setActiveDashboardTab('blocked')}
-          )}
-
-          {/* TABLE */}
-          <div className="professional-table-wrapper" style={{ overflowX: 'auto' }}>
-
-            <table
               style={{
                 padding: '12px 16px',
                 fontSize: 13,
