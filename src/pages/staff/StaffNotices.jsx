@@ -169,7 +169,13 @@ export default function StaffNotices() {
 
     const fetchActionData = async () => {
       try {
-        const res = await professionalService.getProceedingsForAction()
+        const apiParams = {}
+        if (filterUid) {
+          apiParams.client_id = filterUid
+        } else if (filterAssessee) {
+          apiParams.client_name = filterAssessee
+        }
+        const res = await professionalService.getProceedingsForAction(apiParams)
         const raw = extractProceedings(res)
         setActionProceedings(raw.map(normalizeProceeding))
       } catch (err) {
@@ -180,7 +186,13 @@ export default function StaffNotices() {
 
     const fetchInformationData = async () => {
       try {
-        const res = await professionalService.getProceedingsForInformation()
+        const apiParams = {}
+        if (filterUid) {
+          apiParams.client_id = filterUid
+        } else if (filterAssessee) {
+          apiParams.client_name = filterAssessee
+        }
+        const res = await professionalService.getProceedingsForInformation(apiParams)
         const raw = extractProceedings(res)
         setInfoProceedings(raw.map(normalizeProceeding))
       } catch (err) {

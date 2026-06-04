@@ -722,21 +722,6 @@ export default function StaffDashboard() {
                 <div style={{ display: 'flex', gap: 6 }}>
                   {['‹', '›'].map(ch => (
                     <button key={ch} style={{ width: 28, height: 28, border: '0.5px solid #e2e8f0', borderRadius: 6, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{ch}</button>
-          <div className="staff-table-wrapper" style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
-              <colgroup>
-                <col style={{ width: '14%' }} />
-                <col style={{ width: '18%' }} />
-                <col style={{ width: '12%' }} />
-                <col style={{ width: '15%' }} />
-                <col style={{ width: '13%' }} />
-                <col style={{ width: '13%' }} />
-                <col style={{ width: '15%' }} />
-              </colgroup>
-              <thead>
-                <tr>
-                  {['User', 'Proceeding Name', 'Assessment Year', 'Assigned Professional', 'Issued On', 'Due Date', 'Notice'].map(h => (
-                    <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </div>
               </div>

@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, UserPlus } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { userService, professionalService, noticeControlService, noticeService } from '../../services'
 import { userService, professionalService, noticeControlService, noticeService, clientService } from '../../services'
 
 const statusBadge = (status = '') => {
