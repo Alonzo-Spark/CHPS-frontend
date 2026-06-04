@@ -627,7 +627,7 @@ export default function StaffNotices() {
                         {p.timeline && p.timeline.length > 1 && (
                           <div style={{ position: 'absolute', left: 6, top: 8, bottom: 8, width: '1.5px', backgroundColor: '#cbd5e1', zIndex: 0 }} />
                         )}
-                        {(p.timeline || [{ date: '—', label: p.status || 'Open', type: (p.status || '').toLowerCase() === 'closed' || (p.status || '').toLowerCase() === 'completed' ? 'done' : 'open' }]).map((t, ti) => (
+                        {(p.timeline || [{ date: '—', label: 'Open', type: 'open' }]).map((t, ti) => (
                           <div key={ti} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: ti === p.timeline.length - 1 ? 0 : 16, position: 'relative', zIndex: 1 }}>
                             <div style={{ marginLeft: -22 }}>
                               <TlDot type={t.type || 'open'} />
