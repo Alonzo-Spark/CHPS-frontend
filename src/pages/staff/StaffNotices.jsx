@@ -169,7 +169,11 @@ export default function StaffNotices() {
 
     const fetchActionData = async () => {
       try {
-        const res = await professionalService.getProceedingsForAction()
+        const queryParams = {}
+        if (filterUid) queryParams.client_id = filterUid
+        else if (filterAssessee) queryParams.client_name = filterAssessee
+
+        const res = await professionalService.getProceedingsForAction(queryParams)
         const raw = extractProceedings(res)
         setActionProceedings(raw.map(normalizeProceeding))
       } catch (err) {
@@ -180,7 +184,11 @@ export default function StaffNotices() {
 
     const fetchInformationData = async () => {
       try {
-        const res = await professionalService.getProceedingsForInformation()
+        const queryParams = {}
+        if (filterUid) queryParams.client_id = filterUid
+        else if (filterAssessee) queryParams.client_name = filterAssessee
+
+        const res = await professionalService.getProceedingsForInformation(queryParams)
         const raw = extractProceedings(res)
         setInfoProceedings(raw.map(normalizeProceeding))
       } catch (err) {
@@ -191,7 +199,7 @@ export default function StaffNotices() {
 
     Promise.all([fetchActionData(), fetchInformationData()])
       .finally(() => setLoading(false))
-  }, [])
+  }, [filterUid, filterAssessee])
 
   const iconFor = (name = '') => {
     if (name.toLowerCase().includes('appeal')) return (<Scale size={15} color="#7c3aed" />)

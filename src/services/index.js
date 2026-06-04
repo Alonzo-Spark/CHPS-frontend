@@ -258,16 +258,16 @@ export const professionalService = {
     apiService.get(`/api/clients/${id}/users`, { params })
       .then(res => ({ data: res })),
 
-  getProceedingsForAction: () =>
-    apiService.get('/api/professional/proceedings/for-action')
+  getProceedingsForAction: (params) =>
+    apiService.get('/api/professional/proceedings/for-action', { params })
       .then(res => ({ data: res }))
       .catch(err => {
         console.error('getProceedingsForAction API failed:', err)
         return { data: { data: [] } }
       }),
 
-  getProceedingsForInformation: () =>
-    apiService.get('/api/professional/proceedings/for-information')
+  getProceedingsForInformation: (params) =>
+    apiService.get('/api/professional/proceedings/for-information', { params })
       .then(res => ({ data: res }))
       .catch(err => {
         console.error('getProceedingsForInformation API failed:', err)
