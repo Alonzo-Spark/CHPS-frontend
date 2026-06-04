@@ -42,12 +42,26 @@ const formatTimelineDate = (dateStr) => {
 }
 
 export default function AdminDashboard() {
+  const getNoticeReadState = (n) => {
+    if (n.is_read || n.isRead) return true
+    const dateStr = n.issued_on || n.assigned_at || n.createdAt
+    if (!dateStr || dateStr === '-') return true
+    try {
+      const noticeDate = new Date(dateStr)
+      if (isNaN(noticeDate.getTime())) return true
+      return noticeDate < new Date('2026-03-01T00:00:00')
+    } catch (e) {
+      return true
+    }
+  }
+
   const [clients, setClients] = useState([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [professionals, setProfessionals] = useState([])
   const [assignDropdownOpen, setAssignDropdownOpen] = useState(null)
   const [clientTimelines, setClientTimelines] = useState({})
+  const [clientUnreadMap, setClientUnreadMap] = useState({})
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -94,9 +108,11 @@ export default function AdminDashboard() {
 
     const fetchAllClientTimelines = async () => {
       try {
+        const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
         const noticesRes = await noticeService.getNotices()
         const allN = noticesRes?.data || []
         const timelineData = {}
+        const unreadData = {}
 
         await Promise.all(clients.map(async (c) => {
           const cName = (c.name || '').toLowerCase()
@@ -104,6 +120,14 @@ export default function AdminDashboard() {
           if (!cId) return
 
           const cNotices = allN.filter(n => (n.user || '').toLowerCase() === cName)
+
+          // Compute unread state for this client's notices
+          const hasUnread = cNotices.some(n => {
+            const nId = n.notice_id ?? n.id
+            const permanentlyRead = readNoticeIds.includes(nId)
+            return !getNoticeReadState({ ...n, is_read: permanentlyRead ? true : (n.is_read || false) })
+          })
+          unreadData[cId] = hasUnread
 
           let events = []
 
@@ -155,6 +179,7 @@ export default function AdminDashboard() {
         }))
 
         setClientTimelines(timelineData)
+        setClientUnreadMap(unreadData)
       } catch (err) {
         console.warn('Failed to load timelines:', err)
       }
@@ -212,9 +237,25 @@ export default function AdminDashboard() {
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', fontSize: 14 }}>No data found.</div>
             ) : (
               filtered.map((c, i) => (
-                <div key={c.id || i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', borderBottom: '0.5px solid #f1f5f9', alignItems: 'center' }}>
+                <div key={c.id || i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', borderBottom: '0.5px solid #f1f5f9', alignItems: 'center', background: clientUnreadMap[c.client_id] ? '#e0f2fe' : 'transparent', borderLeft: clientUnreadMap[c.client_id] ? '4px solid #2563eb' : '4px solid transparent', transition: 'all 0.3s ease' }}>
                   <div style={{ padding: '14px 20px', fontWeight: 600 }}>
-                    <span style={{ fontSize: 14, color: '#1e293b' }}>{c.name}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      {clientUnreadMap[c.client_id] && (
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            width: 8,
+                            height: 8,
+                            borderRadius: '50%',
+                            backgroundColor: '#2563eb',
+                            boxShadow: '0 0 8px #3b82f6',
+                            flexShrink: 0
+                          }}
+                          title="Has unread notice"
+                        />
+                      )}
+                      <span style={{ fontSize: 14, color: '#1e293b', fontWeight: clientUnreadMap[c.client_id] ? 700 : 600 }}>{c.name}</span>
+                    </div>
                   </div>
                   <div style={{ padding: '14px 20px', color: '#64748b', fontSize: 14 }}>{c.pan}</div>
                   <div style={{ padding: '14px 20px', color: '#475569', fontWeight: 500, fontSize: 14 }}>{c.assessment_year}</div>
@@ -318,6 +359,10 @@ export default function AdminDashboard() {
                   <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center' }}>
                     <button
                       onClick={() => {
+                        // Mark this client's notices as read
+                        if (clientUnreadMap[c.client_id]) {
+                          setClientUnreadMap(prev => ({ ...prev, [c.client_id]: false }))
+                        }
                         const isInfo = (c.status || '').toLowerCase() === 'completed' || (c.status || '').toLowerCase() === 'closed'
                         navigate(`/proceedings?assessee=${encodeURIComponent(c.name)}&uid=${c.client_id || ''}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: c.name, assesseeId: c.client_id } })
                       }}
