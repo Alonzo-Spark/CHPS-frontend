@@ -163,6 +163,36 @@ export const noticeService = {
         console.warn("getProceedings API failed, returning empty list", err);
         return { data: [] };
       }),
+
+  blockYear: (role, assessmentYear) =>
+    apiService.post('/api/notices/block-year', {
+      role,
+      assessment_year: assessmentYear
+    })
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`blockYear API failed for ${assessmentYear}`, err);
+        return { data: null, error: err };
+      }),
+
+  unblockYear: (role, assessmentYear) =>
+    apiService.post('/api/notices/unblock-year', {
+      role,
+      assessment_year: assessmentYear
+    })
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`unblockYear API failed for ${assessmentYear}`, err);
+        return { data: null, error: err };
+      }),
+
+  getBlockedNotices: (role) =>
+    apiService.get(`/api/notices/blocked?role=${role}`)
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`getBlockedNotices API failed for ${role}`, err);
+        return { data: [] };
+      }),
 }
 
 export const assignmentService = {
@@ -331,14 +361,6 @@ export const professionalDashboardService = {
 }
 
 export const noticeControlService = {
-  getAssessmentYears: (clientId) =>
-    apiService.get(`/api/common/client/${clientId}/assessment-years`)
-      .then(res => ({ data: res }))
-      .catch(err => {
-        console.warn(`getAssessmentYears API for client ${clientId} failed`, err)
-        return { data: null, error: err }
-      }),
-
   getNoticeControl: (clientId) =>
     apiService.get(`/api/notice-control/${clientId}`)
       .then(res => ({ data: res }))

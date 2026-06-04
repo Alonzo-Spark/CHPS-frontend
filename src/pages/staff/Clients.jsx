@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, UserPlus } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
+import { userService, professionalService, noticeControlService, noticeService } from '../../services'
 import { userService, professionalService, noticeControlService, noticeService, clientService } from '../../services'
 
 const statusBadge = (status = '') => {
@@ -110,32 +111,28 @@ export default function Clients() {
     clients.forEach(c => {
       const cid = c.id
       if (!cid) return
-      Promise.all([
-        noticeControlService.getNoticeControl(cid).catch(() => null),
-        noticeControlService.getAssessmentYears(cid).catch(() => null)
-      ]).then(([ncRes, ayRes]) => {
-        const commonYearsRaw = ayRes?.data?.data || ayRes?.data?.years || ayRes?.data?.available_years || ayRes?.data || ayRes?.years || ayRes?.available_years || ayRes || null
-        const commonYears = Array.isArray(commonYearsRaw) ? commonYearsRaw : null
+      noticeControlService.getNoticeControl(cid)
+        .then((ncRes) => {
+          const ncData = ncRes?.data || {}
+          const blocked = ncData.blocked_years || []
 
-        const ncData = ncRes?.data || {}
-        const blocked = ncData.blocked_years || []
-
-        let available = commonYears || ncData.available_years || []
-        if (blocked.length > 0) {
-          available = available.filter(y => !blocked.includes(y))
-        }
-
-        setNoticeControl(prev => ({
-          ...prev,
-          [cid]: {
-            available_years: available,
-            blocked_years: blocked
+          let available = ncData.available_years || []
+          if (blocked.length > 0) {
+            available = available.filter(y => !blocked.includes(y))
           }
-        }))
-      }).catch(err => {
-        console.warn('Failed to load years/control details for client:', cid, err)
-        setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [], blocked_years: [] } }))
-      })
+
+          setNoticeControl(prev => ({
+            ...prev,
+            [cid]: {
+              available_years: available,
+              blocked_years: blocked
+            }
+          }))
+        })
+        .catch(err => {
+          console.warn('Failed to load years/control details for client:', cid, err)
+          setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [], blocked_years: [] } }))
+        })
     })
   }, [clients])
 
@@ -217,6 +214,12 @@ export default function Clients() {
   const handleBlockYears = async (clientId) => {
     const sel = selectedYears[clientId] || []
     if (sel.length === 0) return
+    
+    // Call the role-based block year API for each selected year
+    await Promise.all(sel.map(year => 
+      noticeService.blockYear("STAFF", year)
+    ))
+
     const res = await noticeControlService.blockYears(clientId, sel)
     setNoticeControl(prev => {
       const cur = prev[clientId] || { available_years: [], blocked_years: [] }
@@ -235,6 +238,12 @@ export default function Clients() {
   const handleUnblockYears = async (clientId) => {
     const cur = noticeControl[clientId]
     if (!cur || cur.blocked_years.length === 0) return
+
+    // Call the role-based unblock year API for each selected year
+    await Promise.all(cur.blocked_years.map(year => 
+      noticeService.unblockYear("STAFF", year)
+    ))
+
     const res = await noticeControlService.unblockYears(clientId, cur.blocked_years)
     setNoticeControl(prev => {
       const c = prev[clientId]

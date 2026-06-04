@@ -33,6 +33,41 @@ export default function StaffDashboard() {
   const [unreadCount, setUnreadCount] = useState(0)
   const navigate = useNavigate()
 
+  const [activeDashboardTab, setActiveDashboardTab] = useState('assignments')
+  const [blockedNotices, setBlockedNotices] = useState([])
+  const [blockedLoading, setBlockedLoading] = useState(false)
+
+  const fetchBlockedNotices = async () => {
+    setBlockedLoading(true)
+    try {
+      const res = await noticeService.getBlockedNotices('STAFF')
+      const raw = res?.data || []
+      setBlockedNotices(raw)
+    } catch (err) {
+      console.warn('Failed to fetch blocked notices:', err)
+      setBlockedNotices([])
+    } finally {
+      setBlockedLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeDashboardTab === 'blocked') {
+      fetchBlockedNotices()
+    }
+  }, [activeDashboardTab])
+
+  const filteredBlocked = blockedNotices.filter(item => {
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return (
+      String(item.notice_id || '').toLowerCase().includes(q) ||
+      (item.assessee_name || '').toLowerCase().includes(q) ||
+      (item.assessment_year || '').toLowerCase().includes(q) ||
+      (item.status || '').toLowerCase().includes(q)
+    )
+  })
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -556,6 +591,137 @@ export default function StaffDashboard() {
             </div>
           )}
 
+          {/* Tab Selection */}
+          <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', padding: '0 18px' }}>
+            <button
+              onClick={() => setActiveDashboardTab('assignments')}
+              style={{
+                padding: '12px 16px',
+                fontSize: 13,
+                fontWeight: activeDashboardTab === 'assignments' ? 600 : 500,
+                color: activeDashboardTab === 'assignments' ? '#2563eb' : '#64748b',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                borderBottom: activeDashboardTab === 'assignments' ? '3px solid #2563eb' : '3px solid transparent',
+                marginBottom: -1,
+                transition: 'all 0.2s'
+              }}
+            >
+              My Assignments ({filtered.length})
+            </button>
+            <button
+              onClick={() => setActiveDashboardTab('blocked')}
+              style={{
+                padding: '12px 16px',
+                fontSize: 13,
+                fontWeight: activeDashboardTab === 'blocked' ? 600 : 500,
+                color: activeDashboardTab === 'blocked' ? '#2563eb' : '#64748b',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                borderBottom: activeDashboardTab === 'blocked' ? '3px solid #2563eb' : '3px solid transparent',
+                marginBottom: -1,
+                transition: 'all 0.2s'
+              }}
+            >
+              Blocked Notices ({blockedNotices.length})
+            </button>
+          </div>
+
+          {activeDashboardTab === 'assignments' ? (
+            <>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+                  <colgroup>
+                    <col style={{ width: '14%' }} />
+                    <col style={{ width: '18%' }} />
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '15%' }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      {['User', 'Proceeding Name', 'Assessment Year', 'Assigned Professional', 'Issued On', 'Due Date', 'Notice'].map(h => (
+                        <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 11 }}>Loading assignments...</td></tr>
+                    ) : filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 11 }}>
+                          No data available
+                        </td>
+                      </tr>
+                    ) : (
+                      filtered.map((a, i) => (
+                        <tr key={a.notice_id || i} style={{ borderBottom: '0.5px solid #f1f5f9', background: !a.is_read ? '#e0f2fe' : 'transparent', transition: 'all 0.3s ease' }}>
+                          <td style={{ padding: '11px 10px', color: '#1e293b', verticalAlign: 'middle', borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent', transition: 'border-left-color 0.3s ease', fontSize: 14 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                              {!a.is_read && (
+                                <span 
+                                  style={{
+                                    display: 'inline-block',
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: '50%',
+                                    backgroundColor: '#2563eb',
+                                    boxShadow: '0 0 8px #3b82f6',
+                                    flexShrink: 0
+                                  }} 
+                                  title="New/Unread"
+                                />
+                              )}
+                              <span style={{ fontWeight: !a.is_read ? 700 : 500 }}>{a?.user || a?.user_name || "N/A"}</span>
+                            </div>
+                          </td>
+                          <td
+                            style={{ padding: '11px 10px', fontWeight: !a.is_read ? 700 : 600, color: !a.is_read ? '#1e293b' : '#334155', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}
+                            onClick={() => {
+                              const isInfo = (a.status || '').toLowerCase() === 'completed' || (a.status || '').toLowerCase() === 'closed'
+                              navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })
+                            }}
+                            title="Click to view e-Proceeding"
+                          >
+                            {a.proceeding_name}
+                          </td>
+                          <td style={{ padding: '11px 10px', color: '#64748b', fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {a.assessment_year || 'N/A'}
+                          </td>
+                          <td style={{ padding: '11px 10px', color: '#2563eb', fontWeight: !a.is_read ? '600' : '500', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {a.assigned_professional || '—'}
+                          </td>
+                          <td style={{ padding: '10px 10px', color: '#64748b', fontWeight: !a.is_read ? '600' : 'normal', fontSize: 12 }}>
+                            {a?.issued_on && a.issued_on !== '-' ? formatDate(a.issued_on) : "-"}
+                          </td>
+                          <td style={{ padding: '10px 10px', color: '#dc2626', fontWeight: !a.is_read ? 700 : 500, fontSize: 12 }}>
+                            {a?.due_date && a.due_date !== '-' ? formatDate(a.due_date) : "-"}
+                          </td>
+                          <td style={{ padding: '10px 10px' }}>
+                            <button
+                              onClick={() => handleViewNotice(a)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 9px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 7, fontSize: 11, fontWeight: '600', cursor: 'pointer', boxShadow: !a.is_read ? '0 2px 4px rgba(30, 58, 138, 0.25)' : 'none', transition: 'all 0.2s ease' }}
+                            >
+                              VIEW NOTICE
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px solid #f1f5f9' }}>
+                <p style={{ fontSize: 11, color: '#64748b' }}>Showing {filtered.length} of {summary?.total_notices ?? filtered.length} assignments</p>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {['‹', '›'].map(ch => (
+                    <button key={ch} style={{ width: 28, height: 28, border: '0.5px solid #e2e8f0', borderRadius: 6, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{ch}</button>
           <div className="staff-table-wrapper" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
               <colgroup>
@@ -572,76 +738,66 @@ export default function StaffDashboard() {
                   {['User', 'Proceeding Name', 'Assessment Year', 'Assigned Professional', 'Issued On', 'Due Date', 'Notice'].map(h => (
                     <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 11 }}>Loading assignments...</td></tr>
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 11 }}>
-                      No data available
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((a, i) => (
-                    <tr key={a.notice_id || i} style={{ borderBottom: '0.5px solid #f1f5f9', background: !a.is_read ? '#e0f2fe' : 'transparent', transition: 'all 0.3s ease' }}>
-                      <td style={{ padding: '11px 10px', color: '#1e293b', verticalAlign: 'middle', borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent', transition: 'border-left-color 0.3s ease', fontSize: 14 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                          {!a.is_read && (
-                            <span 
-                              style={{
-                                display: 'inline-block',
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                backgroundColor: '#2563eb',
-                                boxShadow: '0 0 8px #3b82f6',
-                                flexShrink: 0
-                              }} 
-                              title="New/Unread"
-                            />
-                          )}
-                          <span style={{ fontWeight: !a.is_read ? 700 : 500 }}>{a?.user || a?.user_name || "N/A"}</span>
-                        </div>
-                      </td>
-                      <td
-                        style={{ padding: '11px 10px', fontWeight: !a.is_read ? 700 : 600, color: !a.is_read ? '#1e293b' : '#334155', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}
-                        onClick={() => {
-                          const isInfo = (a.status || '').toLowerCase() === 'completed' || (a.status || '').toLowerCase() === 'closed'
-                          navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })
-                        }}
-                        title="Click to view e-Proceeding"
-                      >
-                        {a.proceeding_name}
-                      </td>
-                      <td style={{ padding: '11px 10px', color: '#64748b', fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {a.assessment_year || 'N/A'}
-                      </td>
-                      <td style={{ padding: '11px 10px', color: '#2563eb', fontWeight: !a.is_read ? '600' : '500', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {a.assigned_professional || '—'}
-                      </td>
-                      <td style={{ padding: '10px 10px', color: '#64748b', fontWeight: !a.is_read ? '600' : 'normal', fontSize: 12 }}>
-                        {a?.issued_on && a.issued_on !== '-' ? formatDate(a.issued_on) : "-"}
-                      </td>
-                      <td style={{ padding: '10px 10px', color: '#dc2626', fontWeight: !a.is_read ? 700 : 500, fontSize: 12 }}>
-                        {a?.due_date && a.due_date !== '-' ? formatDate(a.due_date) : "-"}
-                      </td>
-                      <td style={{ padding: '10px 10px' }}>
-                        <button
-                          onClick={() => handleViewNotice(a)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 9px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 7, fontSize: 11, fontWeight: '600', cursor: 'pointer', boxShadow: !a.is_read ? '0 2px 4px rgba(30, 58, 138, 0.25)' : 'none', transition: 'all 0.2s ease' }}
-                        >
-                          VIEW NOTICE
-                        </button>
-                      </td>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+                  <colgroup>
+                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '35%' }} />
+                    <col style={{ width: '20%' }} />
+                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '15%' }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      {['Notice ID', 'Assessee Name', 'Assessment Year', 'Issued On', 'Status'].map(h => (
+                        <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {blockedLoading ? (
+                      <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 11 }}>Loading blocked notices...</td></tr>
+                    ) : filteredBlocked.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 11 }}>
+                          No blocked notices found
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredBlocked.map((n, i) => (
+                        <tr key={n.notice_id || i} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
+                          <td style={{ padding: '11px 10px', color: '#1e293b', fontWeight: 600, fontSize: 14 }}>
+                            {n.notice_id}
+                          </td>
+                          <td style={{ padding: '11px 10px', color: '#334155', fontWeight: 600, fontSize: 14 }}>
+                            {n.assessee_name}
+                          </td>
+                          <td style={{ padding: '11px 10px', color: '#64748b', fontWeight: 500, fontSize: 13 }}>
+                            {n.assessment_year || 'N/A'}
+                          </td>
+                          <td style={{ padding: '10px 10px', color: '#64748b', fontSize: 12 }}>
+                            {n?.issued_on && n.issued_on !== '-' ? formatDate(n.issued_on) : "-"}
+                          </td>
+                          <td style={{ padding: '10px 10px', color: '#dc2626', fontWeight: 600, fontSize: 12 }}>
+                            {n.status || 'PENDING'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
+              <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px solid #f1f5f9' }}>
+                <p style={{ fontSize: 11, color: '#64748b' }}>Showing {filteredBlocked.length} blocked notices</p>
+              </div>
+            </>
+          )}
           <div className="staff-pagination" style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px solid #f1f5f9' }}>
             <p style={{ fontSize: 11, color: '#64748b' }}>Showing {filtered.length} of {summary?.total_notices ?? filtered.length} assignments</p>
             <div style={{ display: 'flex', gap: 6 }}>

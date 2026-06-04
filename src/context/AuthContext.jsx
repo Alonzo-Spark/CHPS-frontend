@@ -75,6 +75,8 @@ export function AuthProvider({ children }) {
       const normalizedRole = (data.role || data.user?.role)?.toLowerCase() || 'staff'
 
       const userObj = {
+        id: data.user_id || data.user?.id || null,
+        professional_id: data.professional_id || null,
         username: data.username || data.user?.username || '',
         role: normalizedRole
       }
