@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, UserPlus } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
+import { userService, professionalService, noticeControlService, noticeService } from '../../services'
 import { userService, professionalService, noticeControlService, noticeService, clientService } from '../../services'
 
 const statusBadge = (status = '') => {
@@ -167,6 +168,30 @@ export default function Clients() {
     clients.forEach(c => {
       const cid = c.id
       if (!cid) return
+<<<<<<< HEAD
+      noticeControlService.getNoticeControl(cid)
+        .then((ncRes) => {
+          const ncData = ncRes?.data || {}
+          const blocked = ncData.blocked_years || []
+
+          let available = ncData.available_years || []
+          if (blocked.length > 0) {
+            available = available.filter(y => !blocked.includes(y))
+          }
+
+          setNoticeControl(prev => ({
+            ...prev,
+            [cid]: {
+              available_years: available,
+              blocked_years: blocked
+            }
+          }))
+        })
+        .catch(err => {
+          console.warn('Failed to load years/control details for client:', cid, err)
+          setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [], blocked_years: [] } }))
+        })
+=======
       const blockedForClient = staffBlocked[cid] || []
       Promise.all([
         noticeControlService.getNoticeControl(cid).catch(() => null),
@@ -204,6 +229,7 @@ export default function Clients() {
         setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [], blocked_years: blockedForClient } }))
         setLocalBlockedYears(prev => ({ ...prev, [cid]: blockedForClient }))
       })
+>>>>>>> changes
     })
   }, [clients])
 
@@ -282,21 +308,29 @@ export default function Clients() {
     fetchAllClientTimelines()
   }, [clients])
 
-  const handleBlockYears = async (clientId, yearsToBlock) => {
-    if (!yearsToBlock || yearsToBlock.length === 0) return
+<<<<<<< HEAD
+  const handleBlockYears = async (clientId) => {
+    const sel = selectedYears[clientId] || []
+    if (sel.length === 0) return
     
     // Call the role-based block year API for each selected year
-    await Promise.all(yearsToBlock.map(year => 
-      noticeService.blockYear("STAFF", year).catch(() => null)
+    await Promise.all(sel.map(year => 
+      noticeService.blockYear("STAFF", year)
     ))
 
-    await noticeControlService.blockYears(clientId, yearsToBlock).catch(() => null)
+    const res = await noticeControlService.blockYears(clientId, sel)
+=======
+  const handleBlockYears = async (clientId, yearsToBlock) => {
+    if (!yearsToBlock || yearsToBlock.length === 0) return
+    noticeControlService.blockYears(clientId, yearsToBlock).catch(() => null)
     
     const staffBlocked = JSON.parse(localStorage.getItem('staffBlockedYears') || '{}')
     const currentBlocked = staffBlocked[clientId] || []
     const newBlocked = [...new Set([...currentBlocked, ...yearsToBlock])]
     staffBlocked[clientId] = newBlocked
     localStorage.setItem('staffBlockedYears', JSON.stringify(staffBlocked))
+
+>>>>>>> changes
     setNoticeControl(prev => {
       const cur = prev[clientId] || { available_years: [], blocked_years: [] }
       const newAvailable = cur.available_years.filter(y => !yearsToBlock.includes(y))
@@ -310,21 +344,29 @@ export default function Clients() {
     setSelectedYears(prev => ({ ...prev, [clientId]: [] }))
   }
 
-  const handleUnblockYears = async (clientId, yearsToUnblock) => {
-    if (!yearsToUnblock || yearsToUnblock.length === 0) return
+<<<<<<< HEAD
+  const handleUnblockYears = async (clientId) => {
+    const cur = noticeControl[clientId]
+    if (!cur || cur.blocked_years.length === 0) return
 
     // Call the role-based unblock year API for each selected year
-    await Promise.all(yearsToUnblock.map(year => 
-      noticeService.unblockYear("STAFF", year).catch(() => null)
+    await Promise.all(cur.blocked_years.map(year => 
+      noticeService.unblockYear("STAFF", year)
     ))
 
-    await noticeControlService.unblockYears(clientId, yearsToUnblock).catch(() => null)
+    const res = await noticeControlService.unblockYears(clientId, cur.blocked_years)
+=======
+  const handleUnblockYears = async (clientId, yearsToUnblock) => {
+    if (!yearsToUnblock || yearsToUnblock.length === 0) return
+    noticeControlService.unblockYears(clientId, yearsToUnblock).catch(() => null)
 
     const staffBlocked = JSON.parse(localStorage.getItem('staffBlockedYears') || '{}')
     const currentBlocked = staffBlocked[clientId] || []
     const newBlocked = currentBlocked.filter(y => !yearsToUnblock.includes(y))
     staffBlocked[clientId] = newBlocked
     localStorage.setItem('staffBlockedYears', JSON.stringify(staffBlocked))
+
+>>>>>>> changes
     setNoticeControl(prev => {
       const c = prev[clientId] || { available_years: [], blocked_years: [] }
       const newBlockedList = c.blocked_years.filter(y => !yearsToUnblock.includes(y))
