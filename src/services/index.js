@@ -202,13 +202,20 @@ export const assignmentService = {
 }
 
 export const clientService = {
-  getClients: () =>
-    apiService.get('/api/users')
+  getClients: () => {
+    const storedUser = localStorage.getItem('user');
+    const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+    const isProfessional = String(parsedUser?.role).toUpperCase() === 'PROFESSIONAL' || String(parsedUser?.user_type).toUpperCase() === 'PROFESSIONAL';
+    const profId = isProfessional ? (parsedUser?.id || parsedUser?.professional_id) : null;
+    const endpoint = profId ? `/api/professionals/${profId}/users` : '/api/users';
+
+    return apiService.get(endpoint)
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
         console.warn("getClients API failed", err);
         return { data: [] };
-      }),
+      });
+  },
 
   createClient: (data) => {
     const payload = {
@@ -238,37 +245,86 @@ export const healthService = {
 }
 
 export const userService = {
-  getUsers: (params) =>
-    apiService.get('/api/users', { params })
+  getUsers: (params) => {
+    const storedUser = localStorage.getItem('user');
+    const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+    const isProfessional = String(parsedUser?.role).toUpperCase() === 'PROFESSIONAL' || String(parsedUser?.user_type).toUpperCase() === 'PROFESSIONAL';
+    const profId = isProfessional ? (parsedUser?.id || parsedUser?.professional_id) : null;
+    const endpoint = profId ? `/api/professionals/${profId}/users` : '/api/users';
+
+    return apiService.get(endpoint, { params })
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
         console.warn("getUsers API failed", err);
         return { data: [] };
-      }),
+      });
+  },
 
-  blockUser: (userId) =>
-    apiService.put('/api/admin/users/block', { user_id: userId })
+  blockUser: (userId) => {
+    const storedUser = localStorage.getItem('user');
+    const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+    const isProfessional = String(parsedUser?.role).toUpperCase() === 'PROFESSIONAL' || String(parsedUser?.user_type).toUpperCase() === 'PROFESSIONAL';
+    
+    if (isProfessional) {
+      return apiService.put(`/api/v1/professional/clients/${userId}/disable`)
+        .then(res => ({ data: res }))
+        .catch(err => {
+          console.warn(`Disable client API failed for ${userId}`, err);
+          throw err;
+        });
+    }
+    
+    return apiService.put('/api/admin/users/block', { user_id: userId })
       .then(res => ({ data: res }))
       .catch(err => {
         console.warn(`blockUser API failed for ${userId}`, err);
         throw err;
-      }),
+      });
+  },
 
-  unblockUser: (userId) =>
-    apiService.put('/api/admin/users/unblock', { user_id: userId })
+  unblockUser: (userId) => {
+    const storedUser = localStorage.getItem('user');
+    const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+    const isProfessional = String(parsedUser?.role).toUpperCase() === 'PROFESSIONAL' || String(parsedUser?.user_type).toUpperCase() === 'PROFESSIONAL';
+    
+    if (isProfessional) {
+      return apiService.put(`/api/v1/professional/clients/${userId}/enable`)
+        .then(res => ({ data: res }))
+        .catch(err => {
+          console.warn(`Enable client API failed for ${userId}`, err);
+          throw err;
+        });
+    }
+
+    return apiService.put('/api/admin/users/unblock', { user_id: userId })
       .then(res => ({ data: res }))
       .catch(err => {
         console.warn(`unblockUser API failed for ${userId}`, err);
         throw err;
-      }),
+      });
+  },
 
-  deleteUser: (userId) =>
-    apiService.delete(`/api/admin/users/${userId}`)
+  deleteUser: (userId) => {
+    const storedUser = localStorage.getItem('user');
+    const parsedUser = storedUser ? JSON.parse(storedUser) : null;
+    const isProfessional = String(parsedUser?.role).toUpperCase() === 'PROFESSIONAL' || String(parsedUser?.user_type).toUpperCase() === 'PROFESSIONAL';
+    
+    if (isProfessional) {
+      return apiService.delete(`/api/v1/professional/clients/${userId}`)
+        .then(res => ({ data: res }))
+        .catch(err => {
+          console.warn(`Delete client API failed for ${userId}`, err);
+          throw err;
+        });
+    }
+
+    return apiService.delete(`/api/admin/users/${userId}`)
       .then(res => ({ data: res }))
       .catch(err => {
         console.warn(`deleteUser API failed for ${userId}`, err);
         throw err;
-      }),
+      });
+  },
 
   runAutoAssignment: () => apiService.post('/api/users/run-auto-assignment').then(res => ({ data: res })),
   assignProfessional: (userId, professionalId) =>
@@ -288,16 +344,16 @@ export const professionalService = {
     apiService.get(`/api/clients/${id}/users`, { params })
       .then(res => ({ data: res })),
 
-  getProceedingsForAction: () =>
-    apiService.get('/api/professional/proceedings/for-action')
+  getProceedingsForAction: (params) =>
+    apiService.get('/api/professional/proceedings/for-action', { params })
       .then(res => ({ data: res }))
       .catch(err => {
         console.error('getProceedingsForAction API failed:', err)
         return { data: { data: [] } }
       }),
 
-  getProceedingsForInformation: () =>
-    apiService.get('/api/professional/proceedings/for-information')
+  getProceedingsForInformation: (params) =>
+    apiService.get('/api/professional/proceedings/for-information', { params })
       .then(res => ({ data: res }))
       .catch(err => {
         console.error('getProceedingsForInformation API failed:', err)
