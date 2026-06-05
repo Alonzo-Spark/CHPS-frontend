@@ -12,56 +12,15 @@ export default function CreateClient() {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [professionals, setProfessionals] = useState([])
-  const [showSecondaryDropdown, setShowSecondaryDropdown] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
     professionalService.getProfessionals()
-      .then(res => {
-        const raw = res?.data?.items || res?.data || []
-        setProfessionals(Array.isArray(raw) ? raw : [])
-      })
+      .then(res => setProfessionals(res.data || res || []))
       .catch(err => {
         console.error('Failed to load professionals', err)
       })
   }, [])
-
-  const getFilteredProfessionals = () => {
-    if (!form.name || professionals.length === 0) return professionals;
-    const cleaned = form.name.trim();
-    if (!cleaned) return professionals;
-    
-    const firstLetter = cleaned[0].toUpperCase();
-    let targetIdx = 0;
-    if (firstLetter >= 'A' && firstLetter <= 'F') {
-      targetIdx = 0;
-    } else if (firstLetter >= 'G' && firstLetter <= 'M') {
-      targetIdx = 1;
-    } else if (firstLetter >= 'N' && firstLetter <= 'Z') {
-      targetIdx = 2;
-    } else {
-      targetIdx = 0;
-    }
-    
-    const chosenIdx = targetIdx % professionals.length;
-    const professional = professionals[chosenIdx];
-    return [professional].filter(Boolean);
-  }
-
-  const getDropdownProfessionals = () => {
-    const filtered = getFilteredProfessionals();
-    const list = filtered.length > 0 ? filtered : professionals;
-    if (form.professional_id) {
-      const exists = list.some(p => String(p.id) === String(form.professional_id));
-      if (!exists) {
-        const selectedProf = professionals.find(p => String(p.id) === String(form.professional_id));
-        if (selectedProf) {
-          return [selectedProf, ...list];
-        }
-      }
-    }
-    return list;
-  }
 
   const validateForm = () => {
     const errors = {}
@@ -175,107 +134,20 @@ export default function CreateClient() {
               </div>
             </div>
 
-            <div style={{ marginBottom: 24, position: 'relative' }}>
-              <label style={labelStyle}>Assigned Professionals</label>
+            <div style={{ marginBottom: 24 }}>
+              <label style={labelStyle}>Professional</label>
               <div style={{ position: 'relative' }}>
                 <select
-                  value={showSecondaryDropdown ? 'others' : (form.professional_id || '')}
-                  onChange={e => {
-                    const val = e.target.value;
-                    if (val === 'others') {
-                      setShowSecondaryDropdown(true);
-                    } else {
-                      setShowSecondaryDropdown(false);
-                      setForm({ ...form, professional_id: val });
-                    }
-                  }}
+                  value={form.professional_id}
+                  onChange={e => setForm({ ...form, professional_id: e.target.value })}
                   style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', paddingRight: 36 }}
                 >
                   <option value="">Select Professional</option>
-                  {getDropdownProfessionals().map((prof) => (
-                    <option key={prof.id} value={prof.id}>
-                      {prof.professional_name || prof.name || prof.full_name || prof.username}
-                    </option>
+                  {professionals.map((prof) => (
+                    <option key={prof.id} value={prof.id}>{prof.professional_name}</option>
                   ))}
-                  <option value="others">Others</option>
                 </select>
                 <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }}>▾</span>
-
-                {showSecondaryDropdown && (
-                  <>
-                    <div 
-                      onClick={() => setShowSecondaryDropdown(false)} 
-                      style={{
-                        position: 'fixed',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        zIndex: 999,
-                        background: 'transparent'
-                      }}
-                    />
-                    <div 
-                      style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: 0,
-                        width: '100%',
-                        maxHeight: '200px',
-                        overflowY: 'auto',
-                        background: '#fff',
-                        border: '0.5px solid #cbd5e1',
-                        borderRadius: 8,
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1)',
-                        zIndex: 1000,
-                        marginTop: 4
-                      }}
-                    >
-                      <div style={{ padding: '8px 12px', fontSize: 11, fontWeight: 600, color: '#64748b', background: '#f8fafc', borderBottom: '0.5px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span>ALL PROFESSIONALS</span>
-                        <button 
-                          type="button" 
-                          onClick={() => setShowSecondaryDropdown(false)} 
-                          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}
-                        >
-                          Close
-                        </button>
-                      </div>
-                      {professionals.length === 0 ? (
-                        <div style={{ padding: '12px', fontSize: 13, color: '#64748b', textAlign: 'center' }}>
-                          No professionals available
-                        </div>
-                      ) : (
-                        professionals.map((prof) => (
-                          <div
-                            key={prof.id}
-                            onClick={() => {
-                              setForm({ ...form, professional_id: String(prof.id) });
-                              setShowSecondaryDropdown(false);
-                            }}
-                            style={{
-                              padding: '10px 12px',
-                              fontSize: 13,
-                              color: '#1e293b',
-                              cursor: 'pointer',
-                              borderBottom: '0.5px solid #f1f5f9',
-                              transition: 'background 0.15s',
-                              textAlign: 'left'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.target.style.background = '#f1f5f9';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.target.style.background = 'transparent';
-                            }}
-                          >
-                            {prof.professional_name || prof.name || prof.full_name || prof.username}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </>
-                )}
               </div>
               {fieldErrors.professional_id && <p style={{ marginTop: 6, color: '#dc2626', fontSize: 12 }}>{fieldErrors.professional_id}</p>}
             </div>

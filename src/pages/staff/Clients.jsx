@@ -66,77 +66,21 @@ const getStatus = (item) => {
 export default function Clients() {
   const [clients, setClients] = useState([])
   const [professionals, setProfessionals] = useState([])
+  const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
   const [showFilterPanel, setShowFilterPanel] = useState(false)
-  const [searchFields, setSearchFields] = useState({
-    user: '',
-    email: '',
-    pan: '',
-    assignedProfessional: '',
-    status: ''
-  })
+  const [tempStatus, setTempStatus] = useState('')
   const [tempProfessional, setTempProfessional] = useState('')
+  const [appliedStatus, setAppliedStatus] = useState('')
   const [appliedProfessional, setAppliedProfessional] = useState('')
   const [assignDropdownOpen, setAssignDropdownOpen] = useState(null)
   const [noticeControl, setNoticeControl] = useState({})
   const [yearDropdownOpen, setYearDropdownOpen] = useState(null)
   const [selectedYears, setSelectedYears] = useState({})
-  const [selectedUnblockYears, setSelectedUnblockYears] = useState({})
-  const [unblockDropdownOpen, setUnblockDropdownOpen] = useState(null)
-  const [confirmModal, setConfirmModal] = useState({
-    isOpen: false,
-    type: '', // 'block' or 'unblock'
-    clientId: null,
-    years: []
-  })
   // Track locally blocked years per client for UI display (before API sync)
   const [localBlockedYears, setLocalBlockedYears] = useState({})
   const [clientTimelines, setClientTimelines] = useState({})
   const navigate = useNavigate()
-
-  const toggleUnblockYearSelection = (clientId, year) => {
-    setSelectedUnblockYears(prev => {
-      const cur = prev[clientId] || []
-      return { ...prev, [clientId]: cur.includes(year) ? cur.filter(y => y !== year) : [...cur, year] }
-    })
-  }
-
-  const handleBlockYearsClick = (clientId) => {
-    const sel = selectedYears[clientId] || []
-    if (sel.length === 0) return
-    setYearDropdownOpen(null)
-    setUnblockDropdownOpen(null)
-    setConfirmModal({
-      isOpen: true,
-      type: 'block',
-      clientId,
-      years: sel
-    })
-  }
-
-  const handleUnblockYearsClick = (clientId) => {
-    const sel = selectedUnblockYears[clientId] || []
-    if (sel.length === 0) return
-    setYearDropdownOpen(null)
-    setUnblockDropdownOpen(null)
-    setConfirmModal({
-      isOpen: true,
-      type: 'unblock',
-      clientId,
-      years: sel
-    })
-  }
-
-  useEffect(() => {
-    const handleDocumentClick = (e) => {
-      if (!e.target.closest('.notice-control-dropdown')) {
-        setYearDropdownOpen(null)
-        setUnblockDropdownOpen(null)
-      }
-    }
-    document.addEventListener('click', handleDocumentClick)
-    return () => document.removeEventListener('click', handleDocumentClick)
-  }, [])
 
   useEffect(() => {
     userService.getUsers({ skip: 0, limit: 50 })
@@ -163,47 +107,31 @@ export default function Clients() {
   // Fetch notice control data for each client once clients are loaded
   useEffect(() => {
     if (clients.length === 0) return
-    const staffBlocked = JSON.parse(localStorage.getItem('staffBlockedYears') || '{}')
     clients.forEach(c => {
       const cid = c.id
       if (!cid) return
-      const blockedForClient = staffBlocked[cid] || []
-      Promise.all([
-        noticeControlService.getNoticeControl(cid).catch(() => null),
-        noticeControlService.getAssessmentYears(cid).catch(() => null)
-      ]).then(([ncRes, ayRes]) => {
-        const commonYearsRaw = ayRes?.data?.data || ayRes?.data?.years || ayRes?.data?.available_years || ayRes?.data || ayRes?.years || ayRes?.available_years || ayRes || null
-        const commonYears = Array.isArray(commonYearsRaw) ? commonYearsRaw : null
+      noticeControlService.getNoticeControl(cid)
+        .then((ncRes) => {
+          const ncData = ncRes?.data || {}
+          const blocked = ncData.blocked_years || []
 
-        const ncData = ncRes?.data || {}
-        let blocked = blockedForClient
-        if (!staffBlocked[cid]) {
-          blocked = ncData.blocked_years || []
-          staffBlocked[cid] = blocked
-          localStorage.setItem('staffBlockedYears', JSON.stringify(staffBlocked))
-        }
-
-        let available = commonYears || ncData.available_years || []
-        if (blocked.length > 0) {
-          available = available.filter(y => !blocked.includes(y))
-        }
-
-        setNoticeControl(prev => ({
-          ...prev,
-          [cid]: {
-            available_years: available,
-            blocked_years: blocked
+          let available = ncData.available_years || []
+          if (blocked.length > 0) {
+            available = available.filter(y => !blocked.includes(y))
           }
-        }))
-        setLocalBlockedYears(prev => ({
-          ...prev,
-          [cid]: blocked
-        }))
-      }).catch(err => {
-        console.warn('Failed to load years/control details for client:', cid, err)
-        setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [], blocked_years: blockedForClient } }))
-        setLocalBlockedYears(prev => ({ ...prev, [cid]: blockedForClient }))
-      })
+
+          setNoticeControl(prev => ({
+            ...prev,
+            [cid]: {
+              available_years: available,
+              blocked_years: blocked
+            }
+          }))
+        })
+        .catch(err => {
+          console.warn('Failed to load years/control details for client:', cid, err)
+          setNoticeControl(prev => ({ ...prev, [cid]: { available_years: [], blocked_years: [] } }))
+        })
     })
   }, [clients])
 
@@ -282,50 +210,47 @@ export default function Clients() {
     fetchAllClientTimelines()
   }, [clients])
 
-  const handleBlockYears = async (clientId, yearsToBlock) => {
-    if (!yearsToBlock || yearsToBlock.length === 0) return
-    noticeControlService.blockYears(clientId, yearsToBlock).catch(() => null)
+  const handleBlockYears = async (clientId) => {
+    const sel = selectedYears[clientId] || []
+    if (sel.length === 0) return
     
-    const staffBlocked = JSON.parse(localStorage.getItem('staffBlockedYears') || '{}')
-    const currentBlocked = staffBlocked[clientId] || []
-    const newBlocked = [...new Set([...currentBlocked, ...yearsToBlock])]
-    staffBlocked[clientId] = newBlocked
-    localStorage.setItem('staffBlockedYears', JSON.stringify(staffBlocked))
+    // Call the role-based block year API for each selected year
+    await Promise.all(sel.map(year => 
+      noticeService.blockYear("STAFF", year)
+    ))
 
+    const res = await noticeControlService.blockYears(clientId, sel)
     setNoticeControl(prev => {
       const cur = prev[clientId] || { available_years: [], blocked_years: [] }
-      const newAvailable = cur.available_years.filter(y => !yearsToBlock.includes(y))
+      const newBlocked = [...new Set([...cur.blocked_years, ...sel])]
+      const newAvailable = cur.available_years.filter(y => !sel.includes(y))
       return { ...prev, [clientId]: { available_years: newAvailable, blocked_years: newBlocked } }
     })
     // Update local blocked display
     setLocalBlockedYears(prev => {
       const cur = prev[clientId] || []
-      return { ...prev, [clientId]: [...new Set([...cur, ...yearsToBlock])] }
+      return { ...prev, [clientId]: [...new Set([...cur, ...sel])] }
     })
     setSelectedYears(prev => ({ ...prev, [clientId]: [] }))
   }
 
-  const handleUnblockYears = async (clientId, yearsToUnblock) => {
-    if (!yearsToUnblock || yearsToUnblock.length === 0) return
-    noticeControlService.unblockYears(clientId, yearsToUnblock).catch(() => null)
+  const handleUnblockYears = async (clientId) => {
+    const cur = noticeControl[clientId]
+    if (!cur || cur.blocked_years.length === 0) return
 
-    const staffBlocked = JSON.parse(localStorage.getItem('staffBlockedYears') || '{}')
-    const currentBlocked = staffBlocked[clientId] || []
-    const newBlocked = currentBlocked.filter(y => !yearsToUnblock.includes(y))
-    staffBlocked[clientId] = newBlocked
-    localStorage.setItem('staffBlockedYears', JSON.stringify(staffBlocked))
+    // Call the role-based unblock year API for each selected year
+    await Promise.all(cur.blocked_years.map(year => 
+      noticeService.unblockYear("STAFF", year)
+    ))
 
+    const res = await noticeControlService.unblockYears(clientId, cur.blocked_years)
     setNoticeControl(prev => {
-      const c = prev[clientId] || { available_years: [], blocked_years: [] }
-      const newBlockedList = c.blocked_years.filter(y => !yearsToUnblock.includes(y))
-      const newAvailable = [...new Set([...c.available_years, ...yearsToUnblock])].sort()
-      return { ...prev, [clientId]: { available_years: newAvailable, blocked_years: newBlockedList } }
+      const c = prev[clientId]
+      const newAvailable = [...new Set([...c.available_years, ...c.blocked_years])].sort()
+      return { ...prev, [clientId]: { available_years: newAvailable, blocked_years: [] } }
     })
-    setLocalBlockedYears(prev => {
-      const cur = prev[clientId] || []
-      return { ...prev, [clientId]: cur.filter(y => !yearsToUnblock.includes(y)) }
-    })
-    setSelectedUnblockYears(prev => ({ ...prev, [clientId]: [] }))
+    setLocalBlockedYears(prev => ({ ...prev, [clientId]: [] }))
+    setSelectedYears(prev => ({ ...prev, [clientId]: [] }))
   }
 
   const toggleYearSelection = (clientId, year) => {
@@ -342,19 +267,32 @@ export default function Clients() {
 
   // Global search across all relevant columns including years
   const filtered = (Array.isArray(clients) ? clients : []).filter(c => {
-    const matchesUser = !searchFields.user || (c?.name || '').toLowerCase().includes(searchFields.user.toLowerCase().trim())
-    const matchesEmail = !searchFields.email || (c?.email || '').toLowerCase().includes(searchFields.email.toLowerCase().trim())
-    const matchesPan = !searchFields.pan || (c?.pan || '').toLowerCase().includes(searchFields.pan.toLowerCase().trim())
-    
-    const cProf = (c?.assigned_professional?.professional_name || c?.assigned_professional || '')
-    const matchesProfessional = !searchFields.assignedProfessional || cProf.toLowerCase().includes(searchFields.assignedProfessional.toLowerCase().trim())
-    
-    const cStatus = getStatus(c)
-    const matchesStatusVal = !searchFields.status || cStatus.toLowerCase().includes(searchFields.status.toLowerCase().trim())
+    const q = search.toLowerCase().trim()
+    const nc = noticeControl[c.id] || {}
+    const blockedYrs = nc.blocked_years || []
+    const selYrs = selectedYears[c.id] || []
+    const allClientYears = [...new Set([...blockedYrs, ...selYrs])]
 
-    const sidebarProfMatch = !appliedProfessional || cProf.toLowerCase() === appliedProfessional.toLowerCase()
+    const searchMatch = q === '' ||
+      (c?.name || '').toLowerCase().includes(q) ||
+      (c?.pan || '').toLowerCase().includes(q) ||
+      (c?.email || '').toLowerCase().includes(q) ||
+      (c?.assigned_professional?.professional_name || c?.assigned_professional || '').toLowerCase().includes(q) ||
+      getStatus(c).toLowerCase().includes(q) ||
+      allClientYears.some(y => y.toLowerCase().includes(q)) ||
+      (clientTimelines[c.id] || []).some(evt => 
+        (evt.name || '').toLowerCase().includes(q) || 
+        formatTimelineDate(evt.date).toLowerCase().includes(q)
+      )
 
-    return matchesUser && matchesEmail && matchesPan && matchesProfessional && matchesStatusVal && sidebarProfMatch
+    const cStatus = getStatus(c).toLowerCase()
+    const targetStatus = appliedStatus.toLowerCase()
+    const statusMatch = !appliedStatus || cStatus === targetStatus
+
+    const cProf = (c?.assigned_professional?.professional_name || c?.assigned_professional || '').toLowerCase()
+    const profMatch = !appliedProfessional || cProf === appliedProfessional.toLowerCase()
+
+    return searchMatch && statusMatch && profMatch
   })
 
   const getInitials = (name = '') => name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -393,42 +331,15 @@ export default function Clients() {
               <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>View and manage all user assignments</p>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div className="clients-search-container" style={{ display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid #cbd5e1', borderRadius: 8, padding: '6px 11px', background: '#fff', width: '100%' }}>
-                <Search size={13} color="#94a3b8" style={{ flexShrink: 0 }} />
+              <div className="clients-search-container" style={{ display: 'flex', alignItems: 'center', gap: 6, border: '0.5px solid #cbd5e1', borderRadius: 8, padding: '6px 11px', background: '#fff' }}>
+                <Search size={13} color="#94a3b8" />
                 <input
                   type="text"
-                  placeholder="User..."
-                  value={searchFields.user}
-                  onChange={e => setSearchFields(prev => ({ ...prev, user: e.target.value }))}
-                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', flex: 1, minWidth: 60, borderRight: '1px solid #e2e8f0', paddingRight: 4 }}
-                />
-                <input
-                  type="text"
-                  placeholder="Email..."
-                  value={searchFields.email}
-                  onChange={e => setSearchFields(prev => ({ ...prev, email: e.target.value }))}
-                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', flex: 1, minWidth: 60, borderRight: '1px solid #e2e8f0', paddingRight: 4, paddingLeft: 4 }}
-                />
-                <input
-                  type="text"
-                  placeholder="PAN..."
-                  value={searchFields.pan}
-                  onChange={e => setSearchFields(prev => ({ ...prev, pan: e.target.value }))}
-                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', flex: 1, minWidth: 60, borderRight: '1px solid #e2e8f0', paddingRight: 4, paddingLeft: 4 }}
-                />
-                <input
-                  type="text"
-                  placeholder="Professional..."
-                  value={searchFields.assignedProfessional}
-                  onChange={e => setSearchFields(prev => ({ ...prev, assignedProfessional: e.target.value }))}
-                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', flex: 1, minWidth: 80, borderRight: '1px solid #e2e8f0', paddingRight: 4, paddingLeft: 4 }}
-                />
-                <input
-                  type="text"
-                  placeholder="Status..."
-                  value={searchFields.status}
-                  onChange={e => setSearchFields(prev => ({ ...prev, status: e.target.value }))}
-                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', flex: 1, minWidth: 60, paddingLeft: 4 }}
+                  placeholder="Search by Name / Email / PAN / Professional / Year…"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  className="clients-search-input"
+                  style={{ border: 'none', outline: 'none', fontSize: 12, color: '#1e293b', background: 'transparent', width: '100%', maxWidth: 360 }}
                 />
               </div>
               <button
@@ -457,6 +368,19 @@ export default function Clients() {
           {showFilterPanel && (
             <div className="clients-filter-panel" style={{ padding: '12px 18px', background: '#f8fafc', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Status:</label>
+                <select
+                  value={tempStatus}
+                  onChange={e => setTempStatus(e.target.value)}
+                  style={{ padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 12, outline: 'none', background: '#fff', cursor: 'pointer', color: '#1e293b' }}
+                >
+                  <option value="">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="completed">Completed</option>
+                </select>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Professional:</label>
                 <select
                   value={tempProfessional}
@@ -473,6 +397,7 @@ export default function Clients() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
                 <button
                   onClick={() => {
+                    setAppliedStatus(tempStatus);
                     setAppliedProfessional(tempProfessional);
                   }}
                   style={{
@@ -493,6 +418,7 @@ export default function Clients() {
                 </button>
                 <button
                   onClick={() => {
+                    setTempStatus(appliedStatus);
                     setTempProfessional(appliedProfessional);
                     setShowFilterPanel(false);
                   }}
@@ -512,10 +438,12 @@ export default function Clients() {
                 >
                   Cancel
                 </button>
-                {appliedProfessional && (
+                {(appliedStatus || appliedProfessional) && (
                   <button
                     onClick={() => {
+                      setTempStatus('');
                       setTempProfessional('');
+                      setAppliedStatus('');
                       setAppliedProfessional('');
                     }}
                     style={{
@@ -570,7 +498,6 @@ export default function Clients() {
                   const nc = noticeControl[c.id] || { available_years: [], blocked_years: [] }
                   const blockedYrs = nc.blocked_years || []
                   const selYrs = selectedYears[c.id] || []
-                  const selUnblockYrs = selectedUnblockYears[c.id] || []
                   const hasBlocked = blockedYrs.length > 0
 
                   // Years available = ALL_YEARS minus already-blocked
@@ -617,9 +544,8 @@ export default function Clients() {
                       <td style={{ padding: '8px 6px' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            
-                            {/* Block Dropdown */}
-                            <div className="notice-control-dropdown" style={{ position: 'relative' }}>
+                            {/* Multi-select year dropdown — hardcoded 2012–2026 */}
+                            <div style={{ position: 'relative' }}>
                               <button
                                 onClick={() => setYearDropdownOpen(yearDropdownOpen === (c.id || i) ? null : (c.id || i))}
                                 style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontSize: 10, cursor: 'pointer', color: '#1e293b', minWidth: 70, textAlign: 'left', whiteSpace: 'nowrap' }}
@@ -628,6 +554,7 @@ export default function Clients() {
                               </button>
                               {yearDropdownOpen === (c.id || i) && (
                                 <>
+                                  <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setYearDropdownOpen(null)} />
                                   <div style={{
                                     position: 'absolute',
                                     top: '100%',
@@ -659,90 +586,30 @@ export default function Clients() {
                                 </>
                               )}
                             </div>
-                            
                             <button
-                              onClick={() => handleBlockYearsClick(c.id)}
-                              disabled={selYrs.length === 0}
-                              style={{ padding: '4px 10px', background: selYrs.length > 0 ? '#dc2626' : '#f3f4f6', color: selYrs.length > 0 ? '#fff' : '#94a3b8', border: 'none', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: selYrs.length > 0 ? 'pointer' : 'default' }}
+                              onClick={() => handleBlockYears(c.id)}
+                              style={{ padding: '4px 10px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}
                             >
                               Block
                             </button>
-                            
-                            {/* Unblock Dropdown */}
-                            {hasBlocked && (
-                              <div className="notice-control-dropdown" style={{ position: 'relative' }}>
-                                <button
-                                  onClick={() => setUnblockDropdownOpen(unblockDropdownOpen === (c.id || i) ? null : (c.id || i))}
-                                  style={{ padding: '4px 8px', border: '1px solid #cbd5e1', borderRadius: 6, background: '#fff', fontSize: 10, cursor: 'pointer', color: '#1e293b', minWidth: 70, textAlign: 'left', whiteSpace: 'nowrap' }}
-                                >
-                                  {selUnblockYrs.length > 0 ? `${selUnblockYrs.length} selected` : 'Unblock ▾'}
-                                </button>
-                                {unblockDropdownOpen === (c.id || i) && (
-                                  <>
-                                    <div style={{
-                                      position: 'absolute',
-                                      top: '100%',
-                                      left: 0,
-                                      zIndex: 100,
-                                      background: '#fff',
-                                      border: '1px solid #e2e8f0',
-                                      borderRadius: 8,
-                                      boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                                      minWidth: 130,
-                                      marginTop: 4,
-                                      maxHeight: 180,
-                                      overflowY: 'auto'
-                                    }}>
-                                      {blockedYrs.map(year => (
-                                        <label key={year} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', fontSize: 11, cursor: 'pointer', borderBottom: '0.5px solid #f1f5f9' }}
-                                          onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
-                                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                                        >
-                                          <input type="checkbox" checked={selUnblockYrs.includes(year)} onChange={() => toggleUnblockYearSelection(c.id, year)} style={{ accentColor: '#16a34a', cursor: 'pointer' }} />
-                                          {year}
-                                        </label>
-                                      ))}
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            )}
-
+                            {/* Unblock — shown in GREEN only when at least one year is blocked */}
                             {hasBlocked && (
                               <button
-                                onClick={() => handleUnblockYearsClick(c.id)}
-                                disabled={selUnblockYrs.length === 0}
-                                style={{ padding: '4px 10px', background: selUnblockYrs.length > 0 ? '#16a34a' : '#f3f4f6', color: selUnblockYrs.length > 0 ? '#fff' : '#94a3b8', border: 'none', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: selUnblockYrs.length > 0 ? 'pointer' : 'default' }}
+                                onClick={() => handleUnblockYears(c.id)}
+                                style={{ padding: '4px 10px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 5, fontSize: 10, fontWeight: 600, cursor: 'pointer' }}
                               >
                                 Unblock
                               </button>
                             )}
                           </div>
-                          
                           {/* Selected year chips */}
                           {selYrs.length > 0 && (
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                               {selYrs.map(y => (
-                                <span key={y} style={{ background: '#eff6ff', color: '#1e3a8a', borderRadius: 4, fontSize: 9, padding: '2px 6px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                                  {y}
-                                  <button onClick={() => toggleYearSelection(c.id, y)} style={{ background: 'none', border: 'none', color: '#1e3a8a', cursor: 'pointer', padding: 0, fontSize: 9, display: 'flex', alignItems: 'center' }}>×</button>
-                                </span>
+                                <span key={y} style={{ background: '#eff6ff', color: '#1e3a8a', borderRadius: 4, fontSize: 9, padding: '2px 6px', fontWeight: 600 }}>{y}</span>
                               ))}
                             </div>
                           )}
-                          
-                          {/* Selected unblock year chips */}
-                          {selUnblockYrs.length > 0 && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                              {selUnblockYrs.map(y => (
-                                <span key={y} style={{ background: '#f0fdf4', color: '#166534', borderRadius: 4, fontSize: 9, padding: '2px 6px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-                                  {y}
-                                  <button onClick={() => toggleUnblockYearSelection(c.id, y)} style={{ background: 'none', border: 'none', color: '#166534', cursor: 'pointer', padding: 0, fontSize: 9, display: 'flex', alignItems: 'center' }}>×</button>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                          
                           {/* Blocked years display */}
                           {hasBlocked && (
                             <div style={{ fontSize: 9, color: '#dc2626', marginTop: 1 }}>
@@ -765,66 +632,16 @@ export default function Clients() {
           </div>
 
 
-            </div>
-
-      </div>
-
-      {/* CONFIRMATION POPUP MODAL */}
-      {confirmModal.isOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(15, 23, 42, 0.6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9999, padding: 20
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: 12, padding: 24, width: '100%', maxWidth: 400,
-            boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04)',
-            position: 'relative'
-          }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#0f172a', margin: '0 0 12px 0' }}>
-              Confirm Action
-            </h3>
-            <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.5, margin: '0 0 20px 0' }}>
-              {confirmModal.type === 'block'
-                ? `You are about to block selected year(s): ${confirmModal.years.join(', ')}`
-                : `You are about to unblock selected year(s): ${confirmModal.years.join(', ')}`
-              }
-            </p>
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setConfirmModal({ isOpen: false, type: '', clientId: null, years: [] })}
-                style={{
-                  padding: '8px 16px', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                  border: '1px solid #cbd5e1', background: '#fff', color: '#475569'
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  const { type, clientId, years } = confirmModal;
-                  if (type === 'block') {
-                    await handleBlockYears(clientId, years);
-                  } else {
-                    await handleUnblockYears(clientId, years);
-                  }
-                  setConfirmModal({ isOpen: false, type: '', clientId: null, years: [] });
-                }}
-                style={{
-                  padding: '8px 16px', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                  border: 'none',
-                  background: confirmModal.type === 'block' ? '#dc2626' : '#16a34a',
-                  color: '#fff'
-                }}
-              >
-                {confirmModal.type === 'block' ? 'Confirm Block' : 'Confirm Unblock'}
-              </button>
+          <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px solid #f1f5f9' }}>
+            <p style={{ fontSize: 12, color: '#64748b' }}>Showing {filtered.length} of {clients.length} users</p>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['‹', '›'].map(ch => (
+                <button key={ch} style={{ width: 28, height: 28, border: '0.5px solid #e2e8f0', borderRadius: 6, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{ch}</button>
+              ))}
             </div>
           </div>
         </div>
-      )}
-
+      </div>
     </DashboardLayout>
   )
 }
