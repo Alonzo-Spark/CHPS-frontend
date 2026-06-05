@@ -366,7 +366,7 @@ export default function Clients() {
 
           {/* Filter Panel */}
           {showFilterPanel && (
-            <div style={{ padding: '12px 18px', background: '#f8fafc', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+            <div className="clients-filter-panel" style={{ padding: '12px 18px', background: '#f8fafc', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600 }}>Status:</label>
                 <select

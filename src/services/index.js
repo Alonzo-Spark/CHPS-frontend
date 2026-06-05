@@ -240,6 +240,12 @@ export const clientService = {
   },
 }
 
+export const adminService = {
+  getProfessionalsCount: () => apiService.get('/api/admin/users/count/professionals').then(res => ({ data: res })),
+  getClientsCount: () => apiService.get('/api/admin/users/count/clients').then(res => ({ data: res })),
+  getProfessionalClients: (professionalId) => apiService.get(`/api/professional/client/${professionalId}`).then(res => ({ data: res })),
+}
+
 export const healthService = {
   checkHealth: () => apiService.get('/health').then(res => ({ data: res })),
 }

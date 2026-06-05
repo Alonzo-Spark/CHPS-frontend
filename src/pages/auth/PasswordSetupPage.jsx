@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useParams } from 'react-router-dom'
 import { ShieldCheck, Lock, Eye, EyeOff } from 'lucide-react'
 import { authService } from '../../services'
 
@@ -12,9 +12,10 @@ export default function PasswordSetupPage() {
   const [verifying, setVerifying] = useState(true)
   const [tokenValid, setTokenValid] = useState(false)
   const [searchParams] = useSearchParams()
+  const routeParams = useParams()
   const navigate = useNavigate()
 
-  const token = searchParams.get('token') || ''
+  const token = routeParams.token || searchParams.get('token') || ''
 
   useEffect(() => {
     if (!token) {

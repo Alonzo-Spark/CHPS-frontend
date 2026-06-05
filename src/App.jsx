@@ -18,6 +18,7 @@ import { healthService } from './services'
 import ProfessorDashboard from './pages/professor/ProfessorDashboard'
 import ProfessionalDashboard from './pages/professional/ProfessionalDashboard'
 import ProfessionalClients from './pages/professional/ProfessionalClients'
+import AdminProfessionalDetails from './pages/admin/AdminProfessionalDetails'
 
 export default function App() {
   useEffect(() => {
@@ -33,7 +34,11 @@ export default function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/password-setup" element={<PasswordSetupPage />} />
+      <Route path="/password-setup/:token" element={<PasswordSetupPage />} />
+      <Route path="/set-password" element={<PasswordSetupPage />} />
+      <Route path="/set-password/:token" element={<PasswordSetupPage />} />
       <Route path="/complete-registration" element={<PasswordSetupPage />} />
+      <Route path="/complete-registration/:token" element={<PasswordSetupPage />} />
       <Route path="/approve-registration" element={<AdminActionPage action="approve" />} />
       <Route path="/approve-registration/:token" element={<AdminActionPage action="approve" />} />
       <Route path="/reject-registration" element={<AdminActionPage action="reject" />} />
@@ -51,6 +56,7 @@ export default function App() {
       <Route path="/e-proceedings" element={<ProtectedRoute allowedRoles={['staff']}><EProceedings /></ProtectedRoute>} />
 
       <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/professional/:id" element={<ProtectedRoute allowedRoles={['admin']}><AdminProfessionalDetails /></ProtectedRoute>} />
       <Route path="/professor/dashboard" element={<ProtectedRoute allowedRoles={['professor']}><ProfessorDashboard /></ProtectedRoute>} />
       <Route path="/professional-dashboard" element={<ProtectedRoute allowedRoles={['professional']}><ProfessionalDashboard /></ProtectedRoute>} />
       <Route path="/professional-dashboard/clients" element={<ProtectedRoute allowedRoles={['professional']}><ProfessionalClients /></ProtectedRoute>} />

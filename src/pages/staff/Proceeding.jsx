@@ -69,7 +69,7 @@ export default function Proceeding() {
     return (
       <DashboardLayout breadcrumbs={[{ label: 'Dashboard', path: '/staff/dashboard' }, { label: `Notice #${id}` }]}>
         <div style={{ padding: '20px 22px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, cursor: 'pointer' }} onClick={() => navigate('/staff/dashboard')}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, cursor: 'pointer' }} onClick={() => navigate(-1)}>
             <ArrowLeft size={14} color="#64748b" />
             <span style={{ fontSize: 12, color: '#64748b' }}>Back</span>
           </div>
@@ -85,7 +85,7 @@ export default function Proceeding() {
     return (
       <DashboardLayout breadcrumbs={[{ label: 'Dashboard', path: '/staff/dashboard' }, { label: `Notice #${id}` }]}>
         <div style={{ padding: '20px 22px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, cursor: 'pointer' }} onClick={() => navigate('/staff/dashboard')}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, cursor: 'pointer' }} onClick={() => navigate(-1)}>
             <ArrowLeft size={14} color="#64748b" />
             <span style={{ fontSize: 12, color: '#64748b' }}>Back</span>
           </div>
@@ -111,7 +111,7 @@ export default function Proceeding() {
       <div style={{ padding: '20px 22px' }}>
         
         {/* BACK BUTTON */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, cursor: 'pointer' }} onClick={() => navigate('/staff/dashboard')}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, cursor: 'pointer' }} onClick={() => navigate(-1)}>
           <ArrowLeft size={14} color="#64748b" />
           <span style={{ fontSize: 12, color: '#64748b' }}>Back</span>
         </div>

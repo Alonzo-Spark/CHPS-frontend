@@ -54,7 +54,7 @@ export default function StaffNotices() {
   
   // Filter States
   const [showFilterPanel, setShowFilterPanel] = useState(false)
-  const [searchTerm, setSearchTerm] = useState('')
+  const [searchFields, setSearchFields] = useState({ pan: '', name: '', act: '' })
   const [filters, setFilters] = useState({
     status: '',
     act: '',
@@ -94,7 +94,7 @@ export default function StaffNotices() {
     } else {
       timeline = [{
         date: p.issued_on || p.created_at || '—',
-        label: p.status || 'Pending',
+        label: p.status || '',
         type: (p.status || '').toLowerCase() === 'completed' || (p.status || '').toLowerCase() === 'closed' ? 'done' : 'open'
       }]
     }
@@ -107,7 +107,7 @@ export default function StaffNotices() {
       id: p.id || p.proceeding_id || p.notice_id || String(Math.random()),
       proceeding_name: name,
       assessment_year: p.assessment_year || p.financial_year || p.year || p.assessmentYear || p.ay || 'N/A',
-      status: p.status || 'Pending',
+      status: p.status || '',
       limitation_date: p.limitation_date || p.proceeding_limitation_date || '—',
       closure_date: p.closure_date || '—',
       financial_year: p.financial_year || 'N/A',
@@ -169,13 +169,11 @@ export default function StaffNotices() {
 
     const fetchActionData = async () => {
       try {
-        const apiParams = {}
-        if (filterUid) {
-          apiParams.client_id = filterUid
-        } else if (filterAssessee) {
-          apiParams.client_name = filterAssessee
-        }
-        const res = await professionalService.getProceedingsForAction(apiParams)
+        const queryParams = {}
+        if (filterUid) queryParams.client_id = filterUid
+        else if (filterAssessee) queryParams.client_name = filterAssessee
+
+        const res = await professionalService.getProceedingsForAction(queryParams)
         const raw = extractProceedings(res)
         setActionProceedings(raw.map(normalizeProceeding))
       } catch (err) {
@@ -186,13 +184,11 @@ export default function StaffNotices() {
 
     const fetchInformationData = async () => {
       try {
-        const apiParams = {}
-        if (filterUid) {
-          apiParams.client_id = filterUid
-        } else if (filterAssessee) {
-          apiParams.client_name = filterAssessee
-        }
-        const res = await professionalService.getProceedingsForInformation(apiParams)
+        const queryParams = {}
+        if (filterUid) queryParams.client_id = filterUid
+        else if (filterAssessee) queryParams.client_name = filterAssessee
+
+        const res = await professionalService.getProceedingsForInformation(queryParams)
         const raw = extractProceedings(res)
         setInfoProceedings(raw.map(normalizeProceeding))
       } catch (err) {
@@ -203,7 +199,7 @@ export default function StaffNotices() {
 
     Promise.all([fetchActionData(), fetchInformationData()])
       .finally(() => setLoading(false))
-  }, [])
+  }, [filterUid, filterAssessee])
 
   const iconFor = (name = '') => {
     if (name.toLowerCase().includes('appeal')) return (<Scale size={15} color="#7c3aed" />)
@@ -212,8 +208,7 @@ export default function StaffNotices() {
   }
 
   const statusFor = (p) => {
-    if (p.status) return p.status
-    return 'Pending'
+    return p.status || ''
   }
 
   const isProfessionalOrAdmin = role === 'professional' || role === 'admin'
@@ -254,40 +249,48 @@ export default function StaffNotices() {
     infoList = (filteredInfo.length === 0 && allInfoNoUser) ? infoList : filteredInfo
   }
 
-  const currentList = activeTab === 'action' ? actionList : infoList
-  const filteredList = searchTerm && String(searchTerm).trim() !== ''
-    ? currentList.filter(p => {
-        const term = searchTerm.trim().toLowerCase()
-        if (activeTab === 'action') {
-          // Action Tab fields: PAN, Name of Assessee, Activity Timeline, Proceeding Limitation Date, Financial Year, Applicable Acts
-          const panMatch = (p.pan || '').toLowerCase().includes(term)
-          const nameMatch = (p.assessee_name || '').toLowerCase().includes(term)
-          const timelineMatch = (p.timeline || []).some(t => 
-            (t.date || '').toLowerCase().includes(term) || 
-            (t.label || '').toLowerCase().includes(term)
-          )
-          const limitationMatch = (p.limitation_date || '').toLowerCase().includes(term)
-          const financialYearMatch = (p.financial_year || '').toLowerCase().includes(term)
-          const applicableActMatch = (p.applicable_act || '').toLowerCase().includes(term)
-          const nameProceedingMatch = (p.proceeding_name || '').toLowerCase().includes(term)
-
-          return panMatch || nameMatch || timelineMatch || limitationMatch || financialYearMatch || applicableActMatch || nameProceedingMatch
-        } else {
-          // Info Tab fields: Proceeding Name, PAN, Name of Assessee, Assessment Year, Proceeding Limitation Date, Proceeding Closure Date, Financial Year, Proceeding Closure Order, Applicable Act
-          const proceedingNameMatch = (p.proceeding_name || '').toLowerCase().includes(term)
-          const panMatch = (p.pan || '').toLowerCase().includes(term)
-          const nameMatch = (p.assessee_name || '').toLowerCase().includes(term)
-          const assessmentYearMatch = (p.assessment_year || '').toString().toLowerCase().includes(term)
-          const limitationMatch = (p.limitation_date || '').toLowerCase().includes(term)
-          const closureDateMatch = (p.closure_date || '').toLowerCase().includes(term)
-          const financialYearMatch = (p.financial_year || '').toLowerCase().includes(term)
-          const closureOrderMatch = (p.closure_order || '').toLowerCase().includes(term)
-          const applicableActMatch = (p.applicable_act || '').toLowerCase().includes(term)
-
-          return proceedingNameMatch || panMatch || nameMatch || assessmentYearMatch || limitationMatch || closureDateMatch || financialYearMatch || closureOrderMatch || applicableActMatch
+  // Apply Search & Filters
+  const applyFiltersAndSearch = (list) => {
+    return list.filter(p => {
+      // Search
+      const panMatch = !searchFields.pan || (p.pan || '').toLowerCase().includes(searchFields.pan.toLowerCase().trim())
+      const nameMatch = !searchFields.name || (p.assessee_name || '').toLowerCase().includes(searchFields.name.toLowerCase().trim())
+      const actMatch = !searchFields.act || (p.applicable_act || '').toLowerCase().includes(searchFields.act.toLowerCase().trim())
+      
+      // Filters
+      const statusMatch = !appliedFilters.status || (p.status || '').toLowerCase() === appliedFilters.status.toLowerCase()
+      const filterActMatch = !appliedFilters.act || (p.applicable_act || '').toLowerCase().includes(appliedFilters.act.toLowerCase())
+      
+      let limitationMatch = true
+      if (appliedFilters.limitationFrom && appliedFilters.limitationTo && p.limitation_date && p.limitation_date !== '—') {
+        const itemDate = new Date(p.limitation_date)
+        const fromDate = new Date(appliedFilters.limitationFrom)
+        const toDate = new Date(appliedFilters.limitationTo)
+        if (!isNaN(itemDate) && !isNaN(fromDate) && !isNaN(toDate)) {
+          limitationMatch = itemDate >= fromDate && itemDate <= toDate
         }
-      })
-    : currentList
+      }
+      
+      let issuedMatch = true
+      // Notice Issue Date is usually the first timeline date or we check all timeline events
+      if (appliedFilters.issuedFrom && appliedFilters.issuedTo && p.timeline && p.timeline.length > 0) {
+        const issuedDateStr = p.timeline[0].date
+        if (issuedDateStr && issuedDateStr !== '—') {
+          const itemDate = new Date(issuedDateStr)
+          const fromDate = new Date(appliedFilters.issuedFrom)
+          const toDate = new Date(appliedFilters.issuedTo)
+          if (!isNaN(itemDate) && !isNaN(fromDate) && !isNaN(toDate)) {
+            issuedMatch = itemDate >= fromDate && itemDate <= toDate
+          }
+        }
+      }
+      
+      return panMatch && nameMatch && actMatch && statusMatch && filterActMatch && limitationMatch && issuedMatch
+    })
+  }
+
+  const currentList = activeTab === 'action' ? actionList : infoList
+  const filteredList = applyFiltersAndSearch(currentList)
 
   return (
     <DashboardLayout breadcrumbs={[{ label: 'Dashboard', path: '/staff/dashboard' }, { label: 'Notices' }]}>
@@ -377,7 +380,11 @@ export default function StaffNotices() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 14, gap: 12 }}>
           <div className="notices-search-container" style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #cbd5e1', borderRadius: 6, padding: '8px 12px', background: '#fff' }}>
             <Search size={14} color="#94a3b8" />
-            <input placeholder={activeTab === 'info' ? 'Search assessee...' : 'search'} value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="notices-search-input" style={{ border: 'none', outline: 'none', fontSize: 14, color: '#1e293b', background: 'transparent', width: '100%', maxWidth: 200 }} />
+            <input placeholder="PAN..." value={searchFields.pan} onChange={e => setSearchFields({...searchFields, pan: e.target.value})} className="notices-search-input" style={{ border: 'none', outline: 'none', fontSize: 13, color: '#1e293b', background: 'transparent', width: '100%', maxWidth: 120 }} />
+            <div style={{ width: 1, height: 16, background: '#e2e8f0' }} />
+            <input placeholder="Name of Assessee..." value={searchFields.name} onChange={e => setSearchFields({...searchFields, name: e.target.value})} className="notices-search-input" style={{ border: 'none', outline: 'none', fontSize: 13, color: '#1e293b', background: 'transparent', width: '100%', maxWidth: 140 }} />
+            <div style={{ width: 1, height: 16, background: '#e2e8f0' }} />
+            <input placeholder="Applicable Act..." value={searchFields.act} onChange={e => setSearchFields({...searchFields, act: e.target.value})} className="notices-search-input" style={{ border: 'none', outline: 'none', fontSize: 13, color: '#1e293b', background: 'transparent', width: '100%', maxWidth: 120 }} />
           </div>
           <button 
             onClick={() => setShowFilterPanel(!showFilterPanel)}
@@ -388,7 +395,7 @@ export default function StaffNotices() {
         </div>
 
         {/* Filter Panel */}
-        {showFilterPanel && activeTab !== 'info' && (
+        {showFilterPanel && (
           <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 20, marginBottom: 20 }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
               {/* Proceeding Status */}
@@ -639,7 +646,7 @@ export default function StaffNotices() {
                         {p.timeline && p.timeline.length > 1 && (
                           <div style={{ position: 'absolute', left: 6, top: 8, bottom: 8, width: '1.5px', backgroundColor: '#cbd5e1', zIndex: 0 }} />
                         )}
-                        {(p.timeline || [{ date: '—', label: 'Open', type: 'open' }]).map((t, ti) => (
+                        {(p.timeline || [{ date: '—', label: p.status || '', type: (p.status || '').toLowerCase() === 'closed' || (p.status || '').toLowerCase() === 'completed' ? 'done' : 'open' }]).map((t, ti) => (
                           <div key={ti} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: ti === p.timeline.length - 1 ? 0 : 16, position: 'relative', zIndex: 1 }}>
                             <div style={{ marginLeft: -22 }}>
                               <TlDot type={t.type || 'open'} />

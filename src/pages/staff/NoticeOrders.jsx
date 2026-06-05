@@ -275,13 +275,13 @@ export default function NoticeOrders() {
           payload = res?.data || res
         }
 
-        // Normalize into array
         let noticesList = []
         if (Array.isArray(payload)) noticesList = payload
         else if (Array.isArray(payload?.notice_orders)) noticesList = payload.notice_orders
         else if (Array.isArray(payload?.notices)) noticesList = payload.notices
         else if (Array.isArray(payload?.data)) noticesList = payload.data
         else if (Array.isArray(payload?.items)) noticesList = payload.items
+        else if (payload && (payload.id || payload.notice_id || payload.reference_id)) noticesList = [payload]
 
         if (!noticesList.length) {
           setNotices([])
@@ -554,7 +554,7 @@ export default function NoticeOrders() {
       <div className="notice-orders-content" style={{ padding: '18px 20px' }}>
         <div className="notice-orders-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5, cursor: 'pointer' }} onClick={() => navigate(role === 'professional' ? '/professional-dashboard' : '/staff/dashboard')}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5, cursor: 'pointer' }} onClick={() => navigate(-1)}>
               <ArrowLeft size={13} color="#64748b" />
               <span style={{ fontSize: 12, color: '#64748b' }}>Back to assignments</span>
             </div>
@@ -672,7 +672,6 @@ export default function NoticeOrders() {
                 <p style={{ fontSize: 14, fontWeight: 500, color: '#1e293b', flex: 1 }}>
                   Reference ID: <span style={{ fontFamily: 'monospace', color: '#1d4ed8' }}>{n.reference_id || "—"}</span>
                 </p>
-                {statusBadge(getStatus(n))}
                 {isProfessional && (
                   <button
                     onClick={() => setEditModes(prev => ({ ...prev, [n.id || n.notice_id]: !prev[n.id || n.notice_id] }))}
@@ -748,145 +747,7 @@ export default function NoticeOrders() {
                   </button>
                 </div>
               </div>
-              <div style={{ padding: '16px 20px', borderTop: '0.5px solid #e2e8f0', background: '#f8fafc' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
-                  
-                  {/* BOX 1: REPLY */}
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ padding: '10px 14px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontWeight: 600, fontSize: 12, color: '#1e293b' }}>
-                      Reply
-                    </div>
-                    <div style={{ padding: 14, flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      {!editModes[n.id || n.notice_id] ? (
-                        <div>
-                          <div style={{ marginBottom: 8 }}>
-                            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>Filed Reply:</div>
-                            <div style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{statusForms[n.id || n.notice_id]?.reply_type || '—'}</div>
-                          </div>
-                          {statusForms[n.id || n.notice_id]?.reply_type === 'Others' && (
-                            <div>
-                              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>Comment:</div>
-                              <div style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{statusForms[n.id || n.notice_id]?.reply_comment || '—'}</div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <>
-                          <div>
-                            <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4 }}>Filed Reply</label>
-                            <select 
-                              value={statusForms[n.id || n.notice_id]?.reply_type || ''} 
-                              onChange={(e) => handleStatusChange(n.id || n.notice_id, 'reply_type', e.target.value)}
-                              style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', background: '#fff' }}
-                            >
-                              <option value="">Select Reply</option>
-                              <option value="Out of station">Out of station</option>
-                              <option value="Gathering of material from multiple sources requires time">Gathering of material from multiple sources requires time</option>
-                              <option value="Medical grounds">Medical grounds</option>
-                              <option value="Pre-occupied with return filing activity">Pre-occupied with return filing activity</option>
-                              <option value="Others">Others</option>
-                            </select>
-                          </div>
-                          
-                          {statusForms[n.id || n.notice_id]?.reply_type === 'Others' && (
-                            <div>
-                              <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4 }}>Comment</label>
-                              <input 
-                                type="text"
-                                placeholder="Type Here"
-                                value={statusForms[n.id || n.notice_id]?.reply_comment || ''}
-                                onChange={(e) => handleStatusChange(n.id || n.notice_id, 'reply_comment', e.target.value)}
-                                style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}
-                              />
-                            </div>
-                          )}
-                          
-                          <div style={{ marginTop: 'auto', textAlign: 'center' }}>
-                            <button 
-                              onClick={() => handleStatusSave(n.id || n.notice_id)}
-                              style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}
-                            >
-                              Update Reply
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* BOX 2: FILED BY */}
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ padding: '10px 14px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontWeight: 600, fontSize: 12, color: '#1e293b' }}>
-                      Filed By
-                    </div>
-                    <div style={{ padding: 14, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      {!editModes[n.id || n.notice_id] ? (
-                        <div>
-                          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>Filed By:</div>
-                          <div style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{statusForms[n.id || n.notice_id]?.filed_by || '—'}</div>
-                        </div>
-                      ) : (
-                        <>
-                          <select 
-                            value={statusForms[n.id || n.notice_id]?.filed_by || ''} 
-                            onChange={(e) => handleStatusChange(n.id || n.notice_id, 'filed_by', e.target.value)}
-                            style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', background: '#fff', marginBottom: 12 }}
-                          >
-                            <option value="">Select Filed By</option>
-                            <option value="Partial">Partial</option>
-                            <option value="Fully">Fully</option>
-                            <option value="Self">Self</option>
-                          </select>
-                          
-                          <div style={{ marginTop: 'auto', textAlign: 'center' }}>
-                            <button 
-                              onClick={() => handleStatusSave(n.id || n.notice_id)}
-                              style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}
-                            >
-                              Update Filed By
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* BOX 3: REVIEW */}
-                  <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ padding: '10px 14px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontWeight: 600, fontSize: 12, color: '#1e293b' }}>
-                      Review
-                    </div>
-                    <div style={{ padding: 14, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                      {!editModes[n.id || n.notice_id] ? (
-                        <div>
-                          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>Review Comment:</div>
-                          <div style={{ fontSize: 13, fontWeight: 500, color: '#1e293b', whiteSpace: 'pre-wrap' }}>{statusForms[n.id || n.notice_id]?.review_comment || '—'}</div>
-                        </div>
-                      ) : (
-                        <>
-                          <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4 }}>Comment</label>
-                          <textarea 
-                            placeholder="Type Here"
-                            value={statusForms[n.id || n.notice_id]?.review_comment || ''}
-                            onChange={(e) => handleStatusChange(n.id || n.notice_id, 'review_comment', e.target.value)}
-                            style={{ width: '100%', flex: 1, minHeight: 60, padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', resize: 'none', fontFamily: 'inherit', marginBottom: 12 }}
-                          />
-                          
-                          <div style={{ marginTop: 'auto', textAlign: 'center' }}>
-                            <button 
-                              onClick={() => handleStatusSave(n.id || n.notice_id)}
-                              style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}
-                            >
-                              Update Review
-                            </button>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                </div>
-              </div>
             </div>
           ))
         )}
