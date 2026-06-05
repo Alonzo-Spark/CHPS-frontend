@@ -539,12 +539,13 @@ export default function Clients() {
           <div className="clients-table-wrapper">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: '14%' }} /><col style={{ width: '15%' }} /><col style={{ width: '11%' }} />
-              <col style={{ width: '16%' }} /><col style={{ width: '20%' }} /><col style={{ width: '24%' }} />
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '13%' }} /><col style={{ width: '15%' }} /><col style={{ width: '10%' }} />
+              <col style={{ width: '14%' }} /><col style={{ width: '18%' }} /><col style={{ width: '20%' }} />
             </colgroup>
             <thead>
               <tr>
-                {['User', 'Email', 'PAN', 'Assigned Professional', 'Activity Timeline', 'Notice Control'].map(h => (
+                {['File No', 'User', 'Email', 'PAN', 'Assigned Professional', 'Activity Timeline', 'Notice Control'].map(h => (
                   <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -577,6 +578,9 @@ export default function Clients() {
 
                   return (
                     <tr key={c.id || i} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
+                      <td style={{ padding: '12px 10px', fontSize: 13, color: '#475569', fontWeight: 600 }}>
+                        {c.file_name || c.file_no || c.fileNumber || c.fileId || c.client?.file_name || c.client?.file_no || 'N/A'}
+                      </td>
                       <td style={{ padding: '12px 10px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span

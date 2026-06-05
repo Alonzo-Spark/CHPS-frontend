@@ -93,6 +93,7 @@ export default function StaffDashboard() {
             return {
               ...n,
               notice_id: noticeId,
+              file_no: n.file_name || n.file_no || n.fileNumber || n.fileId || n.client?.file_name || n.client?.file_no || 'N/A',
               user: n.assessee_name || n.user || n.user_name || n.professional_name || "N/A",
               user_name: n.assessee_name || n.user || n.user_name || n.professional_name || "N/A",
               proceeding_name: n.proceeding_name || n.notice_type || "N/A",
@@ -133,6 +134,7 @@ export default function StaffDashboard() {
             return {
               ...n,
               notice_id: noticeId,
+              file_no: n.file_name || n.file_no || n.fileNumber || n.fileId || n.client?.file_name || n.client?.file_no || 'N/A',
               user: n.assessee_name || n.user || n.user_name || n.professional_name || "N/A",
               user_name: n.assessee_name || n.user || n.user_name || n.professional_name || "N/A",
               proceeding_name: n.proceeding_name || n.notice_type || "N/A",
@@ -191,6 +193,7 @@ export default function StaffDashboard() {
           return {
             ...n,
             notice_id: noticeId,
+            file_no: n.file_name || n.file_no || n.fileNumber || n.fileId || n.client?.file_name || n.client?.file_no || 'N/A',
             user: n.assessee_name || n.user || n.user_name || n.professional_name || 'N/A',
             user_name: n.assessee_name || n.user || n.user_name || n.professional_name || 'N/A',
             proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
@@ -711,17 +714,18 @@ export default function StaffDashboard() {
           <div className="staff-table-wrapper" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
               <colgroup>
-                <col style={{ width: '14%' }} />
-                <col style={{ width: '18%' }} />
                 <col style={{ width: '12%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '16%' }} />
+                <col style={{ width: '10%' }} />
                 <col style={{ width: '15%' }} />
-                <col style={{ width: '13%' }} />
-                <col style={{ width: '13%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '10%' }} />
                 <col style={{ width: '15%' }} />
               </colgroup>
               <thead>
                 <tr>
-                  {['User', 'Proceeding Name', 'Assessment Year', 'Assigned Professional', 'Issued On', 'Due Date', 'Notice'].map(h => (
+                  {['File No', 'User', 'Proceeding Name', 'Assessment Year', 'Assigned Professional', 'Issued On', 'Due Date', 'Notice'].map(h => (
                     <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -738,7 +742,10 @@ export default function StaffDashboard() {
                 ) : (
                   filtered.map((a, i) => (
                     <tr key={a.notice_id || i} style={{ borderBottom: '0.5px solid #f1f5f9', background: !a.is_read ? '#e0f2fe' : 'transparent', transition: 'all 0.3s ease' }}>
-                      <td style={{ padding: '11px 10px', color: '#1e293b', verticalAlign: 'middle', borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent', transition: 'border-left-color 0.3s ease', fontSize: 14 }}>
+                      <td style={{ padding: '11px 10px', color: '#475569', fontWeight: 600, fontSize: 13, borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent', transition: 'border-left-color 0.3s ease' }}>
+                        {a.file_no || 'N/A'}
+                      </td>
+                      <td style={{ padding: '11px 10px', color: '#1e293b', verticalAlign: 'middle', fontSize: 14 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                           {!a.is_read && (
                             <span 

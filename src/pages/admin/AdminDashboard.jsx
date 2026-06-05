@@ -82,6 +82,7 @@ export default function AdminDashboard() {
         const mapped = data.map(item => ({
           id: item.assignment_id,
           client_id: item.client?.client_id,
+          file_no: item.client?.file_name || item.client?.file_no || item.client?.fileNumber || item.client?.fileId || item.file_name || item.file_no || item.fileNumber || item.fileId || 'N/A',
           name: item.client?.client_name || 'N/A',
           email: item.client?.client_email || 'N/A',
           pan: item.client?.client_pan || 'N/A',
@@ -298,8 +299,8 @@ export default function AdminDashboard() {
 
           <div className="admin-dashboard-list-container" style={{ flex: 1, width: '100%' }}>
             {/* Header Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              {['Assessee', 'PAN', 'Assessment Year', 'Assigned Professional', 'Activity Timeline', 'Action', 'Proceedings'].map(h => (
+            <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', minWidth: 1000 }}>
+              {['File No', 'Assessee', 'PAN', 'Assessment Year', 'Assigned Professional', 'Activity Timeline', 'Action', 'Proceedings'].map(h => (
                 <div key={h} style={{ padding: '14px 20px', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', textAlign: 'left' }}>{h}</div>
               ))}
             </div>
@@ -311,7 +312,10 @@ export default function AdminDashboard() {
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', fontSize: 14 }}>No data found.</div>
             ) : (
               filtered.map((c, i) => (
-                <div key={c.id || i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', borderBottom: '0.5px solid #f1f5f9', alignItems: 'center', transition: 'all 0.3s ease' }}>
+                <div key={c.id || i} style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', borderBottom: '0.5px solid #f1f5f9', alignItems: 'center', transition: 'all 0.3s ease' }}>
+                  <div style={{ padding: '14px 20px', color: '#475569', fontWeight: 600, fontSize: 14 }}>
+                    {c.file_no || 'N/A'}
+                  </div>
                   <div style={{ padding: '14px 20px', fontWeight: 600 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                       <span style={{ fontSize: 14, color: '#1e293b', fontWeight: 600 }}>{c.name}</span>

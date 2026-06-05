@@ -179,6 +179,7 @@ export default function ProfessionalDashboard() {
           return {
             notice_id: noticeId,
             client_id: n.client_id || n.user_id || n.id || 0,
+            file_no: n.file_name || n.file_no || n.fileNumber || n.fileId || n.client?.file_name || n.client?.file_no || 'N/A',
             user: uName,
             user_name: uName,
             proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
@@ -240,6 +241,7 @@ export default function ProfessionalDashboard() {
         return {
           notice_id: noticeId,
           client_id: n.client_id || n.user_id || n.id || 0,
+          file_no: n.file_name || n.file_no || n.fileNumber || n.fileId || n.client?.file_name || n.client?.file_no || 'N/A',
           user: uName,
           user_name: uName,
           proceeding_name: n.proceeding_name || n.notice_type || 'N/A',
@@ -939,14 +941,15 @@ export default function ProfessionalDashboard() {
               }}
             >
               <colgroup>
+                <col style={{ width: '10%' }} />
                 <col style={{ width: '13%' }} />
-                <col style={{ width: '17%' }} />
+                <col style={{ width: '15%' }} />
                 <col style={{ width: '11%' }} />
                 <col style={{ width: '11%' }} />
                 <col style={{ width: '10%' }} />
                 <col style={{ width: '10%' }} />
-                <col style={{ width: '18%' }} />
-                <col style={{ width: '10%' }} />
+                <col style={{ width: '12%' }} />
+                <col style={{ width: '8%' }} />
               </colgroup>
 
               <thead>
@@ -958,6 +961,7 @@ export default function ProfessionalDashboard() {
                 >
 
                   {[
+                    'File No',
                     'User',
                     'Proceeding Name',
                     'Professional Name',
@@ -1037,12 +1041,24 @@ export default function ProfessionalDashboard() {
                         }}
                       >
 
-                        {/* USER */}
+                        {/* FILE NO */}
                         <td
                           style={{
                             padding: 12,
                             borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent',
                             transition: 'border-left-color 0.3s ease',
+                            fontWeight: 600,
+                            color: '#475569',
+                            fontSize: 13
+                          }}
+                        >
+                          {a.file_no || 'N/A'}
+                        </td>
+
+                        {/* USER */}
+                        <td
+                          style={{
+                            padding: 12,
                             fontWeight: !a.is_read ? '700' : 'normal',
                             fontSize: 15
                           }}

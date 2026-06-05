@@ -37,6 +37,7 @@ export default function ProfessionalClients() {
         const normalizedClient = {
           ...c,
           client_id: clientId,
+          file_no: c.file_name || c.file_no || c.fileNumber || c.fileId || c.client?.file_name || c.client?.file_no || 'N/A',
           client_name: c.client_name || c.name || c.full_name || c.username || 'Unknown User',
           pan_number: c.pan_number || c.pan || 'N/A',
           status: normalizedStatus
@@ -190,6 +191,7 @@ export default function ProfessionalClients() {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>File No</th>
                   <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Client Name</th>
                   <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PAN Number</th>
                   <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
@@ -199,11 +201,11 @@ export default function ProfessionalClients() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>Loading clients...</td>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>Loading clients...</td>
                   </tr>
                 ) : filteredClients.length === 0 ? (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>No clients found.</td>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>No clients found.</td>
                   </tr>
                 ) : (
                   filteredClients.map((client) => {
@@ -212,6 +214,9 @@ export default function ProfessionalClients() {
                     
                     return (
                       <tr key={client.client_id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                        <td style={{ padding: '16px 20px', fontSize: 14, color: isBlocked ? '#94a3b8' : '#475569', fontWeight: 600 }}>
+                          {client.file_no || 'N/A'}
+                        </td>
                         <td style={{ padding: '16px 20px', fontSize: 14, fontWeight: 500, color: isBlocked ? '#94a3b8' : '#1e293b' }}>
                           {client.client_name}
                         </td>
