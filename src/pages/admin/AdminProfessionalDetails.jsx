@@ -22,8 +22,9 @@ export default function AdminProfessionalDetails() {
       const allUsersData = usersRes?.data?.items || usersRes?.data || []
       const allUsers = Array.isArray(allUsersData) ? allUsersData : []
 
-      const filtered = allUsers.filter(u => (u.role || '').toLowerCase() === 'client')
-      setClients(filtered)
+      // Removed u.role filter because the endpoint already returns clients for this professional,
+      // and 'role' may not be present in the user model.
+      setClients(allUsers)
     })
     .catch(err => {
       console.warn('Failed to load professional clients:', err)
@@ -52,7 +53,7 @@ export default function AdminProfessionalDetails() {
         </div>
 
         {/* SUMMARY CARDS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <div className="prof-details-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
           <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Total Clients</p>
             <p style={{ color: '#0f172a', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{totalClients}</p>

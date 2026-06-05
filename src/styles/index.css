@@ -313,11 +313,8 @@ html, body {
     font-size: 20px !important;
   }
 
-  /* Make header flex containers stack vertically on mobile */
-  .clients-search-container,
-  .admin-search-wrapper,
-  .notices-search-container,
-  .professional-search-container {
+  /* Make header flex containers stack vertically on mobile - NOTICES REMOVED SO IT CAN BE HORIZONTAL */
+  .dummy-vertical-stack {
     flex-direction: column !important;
     align-items: stretch !important;
     gap: 10px !important;
@@ -696,6 +693,7 @@ html, body {
   .admin-search-wrapper {
     overflow-x: auto !important;
     display: flex !important;
+    flex-direction: row !important;
     flex-wrap: nowrap !important;
     max-width: 100% !important;
     -webkit-overflow-scrolling: touch !important;
@@ -740,6 +738,7 @@ html, body {
   .professional-search-box {
     overflow-x: auto !important;
     display: flex !important;
+    flex-direction: row !important;
     flex-wrap: nowrap !important;
     max-width: 100% !important;
     width: 100% !important;
@@ -769,6 +768,16 @@ html, body {
   .clients-search-container {
     overflow-x: auto !important;
     display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    max-width: 100% !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .notices-search-container {
+    overflow-x: auto !important;
+    display: flex !important;
+    flex-direction: row !important;
     flex-wrap: nowrap !important;
     max-width: 100% !important;
     -webkit-overflow-scrolling: touch !important;
@@ -876,5 +885,73 @@ html, body {
   .prof-clients-stat-card p:last-child {
     font-size: 20px !important;
     margin-top: 2px !important;
+  }
+
+  /* Admin Details Grid fix */
+  .prof-details-stats {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 8px !important;
+    margin-bottom: 16px !important;
+  }
+  .prof-details-stats > div {
+    padding: 12px 8px !important;
+    aspect-ratio: 1 / 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+  .prof-details-stats > div p:first-child {
+    font-size: 11px !important;
+    margin-bottom: 2px !important;
+  }
+  .prof-details-stats > div p:last-child {
+    font-size: 20px !important;
+    margin-top: 2px !important;
+  }
+  
+  /* Sticky First Column */
+  .clients-table-wrapper th:first-child,
+  .clients-table-wrapper td:first-child,
+  .professional-table-wrapper th:first-child,
+  .professional-table-wrapper td:first-child,
+  .prof-clients-table-wrapper th:first-child,
+  .prof-clients-table-wrapper td:first-child,
+  .staff-table-wrapper th:first-child,
+  .staff-table-wrapper td:first-child {
+    position: sticky !important;
+    left: 0 !important;
+    background: inherit !important;
+    z-index: 10 !important;
+  }
+  
+  .clients-table-wrapper th:first-child,
+  .professional-table-wrapper th:first-child,
+  .prof-clients-table-wrapper th:first-child,
+  .staff-table-wrapper th:first-child {
+    background: #f8fafc !important;
+    z-index: 11 !important;
+  }
+
+  .admin-dashboard-list-container > div > div:first-child {
+    position: sticky !important;
+    left: 0 !important;
+    background: inherit !important;
+    z-index: 10 !important;
+  }
+  
+  .admin-dashboard-list-container > div:first-child > div:first-child {
+    background: #f8fafc !important;
+    z-index: 11 !important;
+  }
+  
+  /* Make sure rows that have the sticky column inherit background correctly */
+  .admin-dashboard-list-container > div,
+  .clients-table-wrapper tr,
+  .professional-table-wrapper tr,
+  .prof-clients-table-wrapper tr,
+  .staff-table-wrapper tr {
+    background: #fff !important;
   }
 }
