@@ -16,37 +16,9 @@ const getStatus = (item) => {
 }
 
 export default function StaffDashboard() {
-  const getNoticeReadState = (n, permanentlyRead) => {
-    if (permanentlyRead) return true
-    if (n.is_read || n.isRead) return true
-    const dateStr = n.issued_on || n.assigned_at || n.createdAt
-    if (!dateStr || dateStr === '-') return true
-    try {
-      const noticeDate = new Date(dateStr)
-      if (isNaN(noticeDate.getTime())) return true
-      const limitDate = new Date('2026-03-01T00:00:00')
-      return noticeDate < limitDate
-    } catch (e) {
-      return true
-    }
-  }
-
   const [summary, setSummary] = useState(null)
   const [assignments, setAssignments] = useState([])
   const [search, setSearch] = useState('')
-  const [searchFields, setSearchFields] = useState({
-    user: '',
-    proceedingName: '',
-    assignedProfessional: '',
-  })
-  const [tempIssuedOn, setTempIssuedOn] = useState('')
-  const [appliedIssuedOn, setAppliedIssuedOn] = useState('')
-  const [isIssuedOnPickerOpen, setIsIssuedOnPickerOpen] = useState(false)
-
-  const handleSearchFieldChange = (field, value) => {
-    setSearchFields(prev => ({ ...prev, [field]: value }))
-  }
-
   const [filters, setFilters] = useState({ month: '', year: '', assessment: '' })
   const [appliedFilters, setAppliedFilters] = useState({ month: '', year: '', assessment: '' })
   const [showFilterPanel, setShowFilterPanel] = useState(false)
@@ -60,6 +32,41 @@ export default function StaffDashboard() {
   const [recentOffset, setRecentOffset] = useState(0)
   const [unreadCount, setUnreadCount] = useState(0)
   const navigate = useNavigate()
+
+  const [activeDashboardTab, setActiveDashboardTab] = useState('assignments')
+  const [blockedNotices, setBlockedNotices] = useState([])
+  const [blockedLoading, setBlockedLoading] = useState(false)
+
+  const fetchBlockedNotices = async () => {
+    setBlockedLoading(true)
+    try {
+      const res = await noticeService.getBlockedNotices('STAFF')
+      const raw = res?.data || []
+      setBlockedNotices(raw)
+    } catch (err) {
+      console.warn('Failed to fetch blocked notices:', err)
+      setBlockedNotices([])
+    } finally {
+      setBlockedLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeDashboardTab === 'blocked') {
+      fetchBlockedNotices()
+    }
+  }, [activeDashboardTab])
+
+  const filteredBlocked = blockedNotices.filter(item => {
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return (
+      String(item.notice_id || '').toLowerCase().includes(q) ||
+      (item.assessee_name || '').toLowerCase().includes(q) ||
+      (item.assessment_year || '').toLowerCase().includes(q) ||
+      (item.status || '').toLowerCase().includes(q)
+    )
+  })
 
   useEffect(() => {
     const fetchData = async () => {
@@ -89,7 +96,6 @@ export default function StaffDashboard() {
           const mapped = rawList.map(n => {
             const noticeId = n.notice_id ?? n.id
             const permanentlyRead = readNoticeIds.includes(noticeId)
-            const defaultIsRead = getNoticeReadState(n, permanentlyRead)
             return {
               ...n,
               notice_id: noticeId,
@@ -102,8 +108,7 @@ export default function StaffDashboard() {
               due_date: n.due_date || "-",
               assigned_professional: n.assigned_professional || n.professional_name || "—",
               status: n.status || n.workflow_status || 'N/A',
-              is_read: defaultIsRead,
-              isRead: defaultIsRead
+              is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
             }
           })
           setRecentNotices(mapped)
@@ -129,7 +134,6 @@ export default function StaffDashboard() {
           const mapped = rawList.map(n => {
             const noticeId = n.notice_id ?? n.id
             const permanentlyRead = readNoticeIds.includes(noticeId)
-            const defaultIsRead = getNoticeReadState(n, permanentlyRead)
             return {
               ...n,
               notice_id: noticeId,
@@ -142,8 +146,7 @@ export default function StaffDashboard() {
               due_date: n.due_date || "-",
               assigned_professional: n.assigned_professional || n.professional_name || "—",
               status: n.status || n.workflow_status || 'N/A',
-              is_read: defaultIsRead,
-              isRead: defaultIsRead
+              is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
             }
           })
           setAssignments(mapped)
@@ -187,7 +190,6 @@ export default function StaffDashboard() {
         const mapped = rawList.map(n => {
           const noticeId = n.notice_id ?? n.id
           const permanentlyRead = readNoticeIds.includes(noticeId)
-          const defaultIsRead = getNoticeReadState(n, permanentlyRead)
           return {
             ...n,
             notice_id: noticeId,
@@ -200,8 +202,7 @@ export default function StaffDashboard() {
             due_date: n.due_date || '-',
             assigned_professional: n.assigned_professional || n.professional_name || '—',
             status: n.status || n.workflow_status || 'N/A',
-            is_read: defaultIsRead,
-            isRead: defaultIsRead
+            is_read: permanentlyRead || !!(n.is_read ?? n.isRead ?? false)
           }
         })
         setAllNotices(mapped)
@@ -283,41 +284,45 @@ export default function StaffDashboard() {
   }, [assignments, allNotices, appliedFilters])
 
   const filtered = sourceData.filter(a => {
-    const matchesUser = !searchFields.user || (a?.user || a?.user_name || a?.assessee_name || '').toLowerCase().includes(searchFields.user.toLowerCase().trim())
-    const matchesProceeding = !searchFields.proceedingName || (a?.proceeding_name || '').toLowerCase().includes(searchFields.proceedingName.toLowerCase().trim())
-    
-    const profObj = a?.assigned_professional
-    const assignedProfessional = typeof profObj === 'string' ? profObj : (profObj?.professional_name || profObj?.name || '')
-    const matchesProfessional = !searchFields.assignedProfessional || assignedProfessional.toLowerCase().includes(searchFields.assignedProfessional.toLowerCase().trim())
+    const term = search.trim().toLowerCase()
 
-    let matchesIssuedOn = true
-    if (appliedIssuedOn) {
-      if (a.issued_on && a.issued_on !== '-') {
-        try {
-          const itemDate = new Date(a.issued_on)
-          const filterDate = new Date(appliedIssuedOn)
-          if (!isNaN(itemDate.getTime()) && !isNaN(filterDate.getTime())) {
-            const itemY = itemDate.getFullYear()
-            const itemM = String(itemDate.getMonth() + 1).padStart(2, '0')
-            const itemD = String(itemDate.getDate()).padStart(2, '0')
-            const itemStr = `${itemY}-${itemM}-${itemD}`
-            
-            const filterY = filterDate.getFullYear()
-            const filterM = String(filterDate.getMonth() + 1).padStart(2, '0')
-            const filterD = String(filterDate.getDate()).padStart(2, '0')
-            const filterStr = `${filterY}-${filterM}-${filterD}`
-            
-            matchesIssuedOn = itemStr === filterStr
-          } else {
-            matchesIssuedOn = false
-          }
-        } catch {
-          matchesIssuedOn = false
-        }
-      } else {
-        matchesIssuedOn = false
-      }
-    }
+    // Global search across all visible columns (User, Proceeding Name, Assessment Year, Assigned Professional, Issued On, Due Date)
+    const matchesSearch = !term || (() => {
+      const userName = (a?.user || a?.user_name || a?.assessee_name || '').toLowerCase()
+      const referenceId = (a?.reference_id || `REF-${a?.notice_id || ''}`).toLowerCase()
+      const noticeId = String(a?.notice_id ?? '')
+      const assessmentYear = (a?.assessment_year || '').toString().toLowerCase()
+      const proceedingName = (a?.proceeding_name || '').toLowerCase()
+      
+      const profObj = a?.assigned_professional
+      const assignedProfessional = (
+        typeof profObj === 'string' 
+          ? profObj 
+          : (profObj?.professional_name || profObj?.name || '—')
+      ).toLowerCase()
+
+      const statusText = (a?.status || '').toLowerCase()
+      const panText = (a?.pan || a?.client?.pan || a?.user?.pan || '').toLowerCase()
+
+      const issuedDates = getDateSearchStrings(a?.issued_on)
+      const dueDates = getDateSearchStrings(a?.due_date)
+
+      const matchesIssued = issuedDates.some(dStr => dStr.includes(term))
+      const matchesDue = dueDates.some(dStr => dStr.includes(term))
+
+      return (
+        userName.includes(term) ||
+        referenceId.includes(term) ||
+        noticeId.includes(term) ||
+        assessmentYear.includes(term) ||
+        proceedingName.includes(term) ||
+        assignedProfessional.includes(term) ||
+        matchesIssued ||
+        matchesDue ||
+        statusText.includes(term) ||
+        panText.includes(term)
+      )
+    })()
 
     // Filter by Month, Year, Assessment
     const assignedDate = (a?.issued_on && a?.issued_on !== '-') ? new Date(a.issued_on) : null
@@ -327,7 +332,7 @@ export default function StaffDashboard() {
     const status = (a?.status || '').toLowerCase()
     const matchesAssessment = isAllFilter(appliedFilters.assessment) || status === appliedFilters.assessment.toLowerCase()
 
-    return matchesUser && matchesProceeding && matchesProfessional && matchesIssuedOn && matchesMonth && matchesYear && matchesAssessment
+    return matchesSearch && matchesMonth && matchesYear && matchesAssessment
   })
 
   const handleClearFilters = () => {
@@ -405,145 +410,23 @@ export default function StaffDashboard() {
             </div>
             <div className="staff-search-filter-row" style={{ display: 'flex', alignItems: 'center', gap: 10, flex: '1 1 auto', minWidth: 280 }}>
               {/* Search Bar */}
-              <div className="staff-search-box" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #cbd5e1', borderRadius: 10, padding: '6px 10px', background: '#fff', boxSizing: 'border-box', minWidth: 280 }}>
-                <Search size={14} color="#64748b" style={{ flexShrink: 0 }} />
-                
+              <div className="staff-search-box" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, border: '1px solid #cbd5e1', borderRadius: 10, padding: '10px 12px', background: '#fff', boxSizing: 'border-box', minWidth: 280 }}>
+                <Search size={16} color="#64748b" />
                 <input
                   type="text"
-                  placeholder="User..."
-                  value={searchFields.user}
-                  onChange={e => handleSearchFieldChange('user', e.target.value)}
+                  placeholder="Search name, PAN, year, professional, proceeding…"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
                   style={{
                     flex: 1,
-                    minWidth: 60,
+                    minWidth: 0,
                     border: 'none',
                     outline: 'none',
                     fontSize: 11,
                     color: '#1e293b',
-                    borderRight: '1px solid #cbd5e1',
-                    paddingRight: 4
+                    background: 'transparent'
                   }}
                 />
-                
-                <input
-                  type="text"
-                  placeholder="Proceeding..."
-                  value={searchFields.proceedingName}
-                  onChange={e => handleSearchFieldChange('proceedingName', e.target.value)}
-                  style={{
-                    flex: 1,
-                    minWidth: 80,
-                    border: 'none',
-                    outline: 'none',
-                    fontSize: 11,
-                    color: '#1e293b',
-                    borderRight: '1px solid #cbd5e1',
-                    paddingRight: 4,
-                    paddingLeft: 4
-                  }}
-                />
-
-                <input
-                  type="text"
-                  placeholder="Professional..."
-                  value={searchFields.assignedProfessional}
-                  onChange={e => handleSearchFieldChange('assignedProfessional', e.target.value)}
-                  style={{
-                    flex: 1,
-                    minWidth: 80,
-                    border: 'none',
-                    outline: 'none',
-                    fontSize: 11,
-                    color: '#1e293b',
-                    borderRight: '1px solid #cbd5e1',
-                    paddingRight: 4,
-                    paddingLeft: 4
-                  }}
-                />
-
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <button
-                    onClick={() => setIsIssuedOnPickerOpen(!isIssuedOnPickerOpen)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      fontSize: 11,
-                      color: appliedIssuedOn ? '#1e3a8a' : '#64748b',
-                      paddingLeft: 4,
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    <span>{appliedIssuedOn ? formatDate(appliedIssuedOn) : 'Issued On ▾'}</span>
-                  </button>
-                  {isIssuedOnPickerOpen && (
-                    <>
-                      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setIsIssuedOnPickerOpen(false)} />
-                      <div style={{
-                        position: 'absolute',
-                        top: '100%',
-                        right: 0,
-                        zIndex: 100,
-                        background: '#fff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: 8,
-                        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                        padding: 12,
-                        marginTop: 8,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 8,
-                        minWidth: 200
-                      }}>
-                        <input
-                          type="date"
-                          value={tempIssuedOn}
-                          onChange={(e) => setTempIssuedOn(e.target.value)}
-                          style={{
-                            padding: '6px 8px',
-                            border: '1px solid #cbd5e1',
-                            borderRadius: 6,
-                            fontSize: 12,
-                            width: '100%',
-                            outline: 'none'
-                          }}
-                        />
-                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          <button
-                            onClick={() => {
-                              setTempIssuedOn('');
-                              setAppliedIssuedOn('');
-                              setIsIssuedOnPickerOpen(false);
-                            }}
-                            style={{ padding: '4px 8px', background: '#f3f4f6', border: '1px solid #cbd5e1', borderRadius: 4, fontSize: 10, cursor: 'pointer', color: '#475569' }}
-                          >
-                            Clear
-                          </button>
-                          <button
-                            onClick={() => {
-                              setIsIssuedOnPickerOpen(false);
-                            }}
-                            style={{ padding: '4px 8px', background: '#f3f4f6', border: '1px solid #cbd5e1', borderRadius: 4, fontSize: 10, cursor: 'pointer', color: '#475569' }}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => {
-                              setAppliedIssuedOn(tempIssuedOn);
-                              setIsIssuedOnPickerOpen(false);
-                            }}
-                            style={{ padding: '4px 8px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, fontSize: 10, cursor: 'pointer', fontWeight: 600 }}
-                          >
-                            Apply
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
               </div>
 
               {/* Filter Icon Button */}
@@ -708,92 +591,198 @@ export default function StaffDashboard() {
             </div>
           )}
 
-          <div className="staff-table-wrapper" style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
-              <colgroup>
-                <col style={{ width: '14%' }} />
-                <col style={{ width: '18%' }} />
-                <col style={{ width: '12%' }} />
-                <col style={{ width: '15%' }} />
-                <col style={{ width: '13%' }} />
-                <col style={{ width: '13%' }} />
-                <col style={{ width: '15%' }} />
-              </colgroup>
-              <thead>
-                <tr>
-                  {['User', 'Proceeding Name', 'Assessment Year', 'Assigned Professional', 'Issued On', 'Due Date', 'Notice'].map(h => (
-                    <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 11 }}>Loading assignments...</td></tr>
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 11 }}>
-                      No data available
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((a, i) => (
-                    <tr key={a.notice_id || i} style={{ borderBottom: '0.5px solid #f1f5f9', background: !a.is_read ? '#e0f2fe' : 'transparent', transition: 'all 0.3s ease' }}>
-                      <td style={{ padding: '11px 10px', color: '#1e293b', verticalAlign: 'middle', borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent', transition: 'border-left-color 0.3s ease', fontSize: 14 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                          {!a.is_read && (
-                            <span 
-                              style={{
-                                display: 'inline-block',
-                                width: 8,
-                                height: 8,
-                                borderRadius: '50%',
-                                backgroundColor: '#2563eb',
-                                boxShadow: '0 0 8px #3b82f6',
-                                flexShrink: 0
-                              }} 
-                              title="New/Unread"
-                            />
-                          )}
-                          <span style={{ fontWeight: !a.is_read ? 700 : 500 }}>{a?.user || a?.user_name || "N/A"}</span>
-                        </div>
-                      </td>
-                      <td
-                        style={{ padding: '11px 10px', fontWeight: !a.is_read ? 700 : 600, color: !a.is_read ? '#1e293b' : '#334155', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}
-                        onClick={() => {
-                          const isInfo = (a.status || '').toLowerCase() === 'completed' || (a.status || '').toLowerCase() === 'closed'
-                          navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })
-                        }}
-                        title="Click to view e-Proceeding"
-                      >
-                        {a.proceeding_name}
-                      </td>
-                      <td style={{ padding: '11px 10px', color: '#64748b', fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {a.assessment_year || 'N/A'}
-                      </td>
-                      <td style={{ padding: '11px 10px', color: '#2563eb', fontWeight: !a.is_read ? '600' : '500', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {a.assigned_professional || '—'}
-                      </td>
-                      <td style={{ padding: '10px 10px', color: '#64748b', fontWeight: !a.is_read ? '600' : 'normal', fontSize: 12 }}>
-                        {a?.issued_on && a.issued_on !== '-' ? formatDate(a.issued_on) : "-"}
-                      </td>
-                      <td style={{ padding: '10px 10px', color: '#dc2626', fontWeight: !a.is_read ? 700 : 500, fontSize: 12 }}>
-                        {a?.due_date && a.due_date !== '-' ? formatDate(a.due_date) : "-"}
-                      </td>
-                      <td style={{ padding: '10px 10px' }}>
-                        <button
-                          onClick={() => handleViewNotice(a)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 9px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 7, fontSize: 11, fontWeight: '600', cursor: 'pointer', boxShadow: !a.is_read ? '0 2px 4px rgba(30, 58, 138, 0.25)' : 'none', transition: 'all 0.2s ease' }}
-                        >
-                          VIEW NOTICE
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+          {/* Tab Selection */}
+          <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', padding: '0 18px' }}>
+            <button
+              onClick={() => setActiveDashboardTab('assignments')}
+              style={{
+                padding: '12px 16px',
+                fontSize: 13,
+                fontWeight: activeDashboardTab === 'assignments' ? 600 : 500,
+                color: activeDashboardTab === 'assignments' ? '#2563eb' : '#64748b',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                borderBottom: activeDashboardTab === 'assignments' ? '3px solid #2563eb' : '3px solid transparent',
+                marginBottom: -1,
+                transition: 'all 0.2s'
+              }}
+            >
+              My Assignments ({filtered.length})
+            </button>
+            <button
+              onClick={() => setActiveDashboardTab('blocked')}
+              style={{
+                padding: '12px 16px',
+                fontSize: 13,
+                fontWeight: activeDashboardTab === 'blocked' ? 600 : 500,
+                color: activeDashboardTab === 'blocked' ? '#2563eb' : '#64748b',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                borderBottom: activeDashboardTab === 'blocked' ? '3px solid #2563eb' : '3px solid transparent',
+                marginBottom: -1,
+                transition: 'all 0.2s'
+              }}
+            >
+              Blocked Notices ({blockedNotices.length})
+            </button>
           </div>
 
+          {activeDashboardTab === 'assignments' ? (
+            <>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+                  <colgroup>
+                    <col style={{ width: '14%' }} />
+                    <col style={{ width: '18%' }} />
+                    <col style={{ width: '12%' }} />
+                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '13%' }} />
+                    <col style={{ width: '15%' }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      {['User', 'Proceeding Name', 'Assessment Year', 'Assigned Professional', 'Issued On', 'Due Date', 'Notice'].map(h => (
+                        <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr><td colSpan={7} style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 11 }}>Loading assignments...</td></tr>
+                    ) : filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 11 }}>
+                          No data available
+                        </td>
+                      </tr>
+                    ) : (
+                      filtered.map((a, i) => (
+                        <tr key={a.notice_id || i} style={{ borderBottom: '0.5px solid #f1f5f9', background: !a.is_read ? '#e0f2fe' : 'transparent', transition: 'all 0.3s ease' }}>
+                          <td style={{ padding: '11px 10px', color: '#1e293b', verticalAlign: 'middle', borderLeft: !a.is_read ? '4px solid #2563eb' : '4px solid transparent', transition: 'border-left-color 0.3s ease', fontSize: 14 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                              {!a.is_read && (
+                                <span 
+                                  style={{
+                                    display: 'inline-block',
+                                    width: 8,
+                                    height: 8,
+                                    borderRadius: '50%',
+                                    backgroundColor: '#2563eb',
+                                    boxShadow: '0 0 8px #3b82f6',
+                                    flexShrink: 0
+                                  }} 
+                                  title="New/Unread"
+                                />
+                              )}
+                              <span style={{ fontWeight: !a.is_read ? 700 : 500 }}>{a?.user || a?.user_name || "N/A"}</span>
+                            </div>
+                          </td>
+                          <td
+                            style={{ padding: '11px 10px', fontWeight: !a.is_read ? 700 : 600, color: !a.is_read ? '#1e293b' : '#334155', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}
+                            onClick={() => {
+                              const isInfo = (a.status || '').toLowerCase() === 'completed' || (a.status || '').toLowerCase() === 'closed'
+                              navigate(`/staff/notices?assessee=${encodeURIComponent(a?.assessee_name || a?.user || a?.user_name || '')}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: a?.assessee_name || a?.user || a?.user_name || '' } })
+                            }}
+                            title="Click to view e-Proceeding"
+                          >
+                            {a.proceeding_name}
+                          </td>
+                          <td style={{ padding: '11px 10px', color: '#64748b', fontWeight: 500, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {a.assessment_year || 'N/A'}
+                          </td>
+                          <td style={{ padding: '11px 10px', color: '#2563eb', fontWeight: !a.is_read ? '600' : '500', fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {a.assigned_professional || '—'}
+                          </td>
+                          <td style={{ padding: '10px 10px', color: '#64748b', fontWeight: !a.is_read ? '600' : 'normal', fontSize: 12 }}>
+                            {a?.issued_on && a.issued_on !== '-' ? formatDate(a.issued_on) : "-"}
+                          </td>
+                          <td style={{ padding: '10px 10px', color: '#dc2626', fontWeight: !a.is_read ? 700 : 500, fontSize: 12 }}>
+                            {a?.due_date && a.due_date !== '-' ? formatDate(a.due_date) : "-"}
+                          </td>
+                          <td style={{ padding: '10px 10px' }}>
+                            <button
+                              onClick={() => handleViewNotice(a)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 9px', background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 7, fontSize: 11, fontWeight: '600', cursor: 'pointer', boxShadow: !a.is_read ? '0 2px 4px rgba(30, 58, 138, 0.25)' : 'none', transition: 'all 0.2s ease' }}
+                            >
+                              VIEW NOTICE
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px solid #f1f5f9' }}>
+                <p style={{ fontSize: 11, color: '#64748b' }}>Showing {filtered.length} of {summary?.total_notices ?? filtered.length} assignments</p>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {['‹', '›'].map(ch => (
+                    <button key={ch} style={{ width: 28, height: 28, border: '0.5px solid #e2e8f0', borderRadius: 6, background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>{ch}</button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+                  <colgroup>
+                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '35%' }} />
+                    <col style={{ width: '20%' }} />
+                    <col style={{ width: '15%' }} />
+                    <col style={{ width: '15%' }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      {['Notice ID', 'Assessee Name', 'Assessment Year', 'Issued On', 'Status'].map(h => (
+                        <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {blockedLoading ? (
+                      <tr><td colSpan={5} style={{ textAlign: 'center', padding: 32, color: '#94a3b8', fontSize: 11 }}>Loading blocked notices...</td></tr>
+                    ) : filteredBlocked.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: 'center', padding: 48, color: '#94a3b8', fontSize: 11 }}>
+                          No blocked notices found
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredBlocked.map((n, i) => (
+                        <tr key={n.notice_id || i} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
+                          <td style={{ padding: '11px 10px', color: '#1e293b', fontWeight: 600, fontSize: 14 }}>
+                            {n.notice_id}
+                          </td>
+                          <td style={{ padding: '11px 10px', color: '#334155', fontWeight: 600, fontSize: 14 }}>
+                            {n.assessee_name}
+                          </td>
+                          <td style={{ padding: '11px 10px', color: '#64748b', fontWeight: 500, fontSize: 13 }}>
+                            {n.assessment_year || 'N/A'}
+                          </td>
+                          <td style={{ padding: '10px 10px', color: '#64748b', fontSize: 12 }}>
+                            {n?.issued_on && n.issued_on !== '-' ? formatDate(n.issued_on) : "-"}
+                          </td>
+                          <td style={{ padding: '10px 10px', color: '#dc2626', fontWeight: 600, fontSize: 12 }}>
+                            {n.status || 'PENDING'}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px solid #f1f5f9' }}>
+                <p style={{ fontSize: 11, color: '#64748b' }}>Showing {filteredBlocked.length} blocked notices</p>
+              </div>
+            </>
+          )}
           <div className="staff-pagination" style={{ padding: '11px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '0.5px solid #f1f5f9' }}>
             <p style={{ fontSize: 11, color: '#64748b' }}>Showing {filtered.length} of {summary?.total_notices ?? filtered.length} assignments</p>
             <div style={{ display: 'flex', gap: 6 }}>
