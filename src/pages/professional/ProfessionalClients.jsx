@@ -29,12 +29,17 @@ export default function ProfessionalClients() {
       const uniqueClientsMap = new Map()
       rawClients.forEach(c => {
         const clientId = c.user_id || c.client_id || c.id || c.userId || `${c.email || c.name || c.username || 'unknown'}-${c.pan_number || c.pan || 'na'}`
+        
+        // Normalize status: treat anything that is not explicitly BLOCKED as ACTIVE
+        const rawStatus = (c.status || c.account_status || c.stage || '').toUpperCase()
+        const normalizedStatus = rawStatus === 'BLOCKED' ? 'BLOCKED' : 'ACTIVE'
+
         const normalizedClient = {
           ...c,
           client_id: clientId,
           client_name: c.client_name || c.name || c.full_name || c.username || 'Unknown User',
           pan_number: c.pan_number || c.pan || 'N/A',
-          status: c.status || c.account_status || c.stage || ''
+          status: normalizedStatus
         }
 
         if (!uniqueClientsMap.has(clientId)) {
@@ -94,7 +99,6 @@ export default function ProfessionalClients() {
   // Derived Stats
   const totalClients = clients.length
   const activeClients = clients.filter(c => (c.status || '').toUpperCase() === 'ACTIVE').length
-  const disabledClients = clients.filter(c => (c.status || '').toUpperCase() === 'DISABLED').length
   const blockedClients = clients.filter(c => (c.status || '').toUpperCase() === 'BLOCKED').length
 
   // Filtering Logic
@@ -112,11 +116,8 @@ export default function ProfessionalClients() {
   // Badge Color Helper
   const getBadgeStyle = (status) => {
     const st = (status || '').toUpperCase()
-    if (st === 'ACTIVE') return { bg: '#dcfce7', color: '#166534', border: '#bbf7d0' }
-    if (st === 'PENDING') return { bg: '#fef9c3', color: '#854d0e', border: '#fef08a' }
-    if (st === 'DISABLED') return { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' }
     if (st === 'BLOCKED') return { bg: '#fee2e2', color: '#991b1b', border: '#fecaca' }
-    return { bg: '#f1f5f9', color: '#475569', border: '#e2e8f0' } // default
+    return { bg: '#dcfce7', color: '#166534', border: '#bbf7d0' } // ACTIVE (default)
   }
 
   return (
@@ -124,20 +125,20 @@ export default function ProfessionalClients() {
       <div style={{ padding: '20px 22px' }}>
         
         {/* SUMMARY CARDS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <div className="prof-clients-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
           
-          <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="prof-clients-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Total Clients</p>
             <p style={{ color: '#0f172a', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{totalClients}</p>
           </div>
           
-          <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="prof-clients-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Active Clients</p>
             <p style={{ color: '#16a34a', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{activeClients}</p>
           </div>
           
 
-          <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="prof-clients-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Blocked Clients</p>
             <p style={{ color: '#b91c1c', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{blockedClients}</p>
           </div>
@@ -155,10 +156,10 @@ export default function ProfessionalClients() {
               <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>View and manage your assigned clients</p>
             </div>
             
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', flex: 1, maxWidth: 600, justifyContent: 'flex-end' }}>
+            <div className="prof-clients-controls-container" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', flex: 1, maxWidth: 600, justifyContent: 'flex-end' }}>
               
               {/* SEARCH */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #cbd5e1', borderRadius: 8, padding: '8px 12px', background: '#f8fafc', flex: 1, minWidth: 200 }}>
+              <div className="prof-clients-search-box" style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #cbd5e1', borderRadius: 8, padding: '8px 12px', background: '#f8fafc', flex: 1, minWidth: 200 }}>
                 <Search size={16} color="#64748b" />
                 <input 
                   type="text" 
@@ -171,14 +172,13 @@ export default function ProfessionalClients() {
               
               {/* STATUS FILTER */}
               <select
+                className="prof-clients-filter-select"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
                 style={{ padding: '8px 12px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 13, color: '#1e293b', background: '#f8fafc', cursor: 'pointer', outline: 'none' }}
               >
                 <option value="All">All Statuses</option>
                 <option value="ACTIVE">Active</option>
-                <option value="PENDING">Pending</option>
-                <option value="DISABLED">Disabled</option>
                 <option value="BLOCKED">Blocked</option>
               </select>
               
@@ -186,7 +186,7 @@ export default function ProfessionalClients() {
           </div>
           
           {/* TABLE */}
-          <div style={{ overflowX: 'auto' }}>
+          <div className="prof-clients-table-wrapper" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
@@ -209,14 +209,13 @@ export default function ProfessionalClients() {
                   filteredClients.map((client) => {
                     const badge = getBadgeStyle(client.status)
                     const isBlocked = (client.status || '').toUpperCase() === 'BLOCKED'
-                    const isDisabled = (client.status || '').toUpperCase() === 'DISABLED'
                     
                     return (
                       <tr key={client.client_id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                        <td style={{ padding: '16px 20px', fontSize: 14, fontWeight: 500, color: (isDisabled || isBlocked) ? '#94a3b8' : '#1e293b' }}>
+                        <td style={{ padding: '16px 20px', fontSize: 14, fontWeight: 500, color: isBlocked ? '#94a3b8' : '#1e293b' }}>
                           {client.client_name}
                         </td>
-                        <td style={{ padding: '16px 20px', fontSize: 14, color: (isDisabled || isBlocked) ? '#94a3b8' : '#475569' }}>
+                        <td style={{ padding: '16px 20px', fontSize: 14, color: isBlocked ? '#94a3b8' : '#475569' }}>
                           {client.pan_number || 'N/A'}
                         </td>
                         <td style={{ padding: '16px 20px' }}>
@@ -230,7 +229,7 @@ export default function ProfessionalClients() {
                             color: badge.color, 
                             border: `1px solid ${badge.border}` 
                           }}>
-                            {client.status || 'UNKNOWN'}
+                            {client.status}
                           </span>
                         </td>
                         <td style={{ padding: '16px 20px', textAlign: 'right' }}>

@@ -548,12 +548,12 @@ export default function ProfessionalDashboard() {
       <div style={{ padding: '20px 22px' }}>
 
         {/* SUMMARY CARDS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
-          <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+        <div className="professional-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+          <div className="professional-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Due Notices</p>
             <p style={{ color: '#dc2626', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{dueNoticesCount}</p>
           </div>
-          <div style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="professional-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>New Notices</p>
             <p style={{ color: '#2563eb', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{newNoticesCount}</p>
           </div>
@@ -617,6 +617,7 @@ export default function ProfessionalDashboard() {
 
               {/* SEARCH */}
               <div
+                className="professional-search-box"
                 style={{
                   flex: 1,
                   display: 'flex',
@@ -796,6 +797,7 @@ export default function ProfessionalDashboard() {
           {/* FILTER PANEL */}
           {showFilterPanel && (
             <div
+              className="professional-filter-panel"
               style={{
                 padding: 16,
                 background: '#f8fafc',
