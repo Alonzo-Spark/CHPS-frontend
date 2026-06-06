@@ -104,7 +104,7 @@ export default function Proceeding() {
   const proceedingDetails = data?.proceeding_details || {}
   const noticeOrders = data?.notice_orders || []
   const currentNotice = noticeOrders[0] || {}
-  const activityTimeline = data?.activity_timeline || []
+  const activityTimeline = data?.activity_timeline || data?.tracker_entries || []
 
   return (
     <DashboardLayout breadcrumbs={[{ label: 'Dashboard', path: '/staff/dashboard' }, { label: `Notice #${id}` }]}>

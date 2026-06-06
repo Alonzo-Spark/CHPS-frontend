@@ -85,7 +85,14 @@ export default function StaffNotices() {
     const name = p.proceeding_name || p.proceeding_type || p.notice_type || 'Notice'
     let timeline = []
 
-    if (Array.isArray(p.timeline)) {
+    if (Array.isArray(p.tracker_entries)) {
+      timeline = p.tracker_entries.map(t => ({
+        date: t.date || t.created_at || t.activity_date,
+        label: t.status || t.label || t.activity_title,
+        comment: t.comment || t.notes || t.remarks || t.activity_description,
+        type: ((t.status || '').toLowerCase() === 'completed' || (t.status || '').toLowerCase() === 'closed' ? 'done' : 'open')
+      }))
+    } else if (Array.isArray(p.timeline)) {
       timeline = p.timeline.map(t => ({
         date: t.date || t.created_at || t.activity_date,
         label: t.label || t.status || t.activity_title,
@@ -647,22 +654,12 @@ export default function StaffNotices() {
                     {/* Activity Timeline */}
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 14 }}>Activity Timeline</p>
-                      <div style={{ position: 'relative', paddingLeft: 22, maxHeight: 150, overflowY: 'auto', scrollBehavior: 'smooth' }}>
-                        {p.timeline && p.timeline.length > 1 && (
-                          <div style={{ position: 'absolute', left: 6, top: 8, bottom: 8, width: '1.5px', backgroundColor: '#cbd5e1', zIndex: 0 }} />
-                        )}
+                      <div style={{ maxHeight: 150, overflowY: 'auto', paddingRight: 8 }}>
                         {(p.timeline || []).map((t, ti) => (
-                          <div key={ti} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: ti === p.timeline.length - 1 ? 0 : 16, position: 'relative', zIndex: 1 }}>
-                            <div style={{ marginLeft: -22 }}>
-                              <TlDot type={t.type || 'open'} />
-                            </div>
-                            <div>
-                            <div style={{ fontSize: 12, color: '#475569', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                              {t.date && <div><span style={{ fontWeight: 600, color: '#1e293b' }}>Date:</span> {t.date}</div>}
-                              {t.label && <div><span style={{ fontWeight: 600, color: '#1e293b' }}>Status:</span> {t.label}</div>}
-                              {t.comment && <div><span style={{ fontWeight: 600, color: '#1e293b' }}>Comment:</span> {t.comment}</div>}
-                            </div>
-                            </div>
+                          <div key={ti} style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: ti === p.timeline.length - 1 ? 0 : 12 }}>
+                            {t.label && <span style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>{t.label}</span>}
+                            {t.date && <span style={{ fontSize: 12, color: '#64748b' }}>{t.date}</span>}
+                            {t.comment && <span style={{ fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>{t.comment}</span>}
                           </div>
                         ))}
                       </div>
