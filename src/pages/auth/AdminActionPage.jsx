@@ -81,7 +81,7 @@ export default function AdminActionPage({ action }) {
         }}>
           <ShieldCheck size={28} color="#fff" />
         </div>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1e293b' }}>Audit Portal Administrator</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 700, color: '#1e293b' }}>CHPS Appeal Administrator</h1>
         <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>System Registration Controller</p>
       </div>
 

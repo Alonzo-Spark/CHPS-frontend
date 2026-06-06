@@ -85,18 +85,29 @@ export default function StaffNotices() {
     const name = p.proceeding_name || p.proceeding_type || p.notice_type || 'Notice'
     let timeline = []
 
-    if (Array.isArray(p.timeline)) {
+    if (Array.isArray(p.tracker_entries)) {
+      timeline = p.tracker_entries.map(t => ({
+        date: t.date || t.created_at || t.activity_date,
+        label: t.status || t.label || t.activity_title,
+        comment: t.comment || t.notes || t.remarks || t.activity_description,
+        type: ((t.status || '').toLowerCase() === 'completed' || (t.status || '').toLowerCase() === 'closed' ? 'done' : 'open')
+      }))
+    } else if (Array.isArray(p.timeline)) {
       timeline = p.timeline.map(t => ({
-        date: t.date || t.issued_on || '—',
-        label: t.label || t.status || 'Pending',
-        type: t.type || ((t.status || '').toLowerCase() === 'completed' || (t.status || '').toLowerCase() === 'closed' ? 'done' : 'open')
+        date: t.date || t.created_at || t.activity_date,
+        label: t.label || t.status || t.activity_title,
+        comment: t.comment || t.notes || t.remarks || t.activity_description,
+        type: ((t.status || '').toLowerCase() === 'completed' || (t.status || '').toLowerCase() === 'closed' ? 'done' : 'open')
+      }))
+    } else if (Array.isArray(p.status_history)) {
+      timeline = p.status_history.map(t => ({
+        date: t.date || t.created_at || t.activity_date,
+        label: t.status || t.label || t.activity_title,
+        comment: t.comment || t.notes || t.remarks || t.activity_description,
+        type: ((t.status || '').toLowerCase() === 'completed' || (t.status || '').toLowerCase() === 'closed' ? 'done' : 'open')
       }))
     } else {
-      timeline = [{
-        date: p.issued_on || p.created_at || '—',
-        label: p.status || '',
-        type: (p.status || '').toLowerCase() === 'completed' || (p.status || '').toLowerCase() === 'closed' ? 'done' : 'open'
-      }]
+      timeline = []
     }
 
     const resolvedAssessee = p.assessee_name || p.user_name || p.client_name || p.user?.name || p.client?.name || p.user?.full_name || p.client?.full_name || p.user?.username || p.client?.username || (typeof p.user === 'string' ? p.user : '') || (typeof p.client === 'string' ? p.client : '') || p.name || 'N/A';
@@ -555,6 +566,7 @@ export default function StaffNotices() {
                             <div>
                               <p style={{ fontSize: 14, fontWeight: 600, color: '#334155', lineHeight: '1.2' }}>{t.date}</p>
                               <p style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{t.label}</p>
+                              {t.comment && <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{t.comment}</p>}
                             </div>
                           </div>
                         ))}
@@ -620,7 +632,7 @@ export default function StaffNotices() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span style={{ fontSize: 13, color: '#64748b' }}>Assessment Year :</span>
                     <span style={{ fontSize: 14, fontWeight: 500, color: '#1e293b' }}>{p.assessment_year}</span>
-                    <span style={{ marginLeft: 6 }}>{statusBadge(statusFor(p))}</span>
+                    <span style={{ marginLeft: 6 }}>{p.status && statusBadge(p.status)}</span>
                   </div>
                 </div>
 
@@ -642,19 +654,12 @@ export default function StaffNotices() {
                     {/* Activity Timeline */}
                     <div style={{ flex: 1 }}>
                       <p style={{ fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 14 }}>Activity Timeline</p>
-                      <div style={{ position: 'relative', paddingLeft: 22, maxHeight: 150, overflowY: 'auto', scrollBehavior: 'smooth' }}>
-                        {p.timeline && p.timeline.length > 1 && (
-                          <div style={{ position: 'absolute', left: 6, top: 8, bottom: 8, width: '1.5px', backgroundColor: '#cbd5e1', zIndex: 0 }} />
-                        )}
-                        {(p.timeline || [{ date: '—', label: p.status || '', type: (p.status || '').toLowerCase() === 'closed' || (p.status || '').toLowerCase() === 'completed' ? 'done' : 'open' }]).map((t, ti) => (
-                          <div key={ti} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, marginBottom: ti === p.timeline.length - 1 ? 0 : 16, position: 'relative', zIndex: 1 }}>
-                            <div style={{ marginLeft: -22 }}>
-                              <TlDot type={t.type || 'open'} />
-                            </div>
-                            <div>
-                              <p style={{ fontSize: 14, fontWeight: 500, color: '#334155', lineHeight: '1.2' }}>{t.date}</p>
-                              <p style={{ fontSize: 13, color: t.type === 'done' ? '#16a34a' : t.type === 'open' ? '#2563eb' : '#ea580c', fontWeight: 500, marginTop: 2 }}>{t.label}</p>
-                            </div>
+                      <div style={{ maxHeight: 150, overflowY: 'auto', paddingRight: 8 }}>
+                        {(p.timeline || []).map((t, ti) => (
+                          <div key={ti} style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: ti === p.timeline.length - 1 ? 0 : 12 }}>
+                            {t.label && <span style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>{t.label}</span>}
+                            {t.date && <span style={{ fontSize: 12, color: '#64748b' }}>{t.date}</span>}
+                            {t.comment && <span style={{ fontSize: 12, color: '#64748b', fontStyle: 'italic' }}>{t.comment}</span>}
                           </div>
                         ))}
                       </div>

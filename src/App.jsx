@@ -60,6 +60,7 @@ export default function App() {
       <Route path="/professor/dashboard" element={<ProtectedRoute allowedRoles={['professor']}><ProfessorDashboard /></ProtectedRoute>} />
       <Route path="/professional-dashboard" element={<ProtectedRoute allowedRoles={['professional']}><ProfessionalDashboard /></ProtectedRoute>} />
       <Route path="/professional-dashboard/clients" element={<ProtectedRoute allowedRoles={['professional']}><ProfessionalClients /></ProtectedRoute>} />
+      <Route path="/professional-dashboard/create-client" element={<ProtectedRoute allowedRoles={['professional']}><CreateClient /></ProtectedRoute>} />
     </Routes>
   )
 }

@@ -39,6 +39,7 @@ export const authService = {
   sendVerification: (data) => apiService.post('/api/auth/send-verification', data).then(res => ({ data: res })),
   verifyEmail: (token) => apiService.get(`/api/auth/verify-email/${token}`).then(res => ({ data: res })),
   setPassword: (data) => apiService.post('/api/auth/set-password', data).then(res => ({ data: res })),
+  changePassword: (data) => apiService.post('/api/auth/change-password', data).then(res => ({ data: res })),
   completeRegistration: (data) => apiService.post('/api/auth/complete-registration', data).then(res => ({ data: res })),
   registrationStatus: (userId) => apiService.get(`/api/auth/registration-status/${userId}`).then(res => ({ data: res })),
   approveRegistration: (token) => apiService.get(`/api/auth/approve-registration/${token}`).then(res => ({ data: res })),
@@ -339,7 +340,7 @@ export const userService = {
 
 export const professionalService = {
   getProfessionals: () =>
-    apiService.get('/api/clients')
+    apiService.get('/api/professionals')
       .then(res => ({ data: res?.items || res || [] }))
       .catch(err => {
         console.warn("getProfessionals API failed", err);
@@ -428,6 +429,14 @@ export const noticeControlService = {
       .then(res => ({ data: res }))
       .catch(err => {
         console.warn(`getNoticeControl API for client ${clientId} failed`, err)
+        return { data: null, error: err }
+      }),
+
+  getAssessmentYears: (clientId) =>
+    apiService.get(`/api/common/client/${clientId}/assessment-years`)
+      .then(res => ({ data: res }))
+      .catch(err => {
+        console.warn(`getAssessmentYears API for client ${clientId} failed`, err)
         return { data: null, error: err }
       }),
 

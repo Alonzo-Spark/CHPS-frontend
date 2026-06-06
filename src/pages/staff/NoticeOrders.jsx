@@ -211,7 +211,7 @@ export default function NoticeOrders() {
           }
         })
         .sort((a, b) => new Date(a.date) - new Date(b.date))
-      
+
       setActivityLogs(prev => {
         const combined = [...prev, ...sorted]
         const singleEntryStages = ["assigned", "reviewing", "approved", "closed", "workflow comment", "comment"]
@@ -270,18 +270,18 @@ export default function NoticeOrders() {
               console.warn('Failed to fetch notice workflow details', err)
             }
           }
-          
+
           res = await noticeService.getNoticeById(id)
           payload = res?.data || res
         }
 
+        // Normalize into array
         let noticesList = []
         if (Array.isArray(payload)) noticesList = payload
         else if (Array.isArray(payload?.notice_orders)) noticesList = payload.notice_orders
         else if (Array.isArray(payload?.notices)) noticesList = payload.notices
         else if (Array.isArray(payload?.data)) noticesList = payload.data
         else if (Array.isArray(payload?.items)) noticesList = payload.items
-        else if (payload && (payload.id || payload.notice_id || payload.reference_id)) noticesList = [payload]
 
         if (!noticesList.length) {
           setNotices([])
@@ -477,13 +477,13 @@ export default function NoticeOrders() {
       const res = await professionalWorkflowService.updateWorkflow(noticeId, workflowPayload)
       if (res.data) {
         const timestamp = new Date().toISOString()
-        
+
         setActivityLogs(prevLogs => {
           const updatedLogs = [...prevLogs];
-          
+
           const processStage = (stageName, currentText) => {
             if (!currentText || currentText.trim() === '') return;
-            
+
             const index = updatedLogs.findIndex(log => (log.stage || '').toLowerCase() === stageName.toLowerCase());
             if (index !== -1) {
               if (updatedLogs[index].text !== currentText) {
@@ -551,10 +551,10 @@ export default function NoticeOrders() {
       { label: 'Dashboard', path: role === 'professional' ? '/professional-dashboard' : '/staff/dashboard' },
       { label: 'Notice Orders' }
     ]}>
-      <div className="notice-orders-content" style={{ padding: '18px 20px' }}>
-        <div className="notice-orders-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div style={{ padding: '18px 20px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5, cursor: 'pointer' }} onClick={() => navigate(-1)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 5, cursor: 'pointer' }} onClick={() => navigate(role === 'professional' ? '/professional-dashboard' : '/staff/dashboard')}>
               <ArrowLeft size={13} color="#64748b" />
               <span style={{ fontSize: 12, color: '#64748b' }}>Back to assignments</span>
             </div>
@@ -584,7 +584,7 @@ export default function NoticeOrders() {
         </div>
 
         {showFilterPanel && (
-          <div className="notice-orders-filter-panel" style={{ padding: '12px 18px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
+          <div style={{ padding: '12px 18px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 18 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <label style={{ fontSize: 12, color: '#64748b', fontWeight: 600, whiteSpace: 'nowrap' }}>Section:</label>
               <input
@@ -672,24 +672,23 @@ export default function NoticeOrders() {
                 <p style={{ fontSize: 14, fontWeight: 500, color: '#1e293b', flex: 1 }}>
                   Reference ID: <span style={{ fontFamily: 'monospace', color: '#1d4ed8' }}>{n.reference_id || "—"}</span>
                 </p>
-                {isProfessional && (
-                  <button
-                    onClick={() => setEditModes(prev => ({ ...prev, [n.id || n.notice_id]: !prev[n.id || n.notice_id] }))}
-                    style={{
-                      padding: '4px 12px',
-                      background: '#fff',
-                      color: '#2563eb',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: 6,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      marginLeft: 8
-                    }}
-                  >
-                    {editModes[n.id || n.notice_id] ? 'Cancel Edit' : 'Edit'}
-                  </button>
-                )}
+                <button
+                  onClick={() => setEditModes(prev => ({ ...prev, [n.id || n.notice_id]: !prev[n.id || n.notice_id] }))}
+                  style={{
+                    padding: '4px 12px',
+                    background: '#fff',
+                    color: '#2563eb',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    marginRight: 8
+                  }}
+                >
+                  {editModes[n.id || n.notice_id] ? 'Cancel Edit' : 'Edit'}
+                </button>
+                {statusBadge(getStatus(n))}
               </div>
               <div className="notice-card-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 110px' }}>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0' }}>
@@ -747,14 +746,152 @@ export default function NoticeOrders() {
                   </button>
                 </div>
               </div>
+              <div style={{ padding: '16px 20px', borderTop: '0.5px solid #e2e8f0', background: '#f8fafc' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 16 }}>
 
+                  {/* BOX 1: REPLY */}
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ padding: '10px 14px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontWeight: 600, fontSize: 12, color: '#1e293b' }}>
+                      Reply
+                    </div>
+                    <div style={{ padding: 14, flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {!editModes[n.id || n.notice_id] ? (
+                        <div>
+                          <div style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>Filed Reply:</div>
+                            <div style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{statusForms[n.id || n.notice_id]?.reply_type || '—'}</div>
+                          </div>
+                          {statusForms[n.id || n.notice_id]?.reply_type === 'Others' && (
+                            <div>
+                              <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>Comment:</div>
+                              <div style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{statusForms[n.id || n.notice_id]?.reply_comment || '—'}</div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <div>
+                            <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4 }}>Filed Reply</label>
+                            <select
+                              value={statusForms[n.id || n.notice_id]?.reply_type || ''}
+                              onChange={(e) => handleStatusChange(n.id || n.notice_id, 'reply_type', e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', background: '#fff' }}
+                            >
+                              <option value="">Select Reply</option>
+                              <option value="Out of station">Out of station</option>
+                              <option value="Gathering of material from multiple sources requires time">Gathering of material from multiple sources requires time</option>
+                              <option value="Medical grounds">Medical grounds</option>
+                              <option value="Pre-occupied with return filing activity">Pre-occupied with return filing activity</option>
+                              <option value="Others">Others</option>
+                            </select>
+                          </div>
+
+                          {statusForms[n.id || n.notice_id]?.reply_type === 'Others' && (
+                            <div>
+                              <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4 }}>Comment</label>
+                              <input
+                                type="text"
+                                placeholder="Type Here"
+                                value={statusForms[n.id || n.notice_id]?.reply_comment || ''}
+                                onChange={(e) => handleStatusChange(n.id || n.notice_id, 'reply_comment', e.target.value)}
+                                style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none' }}
+                              />
+                            </div>
+                          )}
+
+                          <div style={{ marginTop: 'auto', textAlign: 'center' }}>
+                            <button
+                              onClick={() => handleStatusSave(n.id || n.notice_id)}
+                              style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}
+                            >
+                              Update Reply
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* BOX 2: FILED BY */}
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ padding: '10px 14px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontWeight: 600, fontSize: 12, color: '#1e293b' }}>
+                      Filed By
+                    </div>
+                    <div style={{ padding: 14, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      {!editModes[n.id || n.notice_id] ? (
+                        <div>
+                          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>Filed By:</div>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: '#1e293b' }}>{statusForms[n.id || n.notice_id]?.filed_by || '—'}</div>
+                        </div>
+                      ) : (
+                        <>
+                          <select
+                            value={statusForms[n.id || n.notice_id]?.filed_by || ''}
+                            onChange={(e) => handleStatusChange(n.id || n.notice_id, 'filed_by', e.target.value)}
+                            style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', background: '#fff', marginBottom: 12 }}
+                          >
+                            <option value="">Select Filed By</option>
+                            <option value="Partial">Partial</option>
+                            <option value="Fully">Fully</option>
+                            <option value="Self">Self</option>
+                          </select>
+
+                          <div style={{ marginTop: 'auto', textAlign: 'center' }}>
+                            <button
+                              onClick={() => handleStatusSave(n.id || n.notice_id)}
+                              style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}
+                            >
+                              Update Filed By
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* BOX 3: REVIEW */}
+                  <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, background: '#fff', display: 'flex', flexDirection: 'column' }}>
+                    <div style={{ padding: '10px 14px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc', fontWeight: 600, fontSize: 12, color: '#1e293b' }}>
+                      Review
+                    </div>
+                    <div style={{ padding: 14, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                      {!editModes[n.id || n.notice_id] ? (
+                        <div>
+                          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4 }}>Review Comment:</div>
+                          <div style={{ fontSize: 13, fontWeight: 500, color: '#1e293b', whiteSpace: 'pre-wrap' }}>{statusForms[n.id || n.notice_id]?.review_comment || '—'}</div>
+                        </div>
+                      ) : (
+                        <>
+                          <label style={{ display: 'block', fontSize: 11, color: '#64748b', marginBottom: 4 }}>Comment</label>
+                          <textarea
+                            placeholder="Type Here"
+                            value={statusForms[n.id || n.notice_id]?.review_comment || ''}
+                            onChange={(e) => handleStatusChange(n.id || n.notice_id, 'review_comment', e.target.value)}
+                            style={{ width: '100%', flex: 1, minHeight: 60, padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12, outline: 'none', resize: 'none', fontFamily: 'inherit', marginBottom: 12 }}
+                          />
+
+                          <div style={{ marginTop: 'auto', textAlign: 'center' }}>
+                            <button
+                              onClick={() => handleStatusSave(n.id || n.notice_id)}
+                              style={{ padding: '8px 16px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', width: '100%' }}
+                            >
+                              Update Review
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
             </div>
           ))
         )}
       </div>
 
       {activeModal && modalData && (
-        <div className="modal-overlay" style={{
+        <div style={{
           position: 'fixed',
           top: 0,
           left: 0,
@@ -768,7 +905,7 @@ export default function NoticeOrders() {
           zIndex: 9999,
           padding: 20
         }}>
-          <div className="modal-card" style={{
+          <div style={{
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(20px)',
             border: '1px solid rgba(226, 232, 240, 0.8)',
@@ -994,7 +1131,7 @@ export default function NoticeOrders() {
             {/* Body */}
             <form onSubmit={handleSaveWorkflow} style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ padding: '24px', overflowY: 'auto', maxHeight: '60vh', display: 'flex', flexDirection: 'column', gap: 16 }}>
-                
+
                 {/* Workflow Status */}
                 <div>
                   <label style={{ display: 'block', fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, marginBottom: 6 }}>Workflow Status / Stage</label>
@@ -1206,7 +1343,7 @@ export default function NoticeOrders() {
           <div style={{ background: '#fff', padding: 24, borderRadius: 12, width: 320, textAlign: 'center', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
             <h3 style={{ margin: '0 0 12px 0', fontSize: 18, color: '#16a34a' }}>Success</h3>
             <p style={{ margin: '0 0 24px 0', fontSize: 14, color: '#475569' }}>Status Updated Successfully</p>
-            <button 
+            <button
               onClick={() => setShowSuccessModal(false)}
               style={{ padding: '8px 32px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: 'pointer' }}
             >

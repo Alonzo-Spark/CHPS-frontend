@@ -42,6 +42,19 @@ const formatTimelineDate = (dateStr) => {
 }
 
 export default function AdminDashboard() {
+  const getNoticeReadState = (n) => {
+    if (n.is_read || n.isRead) return true
+    const dateStr = n.issued_on || n.assigned_at || n.createdAt
+    if (!dateStr || dateStr === '-') return true
+    try {
+      const noticeDate = new Date(dateStr)
+      if (isNaN(noticeDate.getTime())) return true
+      return noticeDate < new Date('2026-03-01T00:00:00')
+    } catch (e) {
+      return true
+    }
+  }
+
   const [clients, setClients] = useState([])
   
   // Search state split into 3 fields
@@ -58,6 +71,7 @@ export default function AdminDashboard() {
   const [professionals, setProfessionals] = useState([])
   const [assignDropdownOpen, setAssignDropdownOpen] = useState(null)
   const [clientTimelines, setClientTimelines] = useState({})
+  const [clientUnreadMap, setClientUnreadMap] = useState({})
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -68,6 +82,7 @@ export default function AdminDashboard() {
         const mapped = data.map(item => ({
           id: item.assignment_id,
           client_id: item.client?.client_id,
+          file_no: item.client?.file_name || item.client?.file_no || item.client?.fileNumber || item.client?.fileId || item.file_name || item.file_no || item.fileNumber || item.fileId || 'N/A',
           name: item.client?.client_name || 'N/A',
           email: item.client?.client_email || 'N/A',
           pan: item.client?.client_pan || 'N/A',
@@ -120,6 +135,7 @@ export default function AdminDashboard() {
 
     const fetchTimelinesProgressively = async () => {
       try {
+        const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
         const noticesRes = await noticeService.getNotices()
         const allN = noticesRes?.data || []
         
@@ -237,17 +253,13 @@ export default function AdminDashboard() {
 
         {/* SUMMARY CARDS */}
         <div className="admin-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
-          <div className="admin-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="admin-stat-card dashboard-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Professionals Count</p>
             <p style={{ color: '#0f172a', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{professionalsCount}</p>
           </div>
-          <div className="admin-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="admin-stat-card dashboard-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Clients Count</p>
             <p style={{ color: '#0f172a', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{clientsCount}</p>
-          </div>
-          <div className="admin-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Pending Notices</p>
-            <p style={{ color: '#d97706', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{pendingNoticesCount}</p>
           </div>
         </div>
 
@@ -283,8 +295,8 @@ export default function AdminDashboard() {
 
           <div className="admin-dashboard-list-container" style={{ flex: 1, width: '100%' }}>
             {/* Header Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-              {['Assessee', 'PAN', 'Assessment Year', 'Assigned Professional', 'Activity Timeline', 'Action', 'Proceedings'].map(h => (
+            <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', minWidth: 1000 }}>
+              {['File No', 'Assessee', 'PAN', 'Assessment Year', 'Assigned Professional', 'Activity Timeline', 'Action', 'Proceedings'].map(h => (
                 <div key={h} style={{ padding: '14px 20px', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', textAlign: 'left' }}>{h}</div>
               ))}
             </div>
@@ -296,7 +308,10 @@ export default function AdminDashboard() {
               <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8', fontSize: 14 }}>No data found.</div>
             ) : (
               filtered.map((c, i) => (
-                <div key={c.id || i} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', borderBottom: '0.5px solid #f1f5f9', alignItems: 'center', transition: 'all 0.3s ease' }}>
+                <div key={c.id || i} style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', borderBottom: '0.5px solid #f1f5f9', alignItems: 'center', transition: 'all 0.3s ease' }}>
+                  <div style={{ padding: '14px 20px', color: '#475569', fontWeight: 600, fontSize: 14 }}>
+                    {c.file_no || 'N/A'}
+                  </div>
                   <div style={{ padding: '14px 20px', fontWeight: 600 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
                       <span style={{ fontSize: 14, color: '#1e293b', fontWeight: 600 }}>{c.name}</span>
@@ -420,6 +435,10 @@ export default function AdminDashboard() {
                   <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center' }}>
                     <button
                       onClick={() => {
+                        // Mark this client's notices as read
+                        if (clientUnreadMap[c.client_id]) {
+                          setClientUnreadMap(prev => ({ ...prev, [c.client_id]: false }))
+                        }
                         const isInfo = (c.status || '').toLowerCase() === 'completed' || (c.status || '').toLowerCase() === 'closed'
                         navigate(`/proceedings?assessee=${encodeURIComponent(c.name)}&uid=${c.client_id || ''}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: c.name, assesseeId: c.client_id } })
                       }}
