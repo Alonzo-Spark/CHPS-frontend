@@ -28,7 +28,7 @@ export default function Sidebar() {
       <div style={{ padding: '15px 14px', borderBottom: '0.5px solid rgba(255,255,255,.08)', display: 'flex', alignItems: 'center', gap: 9 }}>
         <div style={{ width: 30, height: 30, background: '#2563eb', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600, color: '#fff', flexShrink: 0 }}>AP</div>
         <div>
-          <p style={{ color: '#fff', fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>Audit Portal</p>
+          <p style={{ color: '#fff', fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>CHPS Appeal</p>
           <p style={{ color: '#64748b', fontSize: 9, letterSpacing: '.05em', textTransform: 'uppercase', marginTop: 2 }}>Internal Management</p>
         </div>
       </div>

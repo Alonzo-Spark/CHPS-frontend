@@ -48,7 +48,7 @@ export default function RegisterPage() {
       {/* Card */}
       <div className="auth-card" style={{ background: '#fff', borderRadius: 12, padding: '32px 36px', width: '100%', maxWidth: 420, boxShadow: '0 4px 24px rgba(0,0,0,0.08)' }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>Account Creation</h2>
-        <p style={{ fontSize: 12, color: '#64748b', marginBottom: 24 }}>Complete your profile to access the audit portal.</p>
+        <p style={{ fontSize: 12, color: '#64748b', marginBottom: 24 }}>Complete your profile to access the CHPS Appeal.</p>
 
         {error && (
           <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#dc2626' }}>{error}</div>

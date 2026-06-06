@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { UserPlus, Eye, EyeOff } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import { clientService, professionalService } from '../../services'
+import { useAuth } from '../../context/AuthContext'
 
 export default function CreateClient() {
   const [form, setForm] = useState({ name: '', pan: '', password: '', email: '', professional_id: '', referred_by: '', referred_by_email: '', referred_by_phone: '', year: '' })
@@ -12,7 +13,19 @@ export default function CreateClient() {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
   const [professionals, setProfessionals] = useState([])
+  const [isProfDropdownOpen, setIsProfDropdownOpen] = useState(false)
+  const [showAllProfs, setShowAllProfs] = useState(false)
   const navigate = useNavigate()
+  const { user } = useAuth()
+  
+  const isProfessional = user?.role === 'professional' || user?.user_type === 'professional' || user?.role?.toLowerCase() === 'professional'
+  const profId = isProfessional ? (user?.id || user?.professional_id) : ''
+  
+  useEffect(() => {
+    if (isProfessional) {
+      setForm(prev => ({ ...prev, professional_id: profId }))
+    }
+  }, [isProfessional, profId])
 
   useEffect(() => {
     professionalService.getProfessionals()
@@ -54,7 +67,7 @@ export default function CreateClient() {
 
       const data = await clientService.createClient(payload)
       setSuccess(`Client created! ID: ${data?.data?.user_id || data?.user_id || ''}`)
-      setTimeout(() => navigate('/staff/clients'), 1400)
+      setTimeout(() => navigate(isProfessional ? '/professional-dashboard/clients' : '/staff/clients'), 1400)
     } catch (err) {
       setError(err.response?.data?.detail || 'Failed to create client.')
     } finally {
@@ -65,8 +78,33 @@ export default function CreateClient() {
   const labelStyle = { fontSize: 11, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 5, display: 'block' }
   const inputStyle = { width: '100%', border: '0.5px solid #cbd5e1', borderRadius: 8, padding: '9px 12px', fontSize: 13, color: '#1e293b', background: '#fff', outline: 'none' }
 
+  // Sorting professionals alphabetically to act as "assignment logic"
+  const sortedProfessionals = [...professionals].sort((a, b) => {
+    const nameA = a.professional_name || a.name || ''
+    const nameB = b.professional_name || b.name || ''
+    return nameA.localeCompare(nameB)
+  })
+  
+  // Assigned professionals: Let's assume the first 2 are the "assigned" ones per alphabet logic
+  const assignedProfessionals = sortedProfessionals.slice(0, 2)
+  const displayProfessionals = showAllProfs ? sortedProfessionals : assignedProfessionals
+
+  // Close dropdown if click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!e.target.closest('.prof-dropdown')) {
+        setIsProfDropdownOpen(false)
+      }
+    }
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [])
+
   return (
-    <DashboardLayout breadcrumbs={[{ label: 'Dashboard', path: '/staff/dashboard' }, { label: 'Client Creation' }]}>
+    <DashboardLayout breadcrumbs={[
+      { label: 'Dashboard', path: isProfessional ? '/professional-dashboard' : '/staff/dashboard' }, 
+      { label: 'Client Creation' }
+    ]}>
       <div className="form-card-container" style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
         <div className="form-card" style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 12, padding: '32px 34px', width: '100%', maxWidth: 520 }}>
           {/* Icon + title */}
@@ -134,23 +172,51 @@ export default function CreateClient() {
               </div>
             </div>
 
-            <div style={{ marginBottom: 24 }}>
-              <label style={labelStyle}>Professional</label>
-              <div style={{ position: 'relative' }}>
-                <select
-                  value={form.professional_id}
-                  onChange={e => setForm({ ...form, professional_id: e.target.value })}
-                  style={{ ...inputStyle, appearance: 'none', cursor: 'pointer', paddingRight: 36 }}
+            {!isProfessional && (
+              <div className="prof-dropdown" style={{ marginBottom: 24, position: 'relative' }}>
+                <label style={labelStyle}>Assigned Professional</label>
+                <div 
+                  onClick={() => setIsProfDropdownOpen(!isProfDropdownOpen)}
+                  style={{ ...inputStyle, cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
                 >
-                  <option value="">Select Professional</option>
-                  {professionals.map((prof) => (
-                    <option key={prof.id} value={prof.id}>{prof.professional_name}</option>
-                  ))}
-                </select>
-                <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }}>▾</span>
+                  <span style={{ color: form.professional_id ? '#1e293b' : '#94a3b8' }}>
+                    {form.professional_id 
+                      ? (professionals.find(p => p.id == form.professional_id)?.professional_name || professionals.find(p => p.id == form.professional_id)?.name || 'Select Professional') 
+                      : 'Select Professional'}
+                  </span>
+                  <span style={{ color: '#94a3b8', transform: isProfDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>▾</span>
+                </div>
+                
+                {isProfDropdownOpen && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, marginTop: 4, zIndex: 50, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                    <div style={{ maxHeight: 200, overflowY: 'auto', padding: '4px 0' }}>
+                      {displayProfessionals.map(prof => (
+                        <div 
+                          key={prof.id} 
+                          onClick={() => { setForm({ ...form, professional_id: prof.id }); setIsProfDropdownOpen(false); }}
+                          style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', background: form.professional_id == prof.id ? '#eff6ff' : 'transparent', color: '#1e293b' }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = form.professional_id == prof.id ? '#eff6ff' : 'transparent'}
+                        >
+                          {prof.professional_name || prof.name}
+                        </div>
+                      ))}
+                      {!showAllProfs && sortedProfessionals.length > assignedProfessionals.length && (
+                        <div 
+                          onClick={(e) => { e.stopPropagation(); setShowAllProfs(true); }}
+                          style={{ padding: '8px 12px', fontSize: 13, cursor: 'pointer', color: '#2563eb', fontWeight: 600, textAlign: 'center', borderTop: '1px solid #e2e8f0' }}
+                          onMouseEnter={(e) => e.currentTarget.style.background = '#eff6ff'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                        >
+                          Others
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {fieldErrors.professional_id && <p style={{ marginTop: 6, color: '#dc2626', fontSize: 12 }}>{fieldErrors.professional_id}</p>}
               </div>
-              {fieldErrors.professional_id && <p style={{ marginTop: 6, color: '#dc2626', fontSize: 12 }}>{fieldErrors.professional_id}</p>}
-            </div>
+            )}
 
             <div style={{ marginBottom: 16 }}>
               <label style={labelStyle}>Referred By</label>
@@ -195,7 +261,7 @@ export default function CreateClient() {
 
             <button
               type="button"
-              onClick={() => navigate('/staff/clients')}
+              onClick={() => navigate(isProfessional ? '/professional-dashboard/clients' : '/staff/clients')}
               style={{ width: '100%', marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 10, background: 'none', color: '#64748b', border: '0.5px solid #e2e8f0', borderRadius: 7, fontSize: 13, cursor: 'pointer' }}
             >
               Cancel

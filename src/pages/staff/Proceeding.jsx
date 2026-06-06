@@ -132,7 +132,7 @@ export default function Proceeding() {
               </div>
               <div className="proceeding-header-status" style={{ textAlign: 'right' }}>
                 <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>Status</p>
-                {statusBadge(currentNotice.workflow_status || 'Pending')}
+                {currentNotice.workflow_status && statusBadge(currentNotice.workflow_status)}
               </div>
             </div>
           </div>
@@ -172,7 +172,7 @@ export default function Proceeding() {
 
               <div>
                 <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Status</p>
-                {statusBadge(proceedingDetails.status || 'Pending')}
+                {proceedingDetails.status && statusBadge(proceedingDetails.status)}
               </div>
 
               <div>
@@ -308,22 +308,14 @@ export default function Proceeding() {
           {activityTimeline && activityTimeline.length > 0 && (
             <div style={{ padding: '24px' }}>
               <h2 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', marginBottom: 16 }}>Activity Timeline</h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: 300, overflowY: 'auto', paddingRight: 8 }}>
                 {activityTimeline.map((activity, idx) => (
                   <div key={idx} style={{ padding: 12, background: '#f8fafc', borderRadius: 8, borderLeft: '3px solid #2563eb' }}>
-                    <p style={{ fontSize: 12, fontWeight: 600, color: '#1e293b', margin: 0 }}>
-                      {activity.activity_title || 'Activity'}
-                    </p>
-                    {activity.activity_date && (
-                      <p style={{ fontSize: 11, color: '#64748b', margin: 0, marginTop: 4 }}>
-                        {formatDate(activity.activity_date)}
-                      </p>
-                    )}
-                    {activity.activity_description && (
-                      <p style={{ fontSize: 12, color: '#475569', margin: 0, marginTop: 4 }}>
-                        {activity.activity_description}
-                      </p>
-                    )}
+                    <div style={{ fontSize: 12, color: '#475569', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {(activity.date || activity.activity_date || activity.created_at) && <div><span style={{ fontWeight: 600, color: '#1e293b' }}>Date:</span> {formatDate(activity.date || activity.activity_date || activity.created_at)}</div>}
+                      {(activity.status || activity.activity_title) && <div><span style={{ fontWeight: 600, color: '#1e293b' }}>Status:</span> {activity.status || activity.activity_title}</div>}
+                      {(activity.comment || activity.activity_description) && <div><span style={{ fontWeight: 600, color: '#1e293b' }}>Comment:</span> {activity.comment || activity.activity_description}</div>}
+                    </div>
                   </div>
                 ))}
               </div>
