@@ -672,25 +672,23 @@ export default function NoticeOrders() {
                 <p style={{ fontSize: 14, fontWeight: 500, color: '#1e293b', flex: 1 }}>
                   Reference ID: <span style={{ fontFamily: 'monospace', color: '#1d4ed8' }}>{n.reference_id || "—"}</span>
                 </p>
+                <button
+                  onClick={() => setEditModes(prev => ({ ...prev, [n.id || n.notice_id]: !prev[n.id || n.notice_id] }))}
+                  style={{
+                    padding: '4px 12px',
+                    background: '#fff',
+                    color: '#2563eb',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    marginRight: 8
+                  }}
+                >
+                  {editModes[n.id || n.notice_id] ? 'Cancel Edit' : 'Edit'}
+                </button>
                 {statusBadge(getStatus(n))}
-                {isProfessional && (
-                  <button
-                    onClick={() => setEditModes(prev => ({ ...prev, [n.id || n.notice_id]: !prev[n.id || n.notice_id] }))}
-                    style={{
-                      padding: '4px 12px',
-                      background: '#fff',
-                      color: '#2563eb',
-                      border: '1px solid #cbd5e1',
-                      borderRadius: 6,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      marginLeft: 8
-                    }}
-                  >
-                    {editModes[n.id || n.notice_id] ? 'Cancel Edit' : 'Edit'}
-                  </button>
-                )}
               </div>
               <div className="notice-card-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 110px' }}>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0' }}>
