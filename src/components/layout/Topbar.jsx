@@ -1,10 +1,12 @@
-import { LogOut } from 'lucide-react'
+import { useState } from 'react'
+import { LogOut, KeyRound } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
-
+import ChangePasswordModal from '../auth/ChangePasswordModal'
 export default function Topbar({ breadcrumbs = [] }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const handleLogout = () => { logout(); navigate('/login') }
 
@@ -13,7 +15,7 @@ export default function Topbar({ breadcrumbs = [] }) {
     : 'MT'
 
   return (
-    <div className="topbar-container" style={{ height: 50, background: '#fff', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
+    <div className="topbar-container" style={{ position: 'relative', height: 50, background: '#fff', borderBottom: '0.5px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', flexShrink: 0 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12 }}>
         {breadcrumbs.map((crumb, i) => (
           <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -27,17 +29,36 @@ export default function Topbar({ breadcrumbs = [] }) {
           </span>
         ))}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 32 }}>
         <div style={{ textAlign: 'right' }}>
           <p style={{ fontSize: 12, fontWeight: 600, color: '#1e293b', lineHeight: 1.2 }}>{user?.username || 'User'}</p>
           <p style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginTop: 1 }}>
             {user?.role === 'staff' ? 'Staff Administrator' : user?.role || 'Staff'}
           </p>
         </div>
-        <button onClick={handleLogout} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 3 }}>
-          <LogOut size={16} />
-        </button>
+        {user?.role?.toLowerCase() === 'client' && (
+          <button onClick={() => setIsModalOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 3, marginLeft: 5 }} title="Change Password">
+            <KeyRound size={16} />
+          </button>
+        )}
       </div>
+      <button 
+        className="logout-btn"
+        onClick={handleLogout} 
+        style={{ 
+          background: 'none', 
+          border: 'none', 
+          cursor: 'pointer', 
+          color: '#64748b', 
+          padding: '4px' 
+        }} 
+        title="Logout"
+      >
+        <LogOut size={16} />
+      </button>
+      {user?.role?.toLowerCase() === 'client' && (
+        <ChangePasswordModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      )}
     </div>
   )
 }

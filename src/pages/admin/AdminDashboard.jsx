@@ -42,6 +42,19 @@ const formatTimelineDate = (dateStr) => {
 }
 
 export default function AdminDashboard() {
+  const getNoticeReadState = (n) => {
+    if (n.is_read || n.isRead) return true
+    const dateStr = n.issued_on || n.assigned_at || n.createdAt
+    if (!dateStr || dateStr === '-') return true
+    try {
+      const noticeDate = new Date(dateStr)
+      if (isNaN(noticeDate.getTime())) return true
+      return noticeDate < new Date('2026-03-01T00:00:00')
+    } catch (e) {
+      return true
+    }
+  }
+
   const [clients, setClients] = useState([])
   
   // Search state split into 3 fields
@@ -58,6 +71,7 @@ export default function AdminDashboard() {
   const [professionals, setProfessionals] = useState([])
   const [assignDropdownOpen, setAssignDropdownOpen] = useState(null)
   const [clientTimelines, setClientTimelines] = useState({})
+  const [clientUnreadMap, setClientUnreadMap] = useState({})
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -121,6 +135,7 @@ export default function AdminDashboard() {
 
     const fetchTimelinesProgressively = async () => {
       try {
+        const readNoticeIds = JSON.parse(localStorage.getItem('readNoticeIds') || '[]')
         const noticesRes = await noticeService.getNotices()
         const allN = noticesRes?.data || []
         
@@ -238,17 +253,13 @@ export default function AdminDashboard() {
 
         {/* SUMMARY CARDS */}
         <div className="admin-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
-          <div className="admin-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="admin-stat-card dashboard-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Professionals Count</p>
             <p style={{ color: '#0f172a', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{professionalsCount}</p>
           </div>
-          <div className="admin-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="admin-stat-card dashboard-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Clients Count</p>
             <p style={{ color: '#0f172a', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{clientsCount}</p>
-          </div>
-          <div className="admin-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Pending Notices</p>
-            <p style={{ color: '#d97706', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{pendingNoticesCount}</p>
           </div>
         </div>
 
@@ -424,6 +435,10 @@ export default function AdminDashboard() {
                   <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'center' }}>
                     <button
                       onClick={() => {
+                        // Mark this client's notices as read
+                        if (clientUnreadMap[c.client_id]) {
+                          setClientUnreadMap(prev => ({ ...prev, [c.client_id]: false }))
+                        }
                         const isInfo = (c.status || '').toLowerCase() === 'completed' || (c.status || '').toLowerCase() === 'closed'
                         navigate(`/proceedings?assessee=${encodeURIComponent(c.name)}&uid=${c.client_id || ''}&tab=${isInfo ? 'info' : 'action'}`, { state: { assesseeName: c.name, assesseeId: c.client_id } })
                       }}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Search, Filter, Trash2, Ban, AlertTriangle } from 'lucide-react'
+import { Search, Filter, Trash2, Ban, AlertTriangle, UserPlus } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../../layouts/DashboardLayout'
 import { userService } from '../../services'
 
@@ -8,12 +9,13 @@ export default function ProfessionalClients() {
   const [loading, setLoading] = useState(true)
   
   // Search and Filter State
-  const [search, setSearch] = useState('')
+  const [searchFields, setSearchFields] = useState({ fileNo: '', name: '', pan: '' })
   const [statusFilter, setStatusFilter] = useState('All')
   
   // Modal State
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [clientToDelete, setClientToDelete] = useState(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     fetchClients()
@@ -104,14 +106,17 @@ export default function ProfessionalClients() {
 
   // Filtering Logic
   const filteredClients = clients.filter(c => {
-    const term = search.toLowerCase()
-    const matchesSearch = !term || 
-      (c.client_name || '').toLowerCase().includes(term) ||
-      (c.pan_number || '').toLowerCase().includes(term)
+    const fileNoTerm = searchFields.fileNo.toLowerCase().trim()
+    const nameTerm = searchFields.name.toLowerCase().trim()
+    const panTerm = searchFields.pan.toLowerCase().trim()
+    
+    const matchesFileNo = !fileNoTerm || (c.file_no || '').toLowerCase().includes(fileNoTerm)
+    const matchesName = !nameTerm || (c.client_name || '').toLowerCase().includes(nameTerm)
+    const matchesPan = !panTerm || (c.pan_number || '').toLowerCase().includes(panTerm)
     
     const matchesStatus = statusFilter === 'All' || (c.status || '').toUpperCase() === statusFilter.toUpperCase()
     
-    return matchesSearch && matchesStatus
+    return matchesFileNo && matchesName && matchesPan && matchesStatus
   })
 
   // Badge Color Helper
@@ -128,18 +133,18 @@ export default function ProfessionalClients() {
         {/* SUMMARY CARDS */}
         <div className="prof-clients-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
           
-          <div className="prof-clients-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="prof-clients-stat-card dashboard-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Total Clients</p>
             <p style={{ color: '#0f172a', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{totalClients}</p>
           </div>
           
-          <div className="prof-clients-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="prof-clients-stat-card dashboard-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Active Clients</p>
             <p style={{ color: '#16a34a', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{activeClients}</p>
           </div>
           
 
-          <div className="prof-clients-stat-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+          <div className="prof-clients-stat-card dashboard-card" style={{ background: '#fff', padding: 20, borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <p style={{ color: '#64748b', fontSize: 13, fontWeight: 500 }}>Blocked Clients</p>
             <p style={{ color: '#b91c1c', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{blockedClients}</p>
           </div>
@@ -157,16 +162,32 @@ export default function ProfessionalClients() {
               <p style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>View and manage your assigned clients</p>
             </div>
             
-            <div className="prof-clients-controls-container" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', flex: 1, maxWidth: 600, justifyContent: 'flex-end' }}>
+            <div className="prof-clients-controls-container" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', flex: 1, maxWidth: 800, justifyContent: 'flex-end' }}>
               
               {/* SEARCH */}
-              <div className="prof-clients-search-box" style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #cbd5e1', borderRadius: 8, padding: '8px 12px', background: '#f8fafc', flex: 1, minWidth: 200 }}>
+              <div className="prof-clients-search-box" style={{ display: 'flex', alignItems: 'center', gap: 8, border: '1px solid #cbd5e1', borderRadius: 8, padding: '8px 12px', background: '#f8fafc', flex: 1, minWidth: 400 }}>
                 <Search size={16} color="#64748b" />
                 <input 
                   type="text" 
-                  placeholder="Search by Client Name or PAN..." 
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="File No..." 
+                  value={searchFields.fileNo}
+                  onChange={(e) => setSearchFields({...searchFields, fileNo: e.target.value})}
+                  style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: '#1e293b' }}
+                />
+                <div style={{ width: 1, height: 16, background: '#cbd5e1' }} />
+                <input 
+                  type="text" 
+                  placeholder="Client Name..." 
+                  value={searchFields.name}
+                  onChange={(e) => setSearchFields({...searchFields, name: e.target.value})}
+                  style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: '#1e293b' }}
+                />
+                <div style={{ width: 1, height: 16, background: '#cbd5e1' }} />
+                <input 
+                  type="text" 
+                  placeholder="PAN Number..." 
+                  value={searchFields.pan}
+                  onChange={(e) => setSearchFields({...searchFields, pan: e.target.value})}
                   style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontSize: 13, color: '#1e293b' }}
                 />
               </div>
