@@ -464,89 +464,25 @@ export default function StaffDashboard() {
                   }}
                 />
 
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <button
-                    onClick={() => setIsIssuedOnPickerOpen(!isIssuedOnPickerOpen)}
-                    style={{
-                      border: 'none',
-                      background: 'transparent',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      fontSize: 11,
-                      color: appliedIssuedOn ? '#1e3a8a' : '#64748b',
-                      paddingLeft: 4,
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    <span>{appliedIssuedOn ? formatDate(appliedIssuedOn) : 'Issued On ▾'}</span>
-                  </button>
-                  {isIssuedOnPickerOpen && (
-                    <>
-                      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }} onClick={() => setIsIssuedOnPickerOpen(false)} />
-                      <div style={{
-                        position: 'absolute',
-                        top: '100%',
-                        right: 0,
-                        zIndex: 100,
-                        background: '#fff',
-                        border: '1px solid #e2e8f0',
-                        borderRadius: 8,
-                        boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-                        padding: 12,
-                        marginTop: 8,
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 8,
-                        minWidth: 200
-                      }}>
-                        <input
-                          type="date"
-                          value={tempIssuedOn}
-                          onChange={(e) => setTempIssuedOn(e.target.value)}
-                          style={{
-                            padding: '6px 8px',
-                            border: '1px solid #cbd5e1',
-                            borderRadius: 6,
-                            fontSize: 12,
-                            width: '100%',
-                            outline: 'none'
-                          }}
-                        />
-                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                          <button
-                            onClick={() => {
-                              setTempIssuedOn('');
-                              setAppliedIssuedOn('');
-                              setIsIssuedOnPickerOpen(false);
-                            }}
-                            style={{ padding: '4px 8px', background: '#f3f4f6', border: '1px solid #cbd5e1', borderRadius: 4, fontSize: 10, cursor: 'pointer', color: '#475569' }}
-                          >
-                            Clear
-                          </button>
-                          <button
-                            onClick={() => {
-                              setIsIssuedOnPickerOpen(false);
-                            }}
-                            style={{ padding: '4px 8px', background: '#f3f4f6', border: '1px solid #cbd5e1', borderRadius: 4, fontSize: 10, cursor: 'pointer', color: '#475569' }}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => {
-                              setAppliedIssuedOn(tempIssuedOn);
-                              setIsIssuedOnPickerOpen(false);
-                            }}
-                            style={{ padding: '4px 8px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 4, fontSize: 10, cursor: 'pointer', fontWeight: 600 }}
-                          >
-                            Apply
-                          </button>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
+                <input
+                  type="text"
+                  placeholder="Issued On..."
+                  value={appliedIssuedOn}
+                  onFocus={(e) => (e.target.type = 'date')}
+                  onBlur={(e) => { if (!e.target.value) e.target.type = 'text' }}
+                  onChange={e => setAppliedIssuedOn(e.target.value)}
+                  style={{
+                    flex: 1,
+                    minWidth: 80,
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: 11,
+                    color: appliedIssuedOn ? '#1e3a8a' : '#1e293b',
+                    paddingRight: 4,
+                    paddingLeft: 4,
+                    background: 'transparent'
+                  }}
+                />
               </div>
 
               {/* Filter Icon Button */}

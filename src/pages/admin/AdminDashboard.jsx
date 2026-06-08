@@ -262,8 +262,14 @@ export default function AdminDashboard() {
           <div className="admin-dashboard-list-container" style={{ flex: 1, width: '100%' }}>
             {/* Header Row */}
             <div style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', minWidth: 1000 }}>
-              {['File No', 'Assessee', 'PAN', 'Assessment Year', 'Assigned Professional', 'Activity Timeline', 'Action', 'Proceedings'].map(h => (
-                <div key={h} style={{ padding: '14px 20px', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', textAlign: 'left' }}>{h}</div>
+              {['File No', 'Assessee', 'PAN', 'Assessment Year', 'Assigned Professional', 'Activity Timeline', 'Action', 'Proceedings'].map((h, i) => (
+                <div key={h} style={{ 
+                  padding: '14px 20px', color: '#64748b', fontSize: 13, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', textAlign: 'left',
+                  position: i === 0 ? 'sticky' : 'static',
+                  left: i === 0 ? 0 : 'auto',
+                  zIndex: i === 0 ? 10 : 1,
+                  background: i === 0 ? '#f8fafc' : 'transparent'
+                }}>{h}</div>
               ))}
             </div>
 
@@ -275,7 +281,10 @@ export default function AdminDashboard() {
             ) : (
               filtered.map((c, i) => (
                 <div key={c.id || i} style={{ display: 'grid', gridTemplateColumns: '0.8fr 1.2fr 1fr 1.1fr 1.4fr 1.4fr 1fr 1.1fr', width: '100%', borderBottom: '0.5px solid #f1f5f9', alignItems: 'center', transition: 'all 0.3s ease' }}>
-                  <div style={{ padding: '14px 20px', color: '#475569', fontWeight: 600, fontSize: 14 }}>
+                  <div style={{ 
+                    padding: '14px 20px', color: '#475569', fontWeight: 600, fontSize: 14,
+                    position: 'sticky', left: 0, zIndex: 5, background: '#fff'
+                  }}>
                     {c.file_no || 'N/A'}
                   </div>
                   <div style={{ padding: '14px 20px', fontWeight: 600 }}>

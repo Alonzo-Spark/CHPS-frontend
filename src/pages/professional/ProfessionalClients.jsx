@@ -209,14 +209,21 @@ export default function ProfessionalClients() {
           
           {/* TABLE */}
           <div className="prof-clients-table-wrapper" style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <table style={{ width: '100%', minWidth: 900, borderCollapse: 'separate', borderSpacing: 0, tableLayout: 'fixed', textAlign: 'left' }}>
+              <colgroup>
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '25%' }} />
+                <col style={{ width: '20%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '25%' }} />
+              </colgroup>
               <thead>
                 <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
-                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>File No</th>
-                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Client Name</th>
-                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>PAN Number</th>
-                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Status</th>
-                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Actions</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0', position: 'sticky', left: 0, zIndex: 10, background: '#f8fafc' }}>File No</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0' }}>Client Name</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0' }}>PAN Number</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #e2e8f0' }}>Status</th>
+                  <th style={{ padding: '14px 20px', fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -235,7 +242,7 @@ export default function ProfessionalClients() {
                     
                     return (
                       <tr key={client.client_id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }} onMouseEnter={(e) => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                        <td style={{ padding: '16px 20px', fontSize: 14, color: isBlocked ? '#94a3b8' : '#475569', fontWeight: 600 }}>
+                        <td style={{ padding: '16px 20px', fontSize: 14, color: isBlocked ? '#94a3b8' : '#475569', fontWeight: 600, position: 'sticky', left: 0, zIndex: 5, background: '#fff' }}>
                           {client.file_no || 'N/A'}
                         </td>
                         <td style={{ padding: '16px 20px', fontSize: 14, fontWeight: 500, color: isBlocked ? '#94a3b8' : '#1e293b' }}>

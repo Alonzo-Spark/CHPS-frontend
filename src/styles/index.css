@@ -256,16 +256,56 @@ img, svg, canvas, video, iframe {
   }
 }
 
+.desktop-inline-flex {
+  display: inline-flex;
+}
+
+.notice-card-grid {
+  grid-template-columns: 1.5fr 1fr 1fr 110px;
+}
+
+.action-grid-row {
+  grid-template-columns: 1.2fr 1.2fr 1fr;
+}
+
+.info-grid-row {
+  grid-template-columns: 1.2fr 1.2fr 2fr 1.5fr;
+}
+
 @media (max-width: 768px) {
+  .mobile-hidden {
+    display: none !important;
+  }
+  
+  .notice-card-grid,
+  .action-grid-row,
+  .info-grid-row {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .notice-card-grid > div,
+  .action-grid-row > div,
+  .info-grid-row > div {
+    border-right: none !important;
+    border-bottom: 0.5px solid #e2e8f0 !important;
+  }
+  
+  .notice-card-grid > div:last-child,
+  .action-grid-row > div:last-child,
+  .info-grid-row > div:last-child {
+    border-bottom: none !important;
+  }
+  
   /* Prevent horizontal text layout overflow in generic lists */
   table th, table td {
     padding: 8px 6px !important;
     font-size: 12px !important;
   }
 
-  p, span, div, h1, h2, h3, h4, h5, h6, td, th {
-    word-break: break-word !important;
-    overflow-wrap: break-word !important;
+  /* Force dashboard container to not stretch the page */
+  body, html, #root {
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 
   .info-grid-row, .action-grid-row {
@@ -287,6 +327,67 @@ img, svg, canvas, video, iframe {
 }
 
 @media (max-width: 640px) {
+  /* Auth Card Padding */
+  .auth-card {
+    padding: 24px 20px !important;
+  }
+
+  /* Search Wrappers - Convert to Column Layout */
+  .admin-search-wrapper,
+  .professional-search-box,
+  .staff-search-box,
+  .prof-clients-search-box,
+  .notices-search-container {
+    flex-direction: column !important;
+    gap: 8px !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  .staff-search-filter-row,
+  .professional-search-container {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+  }
+
+  .staff-search-filter-row > button,
+  .professional-search-container > button,
+  .prof-clients-filter-select {
+    width: 100% !important;
+    height: 38px !important;
+    margin-top: 4px !important;
+  }
+  
+  .admin-search-wrapper > div:first-child,
+  .staff-search-box > svg:first-child,
+  .prof-clients-search-box > svg:first-child,
+  .prof-clients-search-box > div,
+  .notices-search-container > svg:first-child,
+  .notices-search-container > div {
+    display: none !important;
+  }
+  
+  .admin-search-wrapper input,
+  .professional-search-box input,
+  .professional-search-box > div,
+  .staff-search-box input,
+  .staff-search-box > div,
+  .prof-clients-search-box input,
+  .notices-search-container input {
+    width: 100% !important;
+    max-width: 100% !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+    padding: 8px 10px !important;
+    margin-bottom: 0 !important;
+    box-sizing: border-box !important;
+  }
+
   /* Smaller padding inside the layout content on mobile L & M */
   .dashboard-layout-container div[style*="padding: 20px 22px"],
   .dashboard-layout-container div[style*="padding: '20px 22px'"] {
@@ -296,10 +397,24 @@ img, svg, canvas, video, iframe {
   /* Stack main headers on mobile L & M to prevent truncation/overlaps */
   .dashboard-layout-container div[style*="padding: 14px 18px"],
   .dashboard-layout-container div[style*="padding: '14px 18px'"] {
-    padding: 12px 10px !important;
+    padding: 10px 10px !important;
     flex-direction: column !important;
     align-items: stretch !important;
-    gap: 12px !important;
+    gap: 6px !important;
+  }
+
+  .staff-search-filter-row {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  
+  .staff-search-filter-row > button {
+    width: 100% !important;
+    height: 38px !important;
+    border-radius: 8px !important;
   }
 
   /* Prevent huge fonts on mobile header info sections */

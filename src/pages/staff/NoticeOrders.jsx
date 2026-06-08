@@ -667,7 +667,7 @@ export default function NoticeOrders() {
         ) : (
           filteredNotices.map((n, idx) => (
             <div key={n.id || n.notice_id || idx} style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 12 }}>
-              <div style={{ background: '#f8fafc', borderBottom: '0.5px solid #e2e8f0', padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ background: '#f8fafc', borderBottom: '0.5px solid #e2e8f0', padding: '9px 16px', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <FileText size={15} color="#2563eb" />
                 <p style={{ fontSize: 14, fontWeight: 500, color: '#1e293b', flex: 1 }}>
                   Reference ID: <span style={{ fontFamily: 'monospace', color: '#1d4ed8' }}>{n.reference_id || "—"}</span>
@@ -692,7 +692,7 @@ export default function NoticeOrders() {
                 )}
                 {role !== 'admin' && statusBadge(getStatus(n))}
               </div>
-              <div className="notice-card-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 110px' }}>
+              <div className="notice-card-grid" style={{ display: 'grid' }}>
                 <div style={{ padding: '14px 16px', borderRight: '0.5px solid #e2e8f0' }}>
                   <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: 3 }}>Section</p>
                   <p style={{ fontSize: 24, fontWeight: 500, color: '#1e293b', lineHeight: 1.1 }}>{n.section || n.notice_us || n.notice_type || extractSection(n.description) || "—"}</p>
@@ -926,7 +926,7 @@ export default function NoticeOrders() {
               padding: '18px 24px',
               borderBottom: '1px solid #e2e8f0',
               display: 'flex',
-              alignItems: 'center',
+              alignItems: 'flex-start',
               justifyContent: 'space-between',
               background: '#f8fafc'
             }}>
@@ -963,7 +963,7 @@ export default function NoticeOrders() {
                     <div>
                       <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Submitted On</p>
                       <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', margin: 0 }}>
-                        {modalData.response_submitted_on || '—'}
+                        {(modalData.response_submitted_on || '').split('T')[0] || '—'}
                       </p>
                     </div>
                     <div>
@@ -1001,7 +1001,7 @@ export default function NoticeOrders() {
                     <div>
                       <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Request Date</p>
                       <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', margin: 0 }}>
-                        {modalData.adjournment_request_date || '—'}
+                        {(modalData.adjournment_request_date || '').split('T')[0] || '—'}
                       </p>
                     </div>
                     <div>
@@ -1031,7 +1031,7 @@ export default function NoticeOrders() {
                     <div>
                       <p style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', fontWeight: 600, margin: 0, marginBottom: 4 }}>Adjourned Date</p>
                       <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', margin: 0 }}>
-                        {modalData.adjourned_date_for_submission_of_response || '—'}
+                        {(modalData.adjourned_date_for_submission_of_response || '').split('T')[0] || '—'}
                       </p>
                     </div>
                   </div>

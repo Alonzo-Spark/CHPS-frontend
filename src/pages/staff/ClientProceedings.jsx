@@ -60,7 +60,7 @@ export default function ClientProceedings() {
   return (
     <DashboardLayout breadcrumbs={[{ label: 'Dashboard', path: '/staff/dashboard' }, { label: 'Clients', path: '/staff/clients' }, { label: 'Client Proceedings' }]}>
       <div style={{ padding: '20px 22px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, cursor: 'pointer' }} onClick={() => navigate(-1)}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20, cursor: 'pointer', alignSelf: 'flex-start', width: 'auto' }} onClick={() => navigate(-1)}>
           <ArrowLeft size={14} color="#64748b" />
           <span style={{ fontSize: 12, color: '#64748b' }}>Back to users</span>
         </div>

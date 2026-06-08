@@ -310,8 +310,7 @@ export default function StaffNotices() {
           {/* Back button */}
           <button
             onClick={() => navigate(-1)}
-            className="hide-on-mobile"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 13, marginBottom: 10, padding: 0 }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 13, marginBottom: 10, padding: 0, alignSelf: 'flex-start', width: 'auto' }}
           >
             <ArrowLeft size={14} />
             <span>Back</span>
@@ -327,8 +326,8 @@ export default function StaffNotices() {
                   setSelectedProceeding(null)
                   setProceedingNotices([])
                 }}
-                className="hide-on-mobile"
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: 13, padding: 0 }}
+                className="mobile-hidden desktop-inline-flex"
+                style={{ alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: 13, padding: 0 }}
               >
                 <ArrowLeft size={14} /> Back to Proceedings
               </button>
@@ -509,7 +508,7 @@ export default function StaffNotices() {
               return (
                 <div key={p.id} style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
                   {/* Info Header */}
-                  <div style={{ background: '#f1f5f9', borderBottom: '0.5px solid #e2e8f0', padding: '12px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ background: '#f1f5f9', borderBottom: '0.5px solid #e2e8f0', padding: '12px 20px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 14, color: '#64748b' }}>Proceeding Name :</span>
                       <span style={{ fontSize: 15, fontWeight: 600, color: '#1e293b' }}>
@@ -523,7 +522,7 @@ export default function StaffNotices() {
                   </div>
 
                   {/* Info Grid */}
-                  <div className="info-grid-row" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 2fr 1.5fr' }}>
+                  <div className="info-grid-row" style={{ display: 'grid' }}>
                     {/* Col 1: PAN & Assessee */}
                     <div style={{ padding: '16px 20px', borderRight: '0.5px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: 12 }}>
                       <div>
@@ -616,7 +615,7 @@ export default function StaffNotices() {
 
             return (
               <div key={p.id} style={{ background: '#fff', border: '0.5px solid #e2e8f0', borderRadius: 10, overflow: 'hidden', marginBottom: 14 }}>
-                <div style={{ background: '#f8fafc', borderBottom: '0.5px solid #e2e8f0', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ background: '#f8fafc', borderBottom: '0.5px solid #e2e8f0', padding: '10px 16px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     {iconFor(p.proceeding_name)}
                     <span style={{ fontSize: 13, color: '#64748b' }}>Proceeding Name :</span>
@@ -631,9 +630,9 @@ export default function StaffNotices() {
                   </div>
                 </div>
 
-                <div className="action-grid-row" style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 1fr' }}>
+                <div className="action-grid-row" style={{ display: 'grid' }}>
                   {/* Col 1 - PAN, Assessee & Timeline */}
-                  <div style={{ padding: '16px 20px', borderRight: '0.5px solid #e2e8f0', display: 'flex', gap: 20 }}>
+                  <div style={{ padding: '16px 20px', borderRight: '0.5px solid #e2e8f0', display: 'flex', flexWrap: 'wrap', gap: 20 }}>
                     {/* PAN & Assessee beside timeline */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minWidth: 120 }}>
                       <div>

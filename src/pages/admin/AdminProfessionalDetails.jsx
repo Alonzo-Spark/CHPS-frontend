@@ -53,7 +53,7 @@ export default function AdminProfessionalDetails() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
           <button
             onClick={() => navigate(-1)}
-            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: '50%', background: '#fff', border: '1px solid #e2e8f0', cursor: 'pointer' }}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 36, height: 36, borderRadius: '50%', background: '#fff', border: '1px solid #e2e8f0', cursor: 'pointer', alignSelf: 'flex-start', flexShrink: 0 }}
           >
             <ArrowLeft size={18} color="#64748b" />
           </button>
