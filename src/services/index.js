@@ -89,6 +89,7 @@ export const dashboardService = {
 
   markNoticeRead: (id) => apiService.post(`/api/notices/${id}/mark-read`).then(res => ({ data: res })),
   markAllNoticesRead: () => apiService.post('/api/notices/mark-all-read').then(res => ({ data: res })),
+  getClientActivityTimeline: () => apiService.get('/api/dashboard/client-activity-timeline').then(res => ({ data: res?.items || [] })).catch(() => ({ data: [] })),
 }
 
 export const noticeService = {

@@ -172,23 +172,7 @@ export default function LoginPage() {
 
 
 
-        {/* Info card */}
-        <div className="auth-info-card" style={{
-          background: '#fff',
-          border: '1px solid #e2e8f0',
-          borderRadius: 12,
-          padding: '20px 24px',
-          width: '100%',
-          maxWidth: 380,
-          textAlign: 'center'
-        }}>
-          <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 8 }}>
-            ℹ Know about your User ID
-          </p>
-          <p style={{ fontSize: 12, color: '#64748b', lineHeight: 1.6 }}>
-            Your User ID is the unique identifier associated with your account for secure access to the Audit Notification Manager.
-          </p>
-        </div>
+
       </div>
     </div>
   )

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, UserPlus } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { userService, professionalService, noticeControlService, noticeService, clientService } from '../../services'
+import { userService, professionalService, noticeControlService, noticeService, clientService, dashboardService } from '../../services'
 
 const statusBadge = (status = '') => {
   const s = (status || '').toLowerCase().replace(/[_-]/g, ' ').trim()
@@ -213,66 +213,23 @@ export default function Clients() {
 
     const fetchAllClientTimelines = async () => {
       try {
-        const noticesRes = await noticeService.getNotices()
-        const allN = noticesRes?.data || []
+        const timelineRes = await dashboardService.getClientActivityTimeline()
+        const apiTimelines = timelineRes?.data || []
         const timelineData = {}
-
-        await Promise.all(clients.map(async (c) => {
-          const cName = (c.name || '').toLowerCase()
-          const cId = c.id
-          if (!cId) return
-
-          const cNotices = allN.filter(n => (n.user || '').toLowerCase() === cName)
-
-          let events = []
-
-          // 1. Notice Opened
-          cNotices.forEach(n => {
-            if (n.issued_on) {
-              events.push({
-                name: 'Notice Opened',
-                date: n.issued_on
-              })
-            }
-          })
-
-          // 2. Partial Response
-          await Promise.all(cNotices.map(async (n) => {
-            try {
-              const respRes = await noticeService.getResponse(n.notice_id)
-              const resp = respRes?.data?.response_details || respRes?.response_details || respRes?.data || respRes
-              if (resp && resp.response_submitted_on) {
-                events.push({
-                  name: 'Partial Response',
-                  date: resp.response_submitted_on
-                })
-              }
-            } catch (e) {
-              console.warn('Failed to fetch response for notice:', n.notice_id)
-            }
-          }))
-
-          // 3. Notice Closed
-          try {
-            const procRes = await clientService.getClientProceedings(cId)
-            const procs = procRes?.data?.proceedings || procRes?.proceedings || []
-            procs.forEach(p => {
-              if (p.closure_date) {
-                events.push({
-                  name: 'Notice Closed',
-                  date: p.closure_date
-                })
-              }
+        
+        clients.forEach(c => {
+          const matchedItem = apiTimelines.find(item => item.pan === c.pan || item.assessee === c.name)
+          if (matchedItem && matchedItem.activity_timeline) {
+            const sortedTimeline = [...matchedItem.activity_timeline].sort((a, b) => {
+              if (!a.date) return 1; if (!b.date) return -1;
+              return new Date(b.date) - new Date(a.date)
             })
-          } catch (e) {
-            console.warn('Failed to fetch proceedings for client:', cId)
+            timelineData[c.id] = sortedTimeline.map(t => ({ activity: t.activity || t.status || t.name, value: t.value || t.description || t.comment, date: t.date }))
+          } else {
+            timelineData[c.id] = []
           }
-
-          // Sort chronologically
-          events.sort((a, b) => new Date(a.date) - new Date(b.date))
-          timelineData[cId] = events
-        }))
-
+        })
+        
         setClientTimelines(timelineData)
       } catch (err) {
         console.warn('Failed to load timelines:', err)
@@ -536,8 +493,8 @@ export default function Clients() {
             </div>
           )}
 
-          <div className="clients-table-wrapper">
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, tableLayout: 'fixed' }}>
+          <div className="staff-table-wrapper" style={{ overflowX: 'auto', paddingBottom: 16 }}>
+            <table style={{ width: '100%', minWidth: 900, borderCollapse: 'separate', borderSpacing: 0, fontSize: 13, tableLayout: 'fixed' }}>
             <colgroup>
               <col style={{ width: '10%' }} />
               <col style={{ width: '13%' }} /><col style={{ width: '15%' }} /><col style={{ width: '10%' }} />
@@ -545,8 +502,22 @@ export default function Clients() {
             </colgroup>
             <thead>
               <tr>
-                {['File No', 'User', 'Email', 'PAN', 'Assigned Professional', 'Activity Timeline', 'Notice Control'].map(h => (
-                  <th key={h} style={{ background: '#f8fafc', color: '#64748b', fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em', padding: '10px 10px', borderBottom: '0.5px solid #e2e8f0', textAlign: 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                {['File No', 'User', 'Email', 'PAN', 'Assigned Professional', 'Activity Timeline', 'Notice Control'].map((h, index) => (
+                  <th key={h} style={{ 
+                    background: '#f8fafc', 
+                    color: '#64748b', 
+                    fontSize: 12, 
+                    fontWeight: 600, 
+                    textTransform: 'uppercase', 
+                    letterSpacing: '.04em', 
+                    padding: '10px 10px', 
+                    borderBottom: '0.5px solid #e2e8f0', 
+                    textAlign: 'left', 
+                    whiteSpace: 'nowrap',
+                    position: index === 0 ? 'sticky' : 'static',
+                    left: index === 0 ? 0 : 'auto',
+                    zIndex: index === 0 ? 10 : 1
+                  }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -578,7 +549,16 @@ export default function Clients() {
 
                   return (
                     <tr key={c.id || i} style={{ borderBottom: '0.5px solid #f1f5f9' }}>
-                      <td style={{ padding: '12px 10px', fontSize: 13, color: '#475569', fontWeight: 600 }}>
+                      <td style={{ 
+                        padding: '12px 10px', 
+                        fontSize: 13, 
+                        color: '#475569', 
+                        fontWeight: 600,
+                        position: 'sticky',
+                        left: 0,
+                        background: '#fff',
+                        zIndex: 5
+                      }}>
                         {c.file_name || c.file_no || c.fileNumber || c.fileId || c.client?.file_name || c.client?.file_no || 'N/A'}
                       </td>
                       <td style={{ padding: '12px 10px' }}>
@@ -605,9 +585,10 @@ export default function Clients() {
                             <span style={{ color: '#94a3b8', fontSize: 11, fontStyle: 'italic' }}>No activity</span>
                           ) : (
                             (clientTimelines[c.id] || []).map((evt, idx) => (
-                              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                <span style={{ fontWeight: 600, fontSize: 11, color: '#1e293b' }}>{evt.name}</span>
-                                <span style={{ fontSize: 10, color: '#64748b' }}>{formatTimelineDate(evt.date)}</span>
+                              <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 8 }}>
+                                <span style={{ fontWeight: 600, fontSize: 11, color: '#1e293b', lineHeight: 1.2 }}>{evt.activity || 'Activity'}</span>
+                                {evt.value && <span style={{ fontSize: 11, color: '#475569', lineHeight: 1.3 }}>{evt.value}</span>}
+                                <span style={{ fontSize: 10, color: '#94a3b8' }}>{formatTimelineDate(evt.date)}</span>
                               </div>
                             ))
                           )}

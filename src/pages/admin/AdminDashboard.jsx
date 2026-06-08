@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search } from 'lucide-react'
 import DashboardLayout from '../../layouts/DashboardLayout'
-import { userService, assignmentService, professionalService, noticeService, clientService, adminService } from '../../services'
+import { userService, assignmentService, professionalService, noticeService, clientService, adminService, dashboardService } from '../../services'
 
 const statusBadge = (status = '') => {
   const s = (status || '').toLowerCase().replace(/[_-]/g, ' ').trim()
@@ -139,11 +139,10 @@ export default function AdminDashboard() {
         const noticesRes = await noticeService.getNotices()
         const allN = noticesRes?.data || []
         
-        // 1. Initial pass: compute unread status and "Notice Opened" events immediately
-        const initialTimelines = {}
         const unreadData = {}
         const ayMap = {}
 
+        // 1. Initial pass: compute unread status and assessment year Map
         clients.forEach(c => {
           const cName = (c.name || '').toLowerCase()
           const cId = c.client_id
@@ -158,18 +157,11 @@ export default function AdminDashboard() {
           })
           unreadData[cId] = hasUnread
 
-          let events = []
           cNotices.forEach(n => {
-            if (n.issued_on) {
-              events.push({ name: 'Notice Opened', date: n.issued_on })
-            }
             if (n.assessment_year && !ayMap[cId]) {
               ayMap[cId] = n.assessment_year
             }
           })
-          
-          events.sort((a, b) => new Date(a.date) - new Date(b.date))
-          initialTimelines[cId] = events
         })
 
         // Update clients to have assessment_year dynamically extracted if missing
@@ -179,52 +171,26 @@ export default function AdminDashboard() {
         })))
 
         setClientUnreadMap(unreadData)
-        setClientTimelines(prev => ({...prev, ...initialTimelines}))
 
-        const finalAyMap = { ...ayMap }
-
-        // 2. Async pass: fetch Responses and Proceedings progressively without blocking
-        clients.forEach(async (c) => {
-          const cName = (c.name || '').toLowerCase()
-          const cId = c.client_id
-          if (!cId) return
-          const cNotices = allN.filter(n => (n.user || '').toLowerCase() === cName)
-
-          let extraEvents = []
-
-          // Partial Response
-          await Promise.all(cNotices.map(async (n) => {
-            try {
-              const respRes = await noticeService.getResponse(n.notice_id)
-              const resp = respRes?.data?.response_details || respRes?.response_details || respRes?.data || respRes
-              if (resp && resp.response_submitted_on) {
-                extraEvents.push({ name: 'Partial Response', date: resp.response_submitted_on })
-              }
-            } catch (e) {}
-          }))
-
-          // Notice Closed
-          try {
-            const procRes = await clientService.getClientProceedings(cId)
-            const procs = procRes?.data?.proceedings || procRes?.proceedings || []
-            procs.forEach(p => {
-              if (p.closure_date) extraEvents.push({ name: p.status || p.proceeding_status || '', date: p.closure_date })
-              if (p.assessment_year && !ayMap[cId]) ayMap[cId] = p.assessment_year
+        // 2. Fetch Timeline from API
+        const timelineRes = await dashboardService.getClientActivityTimeline()
+        const apiTimelines = timelineRes?.data || []
+        
+        const finalTimelines = {}
+        clients.forEach(c => {
+          const matchedItem = apiTimelines.find(item => item.pan === c.pan || item.assessee === c.name)
+          if (matchedItem && matchedItem.activity_timeline) {
+            const sortedTimeline = [...matchedItem.activity_timeline].sort((a, b) => {
+              if (!a.date) return 1; if (!b.date) return -1;
+              return new Date(b.date) - new Date(a.date)
             })
-          } catch (e) {}
-
-          if (extraEvents.length > 0) {
-            setClientTimelines(prev => {
-              const merged = [...(prev[cId] || []), ...extraEvents]
-              merged.sort((a, b) => new Date(a.date) - new Date(b.date))
-              return { ...prev, [cId]: merged }
-            })
-          }
-          
-          if (finalAyMap[cId]) {
-            // We'll map AY on the fly in the render to avoid race conditions here
+            finalTimelines[c.client_id] = sortedTimeline.map(t => ({ activity: t.activity || t.status || t.name, value: t.value || t.description || t.comment, date: t.date }))
+          } else {
+            finalTimelines[c.client_id] = []
           }
         })
+        
+        setClientTimelines(finalTimelines)
 
       } catch (err) {
         console.warn('Failed to load timelines:', err)
@@ -345,9 +311,10 @@ export default function AdminDashboard() {
                         <span style={{ fontStyle: 'italic', color: '#94a3b8' }}>No activity</span>
                       ) : (
                         (clientTimelines[c.client_id] || []).map((evt, idx) => (
-                          <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                            <span style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>{evt.name}</span>
-                            <span style={{ fontSize: 12, color: '#64748b' }}>{formatTimelineDate(evt.date)}</span>
+                          <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 8 }}>
+                            <span style={{ fontWeight: 600, fontSize: 13, color: '#1e293b', lineHeight: 1.2 }}>{evt.activity || 'Activity'}</span>
+                            {evt.value && <span style={{ fontSize: 12, color: '#475569', lineHeight: 1.3 }}>{evt.value}</span>}
+                            <span style={{ fontSize: 10, color: '#94a3b8' }}>{formatTimelineDate(evt.date)}</span>
                           </div>
                         ))
                       )}
@@ -357,11 +324,11 @@ export default function AdminDashboard() {
                   <div style={{ padding: '14px 20px', position: 'relative' }}>
                     <button
                       style={{ background: '#1e3a8a', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-                      onClick={() => setAssignDropdownOpen(assignDropdownOpen === (c.client_id || i) ? null : (c.client_id || i))}
+                      onClick={() => setAssignDropdownOpen(assignDropdownOpen === (c.id || i) ? null : (c.id || i))}
                     >
                       Transfer
                     </button>
-                    {assignDropdownOpen === (c.client_id || i) && (
+                    {assignDropdownOpen === (c.id || i) && (
                       <>
                         <div
                           style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 }}

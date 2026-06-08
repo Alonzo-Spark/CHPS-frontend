@@ -309,14 +309,8 @@ export default function StaffNotices() {
         <div style={{ marginBottom: 20 }}>
           {/* Back button */}
           <button
-            onClick={() => {
-              if (window.history.length > 2) {
-                navigate(-1)
-              } else {
-                const r = localStorage.getItem('role')
-                navigate(r === 'professional' ? '/professional-dashboard' : r === 'admin' ? '/admin/dashboard' : '/staff/dashboard')
-              }
-            }}
+            onClick={() => navigate(-1)}
+            className="hide-on-mobile"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 13, marginBottom: 10, padding: 0 }}
           >
             <ArrowLeft size={14} />
@@ -333,6 +327,7 @@ export default function StaffNotices() {
                   setSelectedProceeding(null)
                   setProceedingNotices([])
                 }}
+                className="hide-on-mobile"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', color: '#2563eb', fontSize: 13, padding: 0 }}
               >
                 <ArrowLeft size={14} /> Back to Proceedings
@@ -388,8 +383,8 @@ export default function StaffNotices() {
         ) : (
           <>
         {/* Search + Filter */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 14, gap: 12 }}>
-          <div className="notices-search-container" style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #cbd5e1', borderRadius: 6, padding: '8px 12px', background: '#fff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 14, gap: 12, flexWrap: 'wrap', width: '100%' }}>
+          <div className="notices-search-container" style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid #cbd5e1', borderRadius: 6, padding: '8px 12px', background: '#fff', flex: '1 1 auto', minWidth: 280 }}>
             <Search size={14} color="#94a3b8" />
             <input placeholder="PAN..." value={searchFields.pan} onChange={e => setSearchFields({...searchFields, pan: e.target.value})} className="notices-search-input" style={{ border: 'none', outline: 'none', fontSize: 13, color: '#1e293b', background: 'transparent', width: '100%', maxWidth: 120 }} />
             <div style={{ width: 1, height: 16, background: '#e2e8f0' }} />
@@ -441,7 +436,7 @@ export default function StaffNotices() {
               {/* Proc Limitation Date */}
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Limitation Date (From - To)</label>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="date-filter-row" style={{ display: 'flex', gap: 8 }}>
                   <input type="date" value={filters.limitationFrom} onChange={(e) => setFilters({...filters, limitationFrom: e.target.value})} style={{ width: '50%', padding: '7px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
                   <input type="date" value={filters.limitationTo} onChange={(e) => setFilters({...filters, limitationTo: e.target.value})} style={{ width: '50%', padding: '7px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
                 </div>
@@ -450,7 +445,7 @@ export default function StaffNotices() {
               {/* Notice Issued Date */}
               <div>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#475569', marginBottom: 6 }}>Notice Issued Date (From - To)</label>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div className="date-filter-row" style={{ display: 'flex', gap: 8 }}>
                   <input type="date" value={filters.issuedFrom} onChange={(e) => setFilters({...filters, issuedFrom: e.target.value})} style={{ width: '50%', padding: '7px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
                   <input type="date" value={filters.issuedTo} onChange={(e) => setFilters({...filters, issuedTo: e.target.value})} style={{ width: '50%', padding: '7px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 12 }} />
                 </div>
